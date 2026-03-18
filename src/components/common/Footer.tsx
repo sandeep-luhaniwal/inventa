@@ -4,6 +4,7 @@ import React from 'react'
 import Paragraph from './Paragraph'
 import Icons from './Icons'
 
+
 const FOOTER_LINKS = [
     { label: "Product", href: "/" },
     { label: "Resources", href: "/" },
