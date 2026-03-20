@@ -5,75 +5,8 @@ import Paragraph from '../common/Paragraph'
 import Image from 'next/image'
 import Icons from '../common/Icons'
 import MainButton from '../common/MainButton'
+import { CATEGORIES_DATA_LIST, TEMPLATES_DATA_LIST } from '../common/Helper'
 
-const templatesData = [
-    {
-        id: 1,
-        title: "LED Circuit Basics",
-        category: "Electronics",
-        time: "5 min",
-        image: "/images/home/webp/template-img-1.webp"
-    },
-    {
-        id: 2,
-        title: "My First 3D House",
-        category: "3D",
-        time: "15 min",
-        image: "/images/home/webp/template-img-2.webp"
-    },
-    {
-        id: 3,
-        title: "Simple Robot Arm",
-        category: "Projects",
-        time: "30 min",
-        image: "/images/home/webp/template-img-3.webp"
-    },
-    {
-        id: 4,
-        title: "Solar System Model",
-        category: "Classroom",
-        time: "15 min",
-        image: "/images/home/webp/template-img-4.webp"
-    },
-    {
-        id: 5,
-        title: "Traffic Light Sim",
-        category: "Electronics",
-        time: "5 min",
-        image: "/images/home/webp/template-img-5.webp"
-    },
-    {
-        id: 6,
-        title: "Geometric Art",
-        category: "Beginner",
-        time: "10 min",
-        image: "/images/home/webp/template-img-6.webp"
-    },
-    {
-        id: 7,
-        title: "Bridge Engineering",
-        category: "Projects",
-        time: "5 min",
-        image: "/images/home/webp/template-img-7.webp"
-    },
-    {
-        id: 8,
-        title: "Dice Roller Game",
-        category: "Beginner",
-        time: "8 min",
-        image: "/images/home/webp/template-img-8.webp"
-    }
-]
-
-const categories = [
-    "All",
-    "Beginner",
-    "Classroom",
-    "Electronics",
-    "3D",
-    "Projects",
-    "Trending"
-]
 
 const TemplatesCanva = () => {
 
@@ -81,8 +14,8 @@ const TemplatesCanva = () => {
 
     const filteredData =
         active === "All"
-            ? templatesData
-            : templatesData.filter(item => item.category === active)
+            ? TEMPLATES_DATA_LIST
+            : TEMPLATES_DATA_LIST.filter(item => item.category === active)
 
     return (
         <div className='bg-green'>
@@ -98,11 +31,11 @@ const TemplatesCanva = () => {
 
                 {/* Filters */}
                 <div className="flex flex-wrap justify-center gap-2.5 mt-4">
-                    {categories.map((cat, i) => (
+                    {CATEGORIES_DATA_LIST.map((cat, i) => (
                         <button
                             key={i}
                             onClick={() => setActive(cat)}
-                            className={`px-5.5 py-3 text-base md:text-lg font-medium cursor-pointer rounded-full ${active === cat ? "bg-yellow" : "bg-white"
+                            className={`px-3 py-1.5 md:px-5.5 md:py-3 text-base md:text-lg font-medium cursor-pointer rounded-full ${active === cat ? "bg-yellow" : "bg-white"
                                 }`}
                         >
                             {cat}

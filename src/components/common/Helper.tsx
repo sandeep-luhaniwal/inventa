@@ -179,3 +179,307 @@ export const TESTIMONIALS_DATA_LIST = [
       "I went from zero experience to building my first circuit in 10 minutes. The tutorials are incredible."
   }
 ]
+
+export const DASHBOARD_SIDERBAR_MENU = [
+  {
+    title: "Home",
+    icon: "home",
+    path: "/dashboard"
+  },
+  {
+    title: "Classes",
+    icon: "studentcap",
+    path: "/dashboard/board",
+  },
+  {
+    title: "Projects",
+    icon: "project",
+    path: "/dashboard/projects"
+  },
+  {
+    title: "Templates",
+    icon: "template",
+    path: "/dashboard/templates"
+  },
+  {
+    title: "Community",
+    icon: "community",
+    path: "/dashboard/community"
+  },
+  {
+    title: "Settings",
+    icon: "setting",
+    path: "/dashboard/settings"
+  }
+];
+
+export const BOARDS_DASHBOARD_DATA = [
+  {
+    title: "CBSE",
+    desc: "Central Board of Secondary Education",
+    type: "National Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/cbse.png",
+  },
+  {
+    title: "Rajasthan",
+    desc: "Board of Secondary Education, Rajasthan (BSER/RBSE)",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/rajasthan.png",
+  },
+  {
+    title: "CISCE",
+    desc: "Council for the Indian School Certificate Examinations",
+    type: "National Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/new-delhi.png",
+  },
+  {
+    title: "UP Board",
+    desc: "Uttar Pradesh Madhyamik Shiksha Parishad",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/up.png",
+  },
+  {
+    title: "HBSE",
+    desc: "Board of School Education Haryana",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/hbse.png",
+  },
+  {
+    title: "Maharashtra",
+    desc: "Maharashtra State Board of Secondary & Higher Secondary Education",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/maharaster.png",
+  },
+  {
+    title: "NIOS",
+    desc: "National Institute of Open Schooling",
+    type: "National Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/nios.png",
+  },
+  {
+    title: "MP",
+    desc: "Madhya Pradesh Board of Secondary Education",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/mp.png",
+  },
+  {
+    title: "Bihar",
+    desc: "Bihar School Examination Board",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/bihar.png",
+  },
+  {
+    title: "West Bengal",
+    desc: "West Bengal Board of Secondary Education",
+    type: "State Board",
+    popular: true,
+    logo: "/images/dashboard/classes/png/west-bangale.png",
+  },
+]
+
+
+export const CURRENT_PROJECTS_WORKING_LIST = [
+  {
+    title: "Solar System Model",
+    status: "Draft",
+    time: "2h ago",
+    image: "/images/dashboard/home/png/project-1.png",
+    shared: false,
+    members: 0,
+  },
+  {
+    title: "LED Circuit Board",
+    status: "Draft",
+    time: "1d ago",
+    image: "/images/dashboard/home/png/project-2.png",
+    shared: true,
+    members: 2,
+  },
+  {
+    title: "Robot Arm Design",
+    status: "Completed",
+    time: "3d ago",
+    image: "/images/dashboard/home/png/project-3.png",
+    shared: false,
+    members: 0,
+  },
+  {
+    title: "Abstract Art Sculpture",
+    status: "Completed",
+    time: "1w ago",
+    image: "/images/dashboard/home/png/project-4.png",
+    shared: false,
+    members: 0,
+  },
+]
+
+export const PROJECT_OPTIONS_DATA_LIST = [
+  {
+    title: "New blank project",
+    desc: "Start from scratch with an empty canvas",
+    icon: "file", // tumhare Icons component ke hisaab se
+    color: "blue",
+  },
+  {
+    title: "Start from template",
+    desc: "Choose from hundreds of pre-made designs",
+    icon: "templategreen",
+    color: "green",
+  },
+  {
+    title: "Import file",
+    desc: "Upload STL, OBJ, or other 3D formats",
+    icon: "upload",
+    color: "orange",
+  },
+]
+
+export const TEMPLATES_DATA_LIST = [
+  {
+    id: 1,
+    title: "LED Circuit Basics",
+    category: "Electronics",
+    time: "5 min",
+    image: "/images/home/webp/template-img-1.webp"
+  },
+  {
+    id: 2,
+    title: "My First 3D House",
+    category: "3D",
+    time: "15 min",
+    image: "/images/home/webp/template-img-2.webp"
+  },
+  {
+    id: 3,
+    title: "Simple Robot Arm",
+    category: "Projects",
+    time: "30 min",
+    image: "/images/home/webp/template-img-3.webp"
+  },
+  {
+    id: 4,
+    title: "Solar System Model",
+    category: "Classroom",
+    time: "15 min",
+    image: "/images/home/webp/template-img-4.webp"
+  },
+  {
+    id: 5,
+    title: "Traffic Light Sim",
+    category: "Electronics",
+    time: "5 min",
+    image: "/images/home/webp/template-img-5.webp"
+  },
+  {
+    id: 6,
+    title: "Geometric Art",
+    category: "Beginner",
+    time: "10 min",
+    image: "/images/home/webp/template-img-6.webp"
+  },
+  {
+    id: 7,
+    title: "Bridge Engineering",
+    category: "Projects",
+    time: "5 min",
+    image: "/images/home/webp/template-img-7.webp"
+  },
+  {
+    id: 8,
+    title: "Dice Roller Game",
+    category: "Beginner",
+    time: "8 min",
+    image: "/images/home/webp/template-img-8.webp"
+  }
+]
+
+export const CATEGORIES_DATA_LIST = [
+  "All",
+  "Beginner",
+  "Classroom",
+  "Electronics",
+  "3D",
+  "Projects",
+  "Trending"
+]
+
+export const CLASSES_DATA_LIST = [
+  { name: "5th", recommended: false },
+  { name: "6th", recommended: false },
+  { name: "7th", recommended: false },
+  { name: "8th", recommended: true },
+  { name: "9th", recommended: false },
+  { name: "10th", recommended: true },
+  { name: "11th", recommended: false },
+  { name: "12th", recommended: false },
+]
+
+export const TOOLBAR_ITEMS = [
+  { icon: "copy" },
+  { icon: "copy" },
+  { icon: "delete" },
+
+  { type: "divider" },
+
+  { icon: "undo" },
+  { icon: "redo" },
+
+  { type: "divider" },
+
+  { icon: "comment" },
+  { icon: "preview" },
+
+  { type: "divider" },
+
+  { icon: "refresh" },
+  { icon: "fullscreen" },
+  { icon: "threeline" },
+
+  { type: "divider" },
+
+  { icon: "layout", active: true },
+]
+
+export const ELECTRONICS_COMPONENTS = [
+  {
+    title: "Resistor",
+    image: "/images/design/png/resistor.png",
+  },
+  {
+    title: "Capacitor",
+    image: "/images/design/png/capacitor.png",
+  },
+  {
+    title: "Diode",
+    image: "/images/design/png/diode.png",
+  },
+  {
+    title: "Inductor",
+    image: "/images/design/png/inductor.png",
+  },
+  {
+    title: "LED",
+    image: "/images/design/png/led.png",
+  },
+  {
+    title: "Diode",
+    image: "/images/design/png/diode.png",
+  },
+  {
+    title: "Diode",
+    image: "/images/design/png/diode.png",
+  },
+  {
+    title: "Capacitor",
+    image: "/images/design/png/capacitor.png",
+  },
+]
