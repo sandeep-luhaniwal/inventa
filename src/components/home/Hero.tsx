@@ -15,7 +15,7 @@ const Hero = () => {
         <Paragraph xl>
           He beginner-friendly browser tool for building projects, circuits, and 3D models. Perfect for students, educators, and curious creators.
         </Paragraph>
-       <div className="flex items-center gap-6">
+       <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-6">
          <MainButton icon='next' iconClass='group-hover:stroke-white'>
           Start Learning Free
         </MainButton>
