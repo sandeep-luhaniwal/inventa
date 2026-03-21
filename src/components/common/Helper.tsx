@@ -327,19 +327,19 @@ export const PROJECT_OPTIONS_DATA_LIST = [
     title: "New blank project",
     desc: "Start from scratch with an empty canvas",
     icon: "file", // tumhare Icons component ke hisaab se
-    color: "blue",
+    color: "#EFF6FF",
   },
   {
     title: "Start from template",
     desc: "Choose from hundreds of pre-made designs",
     icon: "templategreen",
-    color: "green",
+    color: "#F0FDF4",
   },
   {
     title: "Import file",
     desc: "Upload STL, OBJ, or other 3D formats",
     icon: "upload",
-    color: "orange",
+    color: "#FEF3F2",
   },
 ]
 

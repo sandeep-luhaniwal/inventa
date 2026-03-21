@@ -26,7 +26,7 @@ const BoardHero = () => {
             <Paragraph sm gray medium className='pt-2'>
                 Select your board to load classes, subjects, and lectures.
             </Paragraph>
-            <div className="py-3.5 my-5 max-w-2xl px-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg w-full flex items-center gap-2">
+            <div className="py-3.5 my-5 max-w-2xl px-3 bg-white border border-[#E5E7EB] rounded-lg w-full flex items-center gap-2">
                 <Icons icon='search' />
                 <input type="search" placeholder='Search board (CBSE, UP Board, HBSE…)'
                     className='placeholder:text-[#717182] text-sm outline-none w-full'
@@ -38,7 +38,7 @@ const BoardHero = () => {
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
                         className={`px-3 py-1.5 md:px-5.5 md:py-3 rounded-full cursor-pointer duration-300 border text-sm 
-                            ${activeFilter === filter ? "border-blue bg-blue text-white" : "border-[#E5E7EB] hover:border-blue text-dark-black"}`}
+                            ${activeFilter === filter ? "border-blue bg-blue text-white" : "border-[#E5E7EB] bg-white hover:border-blue text-dark-black"}`}
                     >
                         {filter}
                     </button>
@@ -61,14 +61,14 @@ const BoardHero = () => {
                             key={index}
                             onMouseEnter={() => setHoveredBoard(board.title)}
                             onMouseLeave={() => setHoveredBoard(null)}
-                            className={`relative border rounded-xl  duration-300 flex flex-col justify-between
+                            className={`relative border rounded-xl bg-white duration-300 flex flex-col justify-between
                             ${isHovered ? "border-blue shadow-md"
                                     : "border-[#E5E7EB] hover:shadow-sm"
                                 }`}
                         >
                             <div className="p-4 pb-0 md:pb-4 xl:p-5">
                                 {board.popular && (
-                                    <span className="absolute top-3 right-3 font-medium text-xs bg-[#EEF2FF] text-blue px-2 py-1 rounded-lg">
+                                    <span className={`absolute top-3 right-3 font-medium text-xs px-2 py-1 rounded-lg ${isHovered ? "bg-blue text-white" : "bg-[#EEF2FF] text-blue"}`}>
                                         Popular
                                     </span>
                                 )}

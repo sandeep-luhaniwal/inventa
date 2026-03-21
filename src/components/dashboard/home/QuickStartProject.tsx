@@ -8,14 +8,17 @@ const QuickStartProject = () => {
         <div className='py-5 lg:pb-7.5 w-full'>
             <div className="rounded-lg lg:rounded-2xl bg-linear-to-b from-[#D5E7FF] to-[#D4FFE1] p-4 md:p-6 lg:p-8">
                 <Paragraph lg bold mainblack className='flex items-center gap-2'>
-                    <Icons icon='starmulti' className='w-5 h-5 stroke-main-black' />
+                    <Icons icon='starmulti' className='w-5 h-5 stroke-blue' />
                     Quick Start
                 </Paragraph>
                 <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {PROJECT_OPTIONS_DATA_LIST.map((obj, i) => {
                         return (
                             <div className="bg-white rounded-xl border border-[#E5E7EB] hover:border-blue p-4 md:p-6 lg:p-7" key={i}>
-                                <div className="w-12 h-12 mx-auto bg-[#FEF3F2] rounded-lg flex justify-center items-center">
+                                <div
+                                    style={{ backgroundColor: obj.color }}
+                                    className="w-12 h-12 mx-auto rounded-lg flex justify-center items-center"
+                                >
                                     <Icons icon={obj.icon} />
                                 </div>
                                 <Paragraph mainblack base medium center className='py-2'>{obj.title}</Paragraph>

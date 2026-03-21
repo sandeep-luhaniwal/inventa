@@ -3,7 +3,7 @@ import React from 'react'
 
 function page() {
   return (
-    <div className='bg-[#F9FAFB] p-4 lg:p-6 xl:p-8'>
+    <div className='bg-[#F9FAFB] min-h-[calc(100vh-80px)] p-4 lg:p-6 xl:p-8'>
       <ClassesHero />
     </div>
   )

@@ -161,7 +161,7 @@ const Icons = ({ icon, className, hoverchangevalue, ...props }: ICONS_PROPS) => 
         ),
         "dashboard": (
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#clip0_221_75)">
+                <g clipPath="url(#clip0_221_75)">
                     <path d="M12.5 17.5V10.8333C12.5 10.6123 12.4122 10.4004 12.2559 10.2441C12.0996 10.0878 11.8877 10 11.6667 10H8.33333C8.11232 10 7.90036 10.0878 7.74408 10.2441C7.5878 10.4004 7.5 10.6123 7.5 10.8333V17.5" stroke="#4B5563" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M2.5 8.33333C2.49994 8.09089 2.55278 7.85135 2.65482 7.63143C2.75687 7.41151 2.90566 7.2165 3.09083 7.06L8.92417 2.06083C9.22499 1.80659 9.60613 1.6671 10 1.6671C10.3939 1.6671 10.775 1.80659 11.0758 2.06083L16.9092 7.06C17.0943 7.2165 17.2431 7.41151 17.3452 7.63143C17.4472 7.85135 17.5001 8.09089 17.5 8.33333V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V8.33333Z" stroke="#4B5563" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" />
                 </g>
@@ -406,7 +406,7 @@ const Icons = ({ icon, className, hoverchangevalue, ...props }: ICONS_PROPS) => 
         ),
         "stretue": (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#clip0_230_3589)">
+                <g clipPath="url(#clip0_230_3589)">
                     <path d="M8 1.33334V14.6667" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M10 12.6667L8 14.6667L6 12.6667" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M12.667 6L14.667 8L12.667 10" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
@@ -427,6 +427,21 @@ const Icons = ({ icon, className, hoverchangevalue, ...props }: ICONS_PROPS) => 
                 <path d="M14.0003 5.33333V3.33333C14.0003 2.97971 13.8598 2.64057 13.6098 2.39052C13.3598 2.14048 13.0206 2 12.667 2H10.667" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M2 10.6667V12.6667C2 13.0203 2.14048 13.3594 2.39052 13.6095C2.64057 13.8595 2.97971 14 3.33333 14H5.33333" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M10.667 14H12.667C13.0206 14 13.3598 13.8595 13.6098 13.6095C13.8598 13.3594 14.0003 13.0203 14.0003 12.6667V10.6667" stroke="#64748B" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        ),
+        "people": (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clipPath="url(#clip0_303_998)">
+                    <path d="M8.84489 11.6091V10.5035C8.84489 9.91704 8.61192 9.35459 8.19723 8.9399C7.78253 8.52521 7.22009 8.29224 6.63363 8.29224H3.31673C2.73027 8.29224 2.16783 8.52521 1.75313 8.9399C1.33844 9.35459 1.10547 9.91704 1.10547 10.5035V11.6091" stroke="#101010" strokeWidth="1.10563" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4.97494 6.08097C6.19618 6.08097 7.1862 5.09096 7.1862 3.86971C7.1862 2.64846 6.19618 1.65845 4.97494 1.65845C3.75369 1.65845 2.76367 2.64846 2.76367 3.86971C2.76367 5.09096 3.75369 6.08097 4.97494 6.08097Z" stroke="#101010" strokeWidth="1.10563" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M12.1624 11.6091V10.5035C12.162 10.0136 11.9989 9.53761 11.6987 9.15038C11.3986 8.76316 10.9783 8.48659 10.5039 8.36411" stroke="#101010" strokeWidth="1.10563" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M8.8457 1.73032C9.32135 1.8521 9.74294 2.12873 10.044 2.51659C10.3451 2.90445 10.5085 3.38148 10.5085 3.87248C10.5085 4.36347 10.3451 4.8405 10.044 5.22836C9.74294 5.61622 9.32135 5.89285 8.8457 6.01464" stroke="#101010" strokeWidth="1.10563" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+                <defs>
+                    <clipPath id="clip0_303_998">
+                        <rect width="13.2676" height="13.2676" fill="white" />
+                    </clipPath>
+                </defs>
             </svg>
         ),
 

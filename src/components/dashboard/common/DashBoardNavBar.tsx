@@ -29,10 +29,10 @@ const DashBoardNavBar = () => {
                 />
             </div>
             <div className="w-full max-w-95 flex gap-4 items-center justify-end">
-                <Paragraph xs gray className='hidden lg:flex'>
+                <Paragraph xs gray medium className='hidden lg:flex'>
                     All changes saved
                 </Paragraph>
-                <button className='bg-blue py-2 px-3 flex items-center flex-nowrap cursor-pointer rounded-lg gap-1 text-white font-medium'>
+                <button className='bg-blue py-1.5 px-3 xl:px-4 flex items-center flex-nowrap cursor-pointer rounded-lg gap-1 text-white font-medium'>
                     <Icons icon='plus' className='text-white' />
                     Create
                 </button>

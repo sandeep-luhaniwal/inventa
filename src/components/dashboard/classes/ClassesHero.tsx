@@ -22,7 +22,7 @@ const ClassesHero = () => {
                 Select your Class
             </Heading>
             <div className="py-4 md:py-5 flex gap-3 items-center">
-                <div className="flex gap-2 items-center border border-[#E5E7EB] p-2 rounded-lg">
+                <div className="flex gap-2 items-center border bg-white border-[#E5E7EB] p-2 rounded-lg">
                     <Image
                     width={100}
                     height={100}
@@ -42,7 +42,7 @@ const ClassesHero = () => {
              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {CLASSES_DATA_LIST.map((obj,i)=>{
                         return(
-                            <div className="bg-white p-4 relative lg:p-6 cursor-pointer hover:border-blue duration-300 xl:pb-8 border border-[#E5E7EB] rounded-xl">
+                            <div key={i} className="bg-white p-4 relative lg:p-6 cursor-pointer hover:border-blue duration-300 xl:pb-8 border border-[#E5E7EB] rounded-xl">
                                 <Heading small bold mainblack>
                                     {obj.name}
                                 </Heading>
