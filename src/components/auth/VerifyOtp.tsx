@@ -84,7 +84,7 @@ const VerifyOtp = () => {
                     Verify OTP
                 </Paragraph>
 
-                <Paragraph center sm gray className="pt-1">
+                <Paragraph center base gray className="pt-1">
                     OTP sent to +91 ******1234
                 </Paragraph>
 

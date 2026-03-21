@@ -15,11 +15,11 @@ const FirstProject = () => {
                 className='w-full h-full absolute origin-top object-top top-0 object-cover left-0'
             />
             <div className='max-w-330.5 md:px-4 mx-auto w-full pb-14 md:py-16 lg:py-20 xl:py-22 relative z-10'>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-11 items-center">
-                    <div className="flex items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-0 items-center">
+                    <div className="flex items-center rounded-lg overflow-clip">
                         <video src="/videos/first-project.mp4" autoPlay muted loop playsInline className="w-full lg:h-116 object-cover" />
                     </div>
-                    <div className="flex flex-col justify-center px-4 sm:px-0">
+                    <div className="flex flex-col justify-center px-4 sm:px-0 lg:ps-11">
                         <div className="flex gap-2">
                             <Image
                                 src="/images/home/png/circle.png"

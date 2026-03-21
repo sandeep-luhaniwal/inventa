@@ -35,7 +35,7 @@ const TemplatesCanva = () => {
                         <button
                             key={i}
                             onClick={() => setActive(cat)}
-                            className={`px-3 py-1.5 md:px-5.5 md:py-3 text-base md:text-lg font-medium cursor-pointer rounded-full ${active === cat ? "bg-yellow" : "bg-white"
+                            className={`px-3 py-1.5 md:px-5.5 lg:px-7.25 md:py-2.5 text-base md:text-lg font-medium cursor-pointer rounded-full ${active === cat ? "bg-yellow" : "bg-white"
                                 }`}
                         >
                             {cat}
@@ -55,7 +55,7 @@ const TemplatesCanva = () => {
                                 className='rounded-lg'
                             />
                             <div className="px-3 py-4 flex flex-col gap-1">
-                                <Paragraph base green medium>
+                                <Paragraph base green semibold>
                                     {item.category}
                                 </Paragraph>
                                 <Paragraph base bold mainblack>

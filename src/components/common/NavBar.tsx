@@ -19,7 +19,7 @@ const NavBar = () => {
     }, [isMenuOpen]);
     return (
         <div>
-            <div className="bg-white relative z-20 rounded-full w-full px-3 py-2 sm:px-4 sm:py-3 flex justify-between items-center gap-4">
+            <div className="bg-white relative z-50 rounded-full w-full px-3 py-2 sm:px-4 sm:py-3 flex justify-between items-center gap-4">
                 <Link href={"/"}>
                     <Image
                         src={'/images/home/png/main-logo.png'}
@@ -42,7 +42,7 @@ const NavBar = () => {
                     <Link href={"/auth/sign-in"} className='text-sky-blue text-sm sm:text-base font-bold duration-300 hover:text-main-black rounded-full px-0 sm:px-3 py-2.5 lg:px-6 lg:py-3 sm:hover:bg-vivid'>
                         Sign In
                     </Link>
-                    <Link href={"/auth"} className='text-white bg-blue text-sm sm:text-base hover:bg-vivid rounded-full px-3 py-2.5 lg:px-6 lg:py-3 font-bold duration-300 hover:text-main-black'>
+                    <Link href={"/auth"} className='text-white bg-blue text-sm sm:text-base hover:bg-vivid rounded-full px-3 py-2.5 lg:px-6.25 lg:py-2.5 font-bold duration-300 hover:text-main-black'>
                         Get Started
                     </Link>
                     <div onClick={() => setIsMenuOpen(true)} className="md:hidden cursor-pointer">

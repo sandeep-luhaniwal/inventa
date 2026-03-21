@@ -14,7 +14,7 @@ const StartBuild = () => {
                 alt="bg-img"
                 className='w-full h-full absolute object-cover left-0 opacity-10'
             />
-            <div className='max-w-265.75 xl:px-0 px-4 mx-auto w-full py-14 md:py-16 lg:py-20 relative z-10'>
+            <div className='max-w-265.75 xl:px-0 px-4 mx-auto w-full py-16 md:py-20 lg:py-28 xl:py-38 relative z-10'>
                 <Heading center bold>
                     Start building your first project today.
                 </Heading>

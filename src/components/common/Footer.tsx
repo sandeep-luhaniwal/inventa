@@ -20,7 +20,7 @@ const Footer = () => {
         <div className='bg-[#002F8D] text-white'>
             <div className="max-w-330.5 px-4 mx-auto w-full pt-10 md:pt-12 lg:pt-13">
 
-                <Link href={"/"}>
+                <Link href={"/"} className='max-w-max'>
                     <Image
                         src={'/images/home/png/footer-logo.png'}
                         alt='logo'
@@ -56,14 +56,14 @@ const Footer = () => {
                                 placeholder="Email"
                                 className="px-3.5 py-3 max-w-57.5 w-full rounded-md text-gray bg-white outline-none leading-none"
                             />
-                            <button className="bg-yellow text-nowrap flex-nowrap hover:text-blue hover:bg-white group duration-300 font-medium px-3.5 py-3 rounded-md text-main-black flex gap-1 cursor-pointer">
+                            <button className="bg-yellow text-nowrap flex-nowrap hover:text-blue hover:bg-white group duration-300 font-medium px-3.5 py-3.5 lg:px-5 rounded-md text-main-black flex gap-1 cursor-pointer">
                                 Sign Up <Icons icon='uparrow' className='group-hover:stroke-blue' />
                             </button>
                         </div>
                     </div>
 
                 </div>
-                <div className="border-t border-light-gray pt-8 pb-4">
+                <div className="border-t border-[#C7C7C7] pt-8 pb-6">
                     <Paragraph medium base>
                         © {year} Inventa. All rights reserved.
                     </Paragraph>

@@ -32,8 +32,8 @@ const Faq = () => {
     return (
         <div className="overflow-clip">
             <div className='relative max-w-360 mx-auto w-full'>
-                <span className='block w-102 h-102 rounded-full absolute top-45 left-0 bg-yellow blur-[290px]'></span>
-                <span className='block w-100 h-100 rounded-full absolute top-20 right-0 bg-[#4F39F6] blur-[190px]'></span>
+                <span className='block w-102 h-102 rounded-full absolute top-45 left-0 bg-yellow blur-[310px]'></span>
+                <span className='block w-100 h-100 rounded-full absolute top-20 right-0 bg-[#4F39F6] blur-[310px]'></span>
                 <div className="max-w-330.5 px-4 mx-auto w-full pb-14 md:py-16 lg:pt-20 relative z-10">
                     <Heading bold mainblack>
                         Frequently asked questions
@@ -50,7 +50,7 @@ const Faq = () => {
                                     return (
                                         <div
                                             key={index}
-                                            className="bg-white p-4 lg:p-9 shadow-[0px_-24.56px_32.74px_-14.73px_rgba(149,149,149,0.25)]"
+                                            className="bg-white p-4 lg:p-9 shadow-[0px_24.56px_32.74px_-14.73px_rgba(149,149,149,0.25)] rounded"
                                         >
                                             <div onClick={() => toggleFAQ(index)} className="flex cursor-pointer justify-between items-center">
                                                 <Paragraph bold mainblack lg className="flex items-center gap-8">

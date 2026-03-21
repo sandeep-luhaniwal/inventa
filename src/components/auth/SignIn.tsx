@@ -10,7 +10,7 @@ const SignIn = () => {
             <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl lg:rounded-3xl w-full">
 
                 {/* Heading */}
-                <Paragraph bold lg mainblack>
+                <Paragraph bold mainblack>
                     Sign in
                 </Paragraph>
 
@@ -41,7 +41,7 @@ const SignIn = () => {
                 </div>
 
                 {/* Info */}
-                <Paragraph sm medium mainblack className="pt-3">
+                <Paragraph sm medium mainblack className="pt-2.5">
                     We'll send an OTP to verify
                 </Paragraph>
 
@@ -55,7 +55,7 @@ const SignIn = () => {
                 {/* Bottom */}
                 <Paragraph sm medium center gray className="pt-4">
                     Don't have an account?{" "}
-                    <Link href="/auth/sign-up">
+                    <Link href="/auth/role">
                         <span className="text-blue cursor-pointer">
                             Sign Up
                         </span>

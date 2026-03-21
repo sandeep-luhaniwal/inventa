@@ -4,9 +4,15 @@
   font-family: Satoshi;
   src: url(../../public/fonts/Satoshi-Regular.otf);
 }
+@font-face {
+  font-family: Satoshi-bold;
+  src: url(../../public/fonts/Satoshi-Bold.otf);
+}
+
 
 @theme inline {
   --font-Satoshi: var(--font-Satoshi);
+  --font-Satoshi-bold: var(--font-Satoshi-bold);
   --color-blue: #1F62E8;
   --color-sky-blue: #155DFC;
   --color-light-blue: #3983D4;
@@ -26,4 +32,8 @@
 
 body {
   font-family: Satoshi;
+}
+
+.font-bold{
+  font-family: Satoshi-bold !important;
 }
