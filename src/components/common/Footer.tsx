@@ -56,7 +56,7 @@ const Footer = () => {
                                 placeholder="Email"
                                 className="px-3.5 py-3 max-w-57.5 w-full rounded-md text-gray bg-white outline-none leading-none"
                             />
-                            <button className="bg-yellow text-nowrap flex-nowrap hover:text-blue hover:bg-white group duration-300 font-medium px-3.5 py-3.5 lg:px-5 rounded-md text-main-black flex gap-1 cursor-pointer">
+                            <button className="bg-yellow text-nowrap flex-nowrap items-center hover:text-blue hover:bg-white group duration-300 font-medium px-3.5 py-3.5 lg:px-5 rounded-md text-main-black flex gap-1 cursor-pointer">
                                 Sign Up <Icons icon='uparrow' className='group-hover:stroke-blue' />
                             </button>
                         </div>

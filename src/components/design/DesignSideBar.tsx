@@ -18,7 +18,7 @@ const DesignSideBar = () => {
       <div className="grid grid-cols-2 gap-2 p-3">
         {ELECTRONICS_COMPONENTS.map((obj, i) => {
           return (
-            <div className="border rounded-lg p-2.5 border-[#E2E8F0] flex flex-col justify-center items-center gap-1.5">
+            <div key={i} className="border rounded-lg p-2.5 border-[#E2E8F0] flex flex-col justify-center items-center gap-1.5">
               <Image
                 src={obj.image}
                 alt='part'

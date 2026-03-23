@@ -19,7 +19,7 @@ const StyleLayout = () => {
                     return (
                         <button
                             key={index}
-                            className='w-9 h-9 duration-300 hover:bg-white rounded flex justify-center items-center'
+                            className='w-9 h-9 duration-300 hover:bg-white rounded-lg flex justify-center items-center'
                         >
                             <Icons icon={item.icon ?? ''} />
                         </button>
@@ -30,11 +30,11 @@ const StyleLayout = () => {
                 <Paragraph base bold mainblack>
                     Filters
                 </Paragraph>
-                <div className="py-2 px-3 text-sm gap-1 font-bold text-[#717182] cursor-pointer rounded-lg flex border justify-between max-w-54 w-full border-[#E2E8F0]">
+                <div className="py-2 px-3 text-sm gap-1 font-medium text-[#717182] cursor-pointer rounded-lg flex border justify-between max-w-54 w-full border-[#E2E8F0]">
                     Select subject
                     <Icons icon='downarrow' />
                 </div>
-                <div className="py-2 px-3 text-sm gap-1 font-bold text-[#717182] cursor-pointer rounded-lg flex border justify-between max-w-54 w-full border-[#E2E8F0]">
+                <div className="py-2 px-3 text-sm gap-1 font-medium text-[#717182] cursor-pointer rounded-lg flex border justify-between max-w-54 w-full border-[#E2E8F0]">
                   Select Lecture
                     <Icons icon='downarrow' />
                 </div>

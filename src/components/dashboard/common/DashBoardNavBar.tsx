@@ -28,8 +28,8 @@ const DashBoardNavBar = () => {
                     className='placeholder:text-[#9CA3AF] text-sm outline-none w-full'
                 />
             </div>
-            <div className="w-full max-w-95 flex gap-4 items-center justify-end">
-                <Paragraph xs gray medium className='hidden lg:flex'>
+            <div className="w-full max-w-100 flex gap-4 items-center justify-end">
+                <Paragraph sm gray medium className='hidden lg:flex text-nowrap'>
                     All changes saved
                 </Paragraph>
                 <button className='bg-blue py-1.5 px-3 xl:px-4 flex items-center flex-nowrap cursor-pointer rounded-lg gap-1 text-white font-medium'>

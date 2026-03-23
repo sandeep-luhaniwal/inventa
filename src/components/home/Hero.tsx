@@ -8,7 +8,7 @@ import Image from 'next/image'
 
 const Hero = () => {
   return (
-    <div className='grid lg:grid-cols-2 lg:gap-6'>
+    <div className='grid lg:grid-cols-2 lg:gap-6 relative'>
       <div className="flex flex-col gap-4 relative z-50 py-14 lg:py-34 order-2 lg:order-1">
         <Heading big bold>
           Create, Learn, and <span className='text-yellow'>Share in Minutes.</span>
@@ -29,8 +29,7 @@ const Hero = () => {
       <div className="relative order-1 lg:order-2 pt-11 md:pt-14 lg:pt-0">
         <video src="/videos/main-hero.mp4" autoPlay muted loop playsInline className="w-full lg:absolute bottom-0 xl:-bottom-8 xl:-right-11 lg:-translate-x-10 xl:-translate-x-3 scale-110 lg:scale-150 xl:scale-165 origin-bottom" />
       </div>
-      <span className='hidden w-310 lg:block h-132.5 z-40 absolute bg-[#3983D6] rounded-[50%] blur-[120px] -rotate-10 -left-117.5 -bottom-10'>
-       
+      <span className='hidden w-315 lg:block h-182.5 z-40 absolute bg-[#3983D6] rounded-[50%] blur-[120px] -rotate-10 -left-117.5 -bottom-10'>
       </span>
     </div>
   )

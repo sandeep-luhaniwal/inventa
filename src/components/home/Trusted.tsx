@@ -25,7 +25,7 @@ const Trusted = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-7.5 pt-3">
                 {TESTIMONIALS_DATA_LIST.map((obj, i) => {
                     return (
-                        <div key={i} className="border border-offwhite hover:border-blue duration-300 rounded-xl xl:rounded-3xl p-4 md:p-6 lg:py-10 flex items-center gap-4">
+                        <div key={i} className="border-2 border-offwhite hover:border-blue duration-300 rounded-xl xl:rounded-3xl p-4 md:p-6 lg:py-10 flex items-center gap-4">
                             <Image
                                 src={obj.image}
                                 alt={obj.name}

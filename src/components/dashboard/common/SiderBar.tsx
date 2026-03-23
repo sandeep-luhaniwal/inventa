@@ -44,7 +44,7 @@ const SiderBar = () => {
             })}
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4 border-t border-[#E5E7EB]">
           <div className="p-4 rounded-lg bg-linear-to-b from-blue to-green">
             <Paragraph sm bold className='flex gap-2 items-center'>
               <span className='w-4 h-4'> <Icons icon='starmulti' /></span>
@@ -53,7 +53,7 @@ const SiderBar = () => {
             <Paragraph xs className='opacity-90 pt-1 pb-2'>
               3 of 10 projects used
             </Paragraph>
-            <button className='text-sm py-2 font-bold flex justify-center w-full cursor-pointer bg-white text-blue duration-300 hover:bg-blue rounded-lg hover:text-white'>
+            <button className='text-sm py-2 font-bold flex justify-center w-full cursor-pointer bg-white text-blue duration-300 hover:bg-yellow rounded-lg hover:text-black'>
               Upgrade to Pro
             </button>
           </div>

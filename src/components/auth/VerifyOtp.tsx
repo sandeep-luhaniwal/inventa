@@ -77,7 +77,7 @@ const VerifyOtp = () => {
 
     return (
         <div className='max-w-120 w-full px-4 mx-auto flex justify-center items-center sm:px-0 min-h-screen py-10'>
-            <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl lg:rounded-3xl w-full text-center">
+            <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl w-full text-center">
 
                 {/* Heading */}
                 <Paragraph bold center mainblack>
@@ -101,7 +101,7 @@ const VerifyOtp = () => {
                             maxLength={1}
                             onChange={(e) => handleChange(e.target.value, index)}
                             onKeyDown={(e) => handleKeyDown(e, index)}
-                            className={`w-12 h-12 sm:w-14 sm:h-14 text-center text-lg font-semibold border rounded-lg outline-none 
+                            className={`w-12 h-12 sm:h-14 text-center text-lg font-semibold border rounded-xl outline-none 
                             ${error ? "border-red-500" : "border-black/20"} focus:border-blue`}
                         />
                     ))}

@@ -26,7 +26,7 @@ const OurPlan = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 md:gap-3 lg:gap-9.5 gap-9.5 pt-9">
           {OUR_PLANS_Data.map((obj, i) => {
             return (
-              <div key={i} className={`bg-white border border-offwhite relative rounded-lg px-4 lg:px-5 md:px-3 duration-300 hover:border-blue py-6 lg:py-7`}>
+              <div key={i} className={`bg-white border-2 border-offwhite relative rounded-lg px-4 lg:px-5 md:px-3 duration-300 hover:border-blue py-6 lg:py-7`}>
                 {obj.highlight && (
                   <p className="bg-blue text-sm md:text-base text-white font-medium absolute max-w-max left-1/2 -translate-x-1/2 -top-3.5 md:-top-4 px-6 py-1 rounded-full">
                     Popular
@@ -53,7 +53,7 @@ const OurPlan = () => {
                     </Paragraph>
                   ))}
                 </div>
-                <MainButton className='w-full max-w-full! border-main-black! hover:border-transparent!'>
+                <MainButton className='w-full max-w-full! border-main-black! hover:border-transparent! lg:py-3.5!'>
                   {obj.button}
                 </MainButton>
               </div>

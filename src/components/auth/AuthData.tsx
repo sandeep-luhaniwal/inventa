@@ -15,7 +15,7 @@ const AuthData = () => {
                         className='w-25 sm:w-28 lg:w-39 xl:w-43'
                     />
                 </Link>
-                <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl lg:rounded-3xl">
+                <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl">
                     <Paragraph center bold mainblack>
                         Continue to Inventa
                     </Paragraph>
@@ -35,7 +35,7 @@ const AuthData = () => {
                     <Paragraph sm medium mainblack center className='py-7'>
                         Made for Indian School boards (CBSE, State Boards)
                     </Paragraph>
-                    <Paragraph sm medium mainblack center>
+                    <Paragraph sm medium mainblack center className='pb-7'>
                         <Link href={"/"} className='hover:text-blue'>Terms</Link> <span className='px-4 font-bold text-lg'>•</span> <Link href={"/"} className='hover:text-blue'>Privacy</Link>
                     </Paragraph>
                 </div>

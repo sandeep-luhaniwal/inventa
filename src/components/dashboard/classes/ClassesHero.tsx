@@ -42,7 +42,7 @@ const ClassesHero = () => {
              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {CLASSES_DATA_LIST.map((obj,i)=>{
                         return(
-                            <div key={i} className="bg-white p-4 relative lg:p-6 cursor-pointer hover:border-blue duration-300 xl:pb-8 border border-[#E5E7EB] rounded-xl">
+                            <div key={i} className="bg-white p-4 relative lg:p-6 cursor-pointer hover:border-blue duration-300 xl:pb-8 border-2 border-[#E5E7EB] rounded-xl">
                                 <Heading small bold mainblack>
                                     {obj.name}
                                 </Heading>

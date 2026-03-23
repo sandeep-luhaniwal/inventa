@@ -18,7 +18,7 @@ const DesignNavBar = () => {
                             className='w-25 sm:w-28'
                         />
                         <div className='w-px h-5 bg-gray block' />
-                        <Paragraph sm medium className='text-[#D1D5DC]!'>
+                        <Paragraph base medium className='text-[#D1D5DC]!'>
                             Circuit Simulator
                         </Paragraph>
                     </div>
@@ -47,7 +47,7 @@ const DesignNavBar = () => {
                         alt='user'
                         width={106}
                         height={106}
-                        className='w-9 h-9'
+                        className='w-9 h-9 border-2 border-white rounded-full'
                     />
                 </div>
             </div>

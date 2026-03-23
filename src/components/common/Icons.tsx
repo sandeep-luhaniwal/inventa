@@ -375,7 +375,7 @@ const Icons = ({ icon, className, hoverchangevalue, ...props }: ICONS_PROPS) => 
         ),
         "downarrow": (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g opacity="0.5">
+                <g className={className} opacity="0.5">
                     <path d="M4 6L8 10L12 6" stroke="#717182" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round" />
                 </g>
             </svg>

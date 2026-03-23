@@ -48,7 +48,7 @@ const ChooseRole = () => {
                         className='w-25 sm:w-28 lg:w-39 xl:w-43'
                     />
                 </Link>
-                <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl lg:rounded-3xl w-full">
+                <div className="p-4 sm:p-6 lg:p-8 bg-white border border-[#E2E8F0] rounded-xl md:rounded-2xl w-full">
 
                     <Link href={"/auth"} className='mx-auto max-w-max'>
                         <Paragraph sm medium gray center className='flex gap-1 items-center group hover:text-blue! duration-300'>
@@ -78,7 +78,7 @@ const ChooseRole = () => {
                                 >
 
                                     <div className={`w-12 h-12 rounded-xl flex justify-center items-center 
-                                ${isActive ? "bg-blue text-white" : "bg-gray-100"}`}>
+                                ${isActive ? "bg-blue text-white" : "bg-[#F8FAFC]"}`}>
                                         <Icons icon={obj.icon} className={isActive ? "stroke-white" : "stroke-blue"} />
                                     </div>
 
@@ -97,7 +97,7 @@ const ChooseRole = () => {
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center
                                         ${isActive ? "bg-blue" : "bg-white border-[#CBD5E1] border-2"}`}>
                                             {isActive && (
-                                                <div className="w-3 h-3 bg-white rounded-full"></div>
+                                                <div className="w-2 h-2 ms-[0.8px] mb-[0.05px] bg-white rounded-full"></div>
                                             )}
                                         </div>
                                     </div>

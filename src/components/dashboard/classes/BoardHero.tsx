@@ -61,14 +61,14 @@ const BoardHero = () => {
                             key={index}
                             onMouseEnter={() => setHoveredBoard(board.title)}
                             onMouseLeave={() => setHoveredBoard(null)}
-                            className={`relative border rounded-xl bg-white duration-300 flex flex-col justify-between
+                            className={`relative border overflow-clip rounded-xl bg-white duration-300 flex flex-col justify-between
                             ${isHovered ? "border-blue shadow-md"
                                     : "border-[#E5E7EB] hover:shadow-sm"
                                 }`}
                         >
                             <div className="p-4 pb-0 md:pb-4 xl:p-5">
                                 {board.popular && (
-                                    <span className={`absolute top-3 right-3 font-medium text-xs px-2 py-1 rounded-lg ${isHovered ? "bg-blue text-white" : "bg-[#EEF2FF] text-blue"}`}>
+                                    <span className={`absolute top-3 right-3 font-medium text-xs px-2 py-1 rounded-lg ${isHovered ? "bg-blue text-white" : "bg-[#EEF2FF] text-[#432DD7]"}`}>
                                         Popular
                                     </span>
                                 )}
@@ -92,7 +92,7 @@ const BoardHero = () => {
                             {(isHovered) && (
                                 <div
                                     onClick={() => handleSelectBoard(board.title)}
-                                    className="absolute hidden lg:flex justify-center cursor-pointer bottom-0 left-0 w-full bg-blue text-white text-center py-2 rounded-b-xl text-sm font-medium"
+                                    className="absolute hidden lg:flex justify-center cursor-pointer bottom-0 left-0 w-full bg-blue text-white text-center py-2 text-sm font-medium"
                                 >
                                     Select Board
                                 </div>
@@ -106,6 +106,11 @@ const BoardHero = () => {
                         </div>
                     )
                 })}
+            </div>
+            <div className="pt-7.5 mt-7.5 border-t border-[#E5E7EB]">
+                <Paragraph sm bold center className='text-[#4F39F6]!'>
+                    Can't find your board? Request it
+                </Paragraph>
             </div>
         </div>
     )
