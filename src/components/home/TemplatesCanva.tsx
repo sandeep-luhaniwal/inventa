@@ -18,7 +18,7 @@ const TemplatesCanva = () => {
             : TEMPLATES_DATA_LIST.filter(item => item.category === active)
 
     return (
-        <div className='bg-green'>
+        <div id='learning' className='bg-green'>
             <div className="max-w-330.5 px-4 mx-auto w-full pb-14 md:py-16 relative z-10">
 
                 <Heading bold center>

@@ -2,19 +2,19 @@
 export const MENU_DATA_LIST = [
   {
     title: "Courses",
-    url: "#",
+    url: "#course",
   },
   {
     title: "Learning Paths",
-    url: "#",
+    url: "#learning",
   },
   {
     title: "Pricing",
-    url: "#",
+    url: "#pricing",
   },
   {
     title: "About",
-    url: "#",
+    url: "#about",
   },
 ]
 

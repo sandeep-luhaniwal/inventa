@@ -8,7 +8,7 @@ import MainButton from '../common/MainButton'
 
 const OurPlan = () => {
   return (
-    <div className="relative">
+    <div id="pricing" className="relative">
       <Image
         src="/images/home/svg/bg-first-project.svg"
         width={1440}

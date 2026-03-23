@@ -7,7 +7,7 @@ import Icons from '../common/Icons'
 
 const Trusted = () => {
     return (
-        <div className='py-14 md:py-16 lg:py-20 xl:py-24 max-w-330.5 px-4 mx-auto w-full'>
+        <div id='about' className='py-14 md:py-16 lg:py-20 xl:py-24 max-w-330.5 px-4 mx-auto w-full'>
             <Heading bold center mainblack>
                 Trusted by educators, makers, and teams
             </Heading>

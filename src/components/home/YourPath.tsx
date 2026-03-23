@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 const YourPath = () => {
     return (
-        <div className='relative max-w-360 mx-auto w-full'>
+        <div id="course" className='relative max-w-360 mx-auto w-full'>
             <span className='block w-72 h-72 rounded-full absolute bottom-5 left-20 bg-yellow blur-[290px]'></span>
             <span className='block w-72 h-72 rounded-full absolute top-30 right-28 bg-[#4F39F6] blur-[290px]'></span>
             <div className="max-w-280 xl:px-0 px-4 mx-auto w-full pb-14 md:py-16 lg:py-20 xl:py-22 relative z-10">

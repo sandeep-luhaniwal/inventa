@@ -2,17 +2,32 @@
 
 @font-face {
   font-family: Satoshi;
-  src: url(../../public/fonts/Satoshi-Regular.otf);
+  src: url(../../public/fonts/Satoshi-Regular.otf) format('opentype');
+  font-display: swap;
+  font-style: normal;
 }
+
 @font-face {
   font-family: Satoshi-bold;
-  src: url(../../public/fonts/Satoshi-Bold.otf);
+  src: url(../../public/fonts/Satoshi-Bold.otf) format('opentype');
+  font-display: swap;
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: Satoshi-medium;
+  src: url(../../public/fonts/Satoshi-Medium.otf) format('opentype');
+  font-display: swap;
+  font-weight: 500;
+  font-style: normal;
 }
 
 
 @theme inline {
   --font-Satoshi: var(--font-Satoshi);
   --font-Satoshi-bold: var(--font-Satoshi-bold);
+  --font-Satoshi-medium: var(--font-Satoshi-medium);
   --color-blue: #1F62E8;
   --color-sky-blue: #155DFC;
   --color-light-blue: #3983D4;
@@ -29,11 +44,19 @@
   --color-offblack: #4B5563;
 
 }
-
+*{
+  scroll-behavior: smooth !important;
+}
 body {
   font-family: Satoshi;
 }
 
-.font-bold{
+.font-bold {
   font-family: Satoshi-bold !important;
+
+
+}
+
+.font-medium {
+  font-family: Satoshi-medium !important;
 }
