@@ -38,7 +38,7 @@ const NavBar = () => {
                         )
                     })}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2.5 sm:gap-4">
                     <Link href={"/auth/sign-in"} className='text-sky-blue bg-white text-sm sm:text-base font-bold duration-300 hover:text-white rounded-full px-0 sm:px-3 py-2.5 lg:px-6 sm:hover:bg-green'>
                         Sign In
                     </Link>
@@ -51,7 +51,7 @@ const NavBar = () => {
                 </div>
 
             </div>
-            <div className={`fixed md:hidden top-0 ${isMenuOpen ? 'left-0' : '-left-full'} duration-300 bg-blue h-screen w-full z-100000 p-6 flex flex-col gap-4`}>
+            <div className={`fixed md:hidden top-0 ${isMenuOpen ? 'left-0' : '-left-full'} duration-300 bg-blue h-screen min-h-screen w-full z-100000 p-6 flex flex-col gap-4`}>
                 <div className="absolute top-3 right-3" onClick={() => setIsMenuOpen(false)}>
                     <Icons icon='cross' />
                 </div>

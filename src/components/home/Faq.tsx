@@ -34,7 +34,7 @@ const Faq = () => {
             <div className='relative max-w-360 mx-auto w-full'>
                 <span className='block w-102 h-102 rounded-full absolute top-45 left-0 bg-yellow blur-[310px]'></span>
                 <span className='block w-100 h-100 rounded-full absolute top-20 right-0 bg-[#4F39F6] blur-[310px]'></span>
-                <div className="max-w-330.5 px-4 mx-auto w-full pb-14 md:py-16 lg:pt-20 relative z-10">
+                <div className="max-w-330.5 px-4 mx-auto w-full py-14 md:py-16 lg:pt-20 relative z-10">
                     <Heading bold mainblack>
                         Frequently asked questions
                     </Heading>
