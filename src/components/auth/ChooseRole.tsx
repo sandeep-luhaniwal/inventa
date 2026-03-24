@@ -25,15 +25,27 @@ const roleOptions = [
 ]
 
 const ChooseRole = () => {
-
+    const [isLoading, setIsLoading] = useState(false)
     const [selected, setSelected] = useState(0)
     const router = useRouter()
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         const selectedRole = roleOptions[selected]
 
-        localStorage.setItem("userRole", JSON.stringify(selectedRole))
-        router.push("/auth/sign-up")
+        setIsLoading(true)
+
+        try {
+            // 🔥 simulate API / processing
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+
+            localStorage.setItem("userRole", JSON.stringify(selectedRole))
+
+            router.push("/auth/sign-up")
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     return (
@@ -108,8 +120,13 @@ const ChooseRole = () => {
 
                     </div>
 
-                    <button onClick={handleContinue} className='w-full text-sm mt-5 py-3 bg-blue text-white duration-300 hover:bg-black cursor-pointer rounded-lg font-medium'>
-                        Continue
+                    <button
+                        onClick={handleContinue}
+                        disabled={isLoading}
+                        className={`w-full text-sm mt-5 py-3 bg-blue text-white rounded-lg font-medium transition-all duration-300 
+                            ${isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-black cursor-pointer"}`}
+                    >
+                        {isLoading ? "Continue..." : "Continue"}
                     </button>
 
                 </div>

@@ -94,27 +94,14 @@ const SignIn = () => {
     // Loading state
     const [isLoading, setIsLoading] = useState(false)
 
-    // Validation function
     const validatePhoneNumber = () => {
         if (!phoneNumber.trim()) {
             setError("Mobile number is required")
             return false
         }
 
-        // Remove the country code for length validation
-        let phoneNumberOnly = phoneNumber
-
-        // Check if phone number has country code (+91, +44, etc.)
-        if (phoneNumber.startsWith('+')) {
-            // Extract the numeric part after country code
-            const match = phoneNumber.match(/^\+\d+/)
-            if (match) {
-                phoneNumberOnly = phoneNumber.slice(match[0].length)
-            }
-        }
-
-        // Check if phone number has at least 10 digits
-        const digitsOnly = phoneNumberOnly.replace(/\D/g, '')
+        // Remove all non-digits (keep only numbers)
+        const digitsOnly = phoneNumber.replace(/\D/g, '')
 
         if (digitsOnly.length < 10) {
             setError("Please enter a valid mobile number (minimum 10 digits)")

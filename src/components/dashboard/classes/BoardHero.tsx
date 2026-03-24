@@ -59,9 +59,10 @@ const BoardHero = () => {
                     return (
                         <div
                             key={index}
+                            onClick={() => handleSelectBoard(board.title)}
                             onMouseEnter={() => setHoveredBoard(board.title)}
                             onMouseLeave={() => setHoveredBoard(null)}
-                            className={`relative border overflow-clip rounded-xl bg-white duration-300 flex flex-col justify-between
+                            className={`relative border overflow-clip cursor-pointer rounded-xl bg-white duration-300 flex flex-col justify-between
                             ${isHovered ? "border-blue shadow-md"
                                     : "border-[#E5E7EB] hover:shadow-sm"
                                 }`}

@@ -11,6 +11,7 @@ const VerifyOtp = () => {
     const [isExpired, setIsExpired] = useState(false)
     const [error, setError] = useState("")
     const router = useRouter()
+    const [isLoading, setIsLoading] = useState(false)
 
     const correctOtp = "123456" // 🔥 change with API later
 
@@ -48,8 +49,7 @@ const VerifyOtp = () => {
         }
     }
 
-    // Verify OTP
-    const handleVerify = () => {
+    const handleVerify = async () => {
         const enteredOtp = otp.join("")
 
         if (enteredOtp.length < 6) {
@@ -57,13 +57,26 @@ const VerifyOtp = () => {
             return
         }
 
-        if (enteredOtp !== correctOtp) {
-            setError("Incorrect OTP")
-            return
-        }
+        setIsLoading(true)
+        setError("")
 
-        // ✅ success
-        router.push("/dashboard")
+        try {
+            // 🔥 simulate API call (replace with real API)
+            await new Promise((resolve) => setTimeout(resolve, 1500))
+
+            if (enteredOtp !== correctOtp) {
+                setError("Incorrect OTP")
+                return
+            }
+
+            // ✅ success
+            router.push("/dashboard")
+
+        } catch (err) {
+            setError("Something went wrong")
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     // Resend OTP
@@ -133,12 +146,13 @@ const VerifyOtp = () => {
                     </Paragraph>
                 </Link>
 
-                {/* Button */}
                 <button
                     onClick={handleVerify}
-                    className="w-full mt-6 cursor-pointer text-sm py-3 bg-blue text-white rounded-lg font-medium hover:bg-black duration-300"
+                    disabled={isLoading}
+                    className={`w-full mt-6 text-sm py-3 bg-blue text-white rounded-lg font-medium transition-all duration-300 
+                    hover:shadow-lg ${isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-black cursor-pointer"}`}
                 >
-                    Verify & Continue
+                    {isLoading ? "Verifying..." : "Verify & Continue"}
                 </button>
 
             </div>

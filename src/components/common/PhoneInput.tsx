@@ -1,12 +1,13 @@
 "use client"
 import React, { useEffect, useRef, useState } from 'react'
 import Icons from './Icons'
+import Image from 'next/image'
 
 interface CountryCode {
   code: string
   dialCode: string
   name: string
-  flag: string
+  flagUrl: string
 }
 
 interface PhoneInputProps {
@@ -20,42 +21,42 @@ interface PhoneInputProps {
 }
 
 const COUNTRY_CODES: CountryCode[] = [
-  { code: "GB", dialCode: "+44", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "US", dialCode: "+1", name: "United States", flag: "🇺🇸" },
-  { code: "IN", dialCode: "+91", name: "India", flag: "🇮🇳" },
-  { code: "AE", dialCode: "+971", name: "UAE", flag: "🇦🇪" },
-  { code: "SA", dialCode: "+966", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "EG", dialCode: "+20", name: "Egypt", flag: "🇪🇬" },
-  { code: "FR", dialCode: "+33", name: "France", flag: "🇫🇷" },
-  { code: "DE", dialCode: "+49", name: "Germany", flag: "🇩🇪" },
-  { code: "IT", dialCode: "+39", name: "Italy", flag: "🇮🇹" },
-  { code: "ES", dialCode: "+34", name: "Spain", flag: "🇪🇸" },
-  { code: "PT", dialCode: "+351", name: "Portugal", flag: "🇵🇹" },
-  { code: "NL", dialCode: "+31", name: "Netherlands", flag: "🇳🇱" },
-  { code: "BE", dialCode: "+32", name: "Belgium", flag: "🇧🇪" },
-  { code: "CH", dialCode: "+41", name: "Switzerland", flag: "🇨🇭" },
-  { code: "AT", dialCode: "+43", name: "Austria", flag: "🇦🇹" },
-  { code: "SE", dialCode: "+46", name: "Sweden", flag: "🇸🇪" },
-  { code: "NO", dialCode: "+47", name: "Norway", flag: "🇳🇴" },
-  { code: "DK", dialCode: "+45", name: "Denmark", flag: "🇩🇰" },
-  { code: "FI", dialCode: "+358", name: "Finland", flag: "🇫🇮" },
-  { code: "PL", dialCode: "+48", name: "Poland", flag: "🇵🇱" },
-  { code: "RU", dialCode: "+7", name: "Russia", flag: "🇷🇺" },
-  { code: "CN", dialCode: "+86", name: "China", flag: "🇨🇳" },
-  { code: "JP", dialCode: "+81", name: "Japan", flag: "🇯🇵" },
-  { code: "KR", dialCode: "+82", name: "South Korea", flag: "🇰🇷" },
-  { code: "SG", dialCode: "+65", name: "Singapore", flag: "🇸🇬" },
-  { code: "MY", dialCode: "+60", name: "Malaysia", flag: "🇲🇾" },
-  { code: "TH", dialCode: "+66", name: "Thailand", flag: "🇹🇭" },
-  { code: "VN", dialCode: "+84", name: "Vietnam", flag: "🇻🇳" },
-  { code: "ID", dialCode: "+62", name: "Indonesia", flag: "🇮🇩" },
-  { code: "PH", dialCode: "+63", name: "Philippines", flag: "🇵🇭" },
-  { code: "AU", dialCode: "+61", name: "Australia", flag: "🇦🇺" },
-  { code: "NZ", dialCode: "+64", name: "New Zealand", flag: "🇳🇿" },
-  { code: "ZA", dialCode: "+27", name: "South Africa", flag: "🇿🇦" },
-  { code: "BR", dialCode: "+55", name: "Brazil", flag: "🇧🇷" },
-  { code: "MX", dialCode: "+52", name: "Mexico", flag: "🇲🇽" },
-  { code: "CA", dialCode: "+1", name: "Canada", flag: "🇨🇦" },
+  { code: "IN", dialCode: "+91", name: "India", flagUrl: "https://flagcdn.com/in.svg" },
+  { code: "US", dialCode: "+1", name: "United States", flagUrl: "https://flagcdn.com/us.svg" },
+  { code: "GB", dialCode: "+44", name: "United Kingdom", flagUrl: "https://flagcdn.com/gb.svg" },
+  { code: "AE", dialCode: "+971", name: "UAE", flagUrl: "https://flagcdn.com/ae.svg" },
+  { code: "SA", dialCode: "+966", name: "Saudi Arabia", flagUrl: "https://flagcdn.com/sa.svg" },
+  { code: "EG", dialCode: "+20", name: "Egypt", flagUrl: "https://flagcdn.com/eg.svg" },
+  { code: "FR", dialCode: "+33", name: "France", flagUrl: "https://flagcdn.com/fr.svg" },
+  { code: "DE", dialCode: "+49", name: "Germany", flagUrl: "https://flagcdn.com/de.svg" },
+  { code: "IT", dialCode: "+39", name: "Italy", flagUrl: "https://flagcdn.com/it.svg" },
+  { code: "ES", dialCode: "+34", name: "Spain", flagUrl: "https://flagcdn.com/es.svg" },
+  { code: "PT", dialCode: "+351", name: "Portugal", flagUrl: "https://flagcdn.com/pt.svg" },
+  { code: "NL", dialCode: "+31", name: "Netherlands", flagUrl: "https://flagcdn.com/nl.svg" },
+  { code: "BE", dialCode: "+32", name: "Belgium", flagUrl: "https://flagcdn.com/be.svg" },
+  { code: "CH", dialCode: "+41", name: "Switzerland", flagUrl: "https://flagcdn.com/ch.svg" },
+  { code: "AT", dialCode: "+43", name: "Austria", flagUrl: "https://flagcdn.com/at.svg" },
+  { code: "SE", dialCode: "+46", name: "Sweden", flagUrl: "https://flagcdn.com/se.svg" },
+  { code: "NO", dialCode: "+47", name: "Norway", flagUrl: "https://flagcdn.com/no.svg" },
+  { code: "DK", dialCode: "+45", name: "Denmark", flagUrl: "https://flagcdn.com/dk.svg" },
+  { code: "FI", dialCode: "+358", name: "Finland", flagUrl: "https://flagcdn.com/fi.svg" },
+  { code: "PL", dialCode: "+48", name: "Poland", flagUrl: "https://flagcdn.com/pl.svg" },
+  { code: "RU", dialCode: "+7", name: "Russia", flagUrl: "https://flagcdn.com/ru.svg" },
+  { code: "CN", dialCode: "+86", name: "China", flagUrl: "https://flagcdn.com/cn.svg" },
+  { code: "JP", dialCode: "+81", name: "Japan", flagUrl: "https://flagcdn.com/jp.svg" },
+  { code: "KR", dialCode: "+82", name: "South Korea", flagUrl: "https://flagcdn.com/kr.svg" },
+  { code: "SG", dialCode: "+65", name: "Singapore", flagUrl: "https://flagcdn.com/sg.svg" },
+  { code: "MY", dialCode: "+60", name: "Malaysia", flagUrl: "https://flagcdn.com/my.svg" },
+  { code: "TH", dialCode: "+66", name: "Thailand", flagUrl: "https://flagcdn.com/th.svg" },
+  { code: "VN", dialCode: "+84", name: "Vietnam", flagUrl: "https://flagcdn.com/vn.svg" },
+  { code: "ID", dialCode: "+62", name: "Indonesia", flagUrl: "https://flagcdn.com/id.svg" },
+  { code: "PH", dialCode: "+63", name: "Philippines", flagUrl: "https://flagcdn.com/ph.svg" },
+  { code: "AU", dialCode: "+61", name: "Australia", flagUrl: "https://flagcdn.com/au.svg" },
+  { code: "NZ", dialCode: "+64", name: "New Zealand", flagUrl: "https://flagcdn.com/nz.svg" },
+  { code: "ZA", dialCode: "+27", name: "South Africa", flagUrl: "https://flagcdn.com/za.svg" },
+  { code: "BR", dialCode: "+55", name: "Brazil", flagUrl: "https://flagcdn.com/br.svg" },
+  { code: "MX", dialCode: "+52", name: "Mexico", flagUrl: "https://flagcdn.com/mx.svg" },
+  { code: "CA", dialCode: "+1", name: "Canada", flagUrl: "https://flagcdn.com/ca.svg" },
 ]
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
@@ -77,7 +78,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   // Parse the value into dial code and number
   useEffect(() => {
     if (value) {
-      const matchedCountry = COUNTRY_CODES.find(country => 
+      const matchedCountry = COUNTRY_CODES.find(country =>
         value.startsWith(country.dialCode)
       )
       if (matchedCountry) {
@@ -117,7 +118,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     // Only allow digits and maybe a plus at the start
     const cleanedNumber = newNumber.replace(/[^\d]/g, '')
     setLocalNumber(cleanedNumber)
-    
+
     // Format the full phone number
     if (selectedCountry) {
       const fullNumber = `${selectedCountry.dialCode}${cleanedNumber}`
@@ -131,7 +132,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const handleCountrySelect = (country: CountryCode) => {
     setSelectedCountry(country)
     setIsOpen(false)
-    
+
     // Update the full number with new dial code
     const fullNumber = `${country.dialCode}${localNumber}`
     onChange(fullNumber)
@@ -165,7 +166,14 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
         >
           {selectedCountry && (
             <>
-              <span className="text-xl">{selectedCountry.flag}</span>
+              {/* <span className="text-xl">{selectedCountry.flag}</span> */}
+              <Image
+                width={20}
+                height={16}
+                src={selectedCountry.flagUrl}
+                alt={selectedCountry.code}
+                className="w-5 h-4 object-cover"
+              />
               <span className="text-sm font-medium text-gray-700">{selectedCountry.dialCode}</span>
               {/* <span className="text-gray-400 text-xs">▼</span> */}
               <Icons icon='downarrow' className='stroke-[#717182] opacity-80' />
@@ -197,7 +205,14 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
                 className="country-item px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-3"
                 onClick={() => handleCountrySelect(country)}
               >
-                <span className="text-xl">{country.flag}</span>
+                {/* <span className="text-xl">{country.flag}</span> */}
+                <Image
+                  width={20}
+                  height={16}
+                  src={country.flagUrl}
+                  alt={country.code}
+                  className="w-5 h-4 object-cover"
+                />
                 <span className="text-sm font-medium">{country.dialCode}</span>
                 <span className="text-sm text-gray-600">{country.name}</span>
                 {selectedCountry?.code === country.code && (
