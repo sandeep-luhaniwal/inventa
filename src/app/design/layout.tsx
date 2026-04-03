@@ -1,7 +1,3 @@
-import DashBoardNavBar from "@/components/dashboard/common/DashBoardNavBar";
-import SiderBar from "@/components/dashboard/common/SiderBar";
-import DesignNavBar from "@/components/design/DesignNavBar";
-import { SideBarProvider } from "@/context/SideBarContext";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,7 +12,7 @@ export default function DesignLayout({
 }) {
     return (
         <div className="">
-            <DesignNavBar />
+            {/* <DesignNavBar /> */}
             {children}
         </div>
     );
