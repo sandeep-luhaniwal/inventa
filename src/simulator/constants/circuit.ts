@@ -9,10 +9,11 @@ export const COLORS = {
   wireIdle: "#6366f1",
   wireSelected: "#f59e0b",
   wireSimulate: "#ef4444",
+  componentBorder: "#1e40af",
   pinActiveStroke: "#16a34a",
   pinHover: "#fbbf24",
   pinDefault: "#ffffff",
-  selectionRing: "#3b82f6",
+  selectionRing: "#1d4ed8",
   snapIndicator: "#22c55e",
   grid: "#e2e8f0",
   label: "#64748b",
@@ -48,4 +49,11 @@ export const WIRE_COLOR_OPTIONS: WireColorOption[] = [
   { label: "Brown",     value: "#92400e" },
   { label: "Grey",      value: "#6b7280" },
   { label: "White",     value: "#f1f5f9" },
+];
+
+export const LED_COLOR_OPTIONS = [
+  { label: "Red", value: "red", hex: "#ef4444" },
+  { label: "Orange", value: "orange", hex: "#f97316" },
+  { label: "Blue", value: "blue", hex: "#3b82f6" },
+  { label: "White", value: "white", hex: "#f8fafc" },
 ];

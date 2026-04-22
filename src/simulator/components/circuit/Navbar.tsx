@@ -6,9 +6,18 @@ import { Grid, Layers, ListChecks } from "lucide-react";
 interface NavbarProps {
   viewMode: "canvas" | "schematic" | "bom";
   onViewModeChange: (mode: "canvas" | "schematic" | "bom") => void;
+  isSimulating: boolean;
+  simulationSummary: string;
+  onToggleSimulation: () => void;
 }
 
-const Navbar = ({ viewMode, onViewModeChange }: NavbarProps) => {
+const Navbar = ({
+  viewMode,
+  onViewModeChange,
+  isSimulating,
+  simulationSummary,
+  onToggleSimulation,
+}: NavbarProps) => {
   return (
     <div className='w-full bg-[#0F172A] px-4 lg:px-6 py-2 lg:py-3 shadow-[0_4px_6px_-4px_rgba(0,0,0,0.1),0_10px_15px_-3px_rgba(0,0,0,0.1)]'>
       <div className="flex justify-between gap-10">
@@ -62,9 +71,15 @@ const Navbar = ({ viewMode, onViewModeChange }: NavbarProps) => {
             <Icons icon='save' />
             Save
           </button>
-          <button className='cursor-pointer flex items-center gap-2 border bg-blue border-blue py-2 px-4 rounded-lg text-white text-sm font-medium flex-nowrap text-nowrap'>
+          <button
+            onClick={onToggleSimulation}
+            title={simulationSummary}
+            className={`cursor-pointer flex items-center gap-2 border py-2 px-4 rounded-lg text-white text-sm font-medium flex-nowrap text-nowrap ${
+              isSimulating ? "bg-red-600 border-red-600" : "bg-blue border-blue"
+            }`}
+          >
             <Icons icon='play' />
-            Run Simulation
+            {isSimulating ? "Stop Simulation" : "Run Simulation"}
           </button>
           <button className='cursor-pointer flex items-center gap-2 border border-gray py-2 px-4 rounded-lg text-white text-sm font-medium flex-nowrap text-nowrap'>
             <Icons icon='export' />
@@ -79,6 +94,11 @@ const Navbar = ({ viewMode, onViewModeChange }: NavbarProps) => {
             className='w-9 h-9 border-2 border-white rounded-full'
           />
         </div>
+      </div>
+      <div className="mt-2 flex justify-end">
+        <Paragraph xs className='text-[#94A3B8]!'>
+          {simulationSummary}
+        </Paragraph>
       </div>
     </div>
   )

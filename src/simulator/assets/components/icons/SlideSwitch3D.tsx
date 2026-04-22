@@ -77,3 +77,4 @@ const SlideSwitch3D = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 export default SlideSwitch3D;
+ 

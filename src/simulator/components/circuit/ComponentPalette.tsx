@@ -1,10 +1,10 @@
 "use client"
+/* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { COMPONENT_REGISTRY, type ComponentDefinition } from "@/simulator/constants/components";
-// import { COMPONENT_REGISTRY, type ComponentDefinition } from "@/constants/components";
+import { PaletteComponentItem, useStaticComponents } from "@/simulator/hooks/useStaticComponents";
 
-export type ComponentItem = Pick<ComponentDefinition, "id" | "name" | "ports" | "icon">;
+export type ComponentItem = PaletteComponentItem;
 
 interface Props {
   onDragStart: (component: ComponentItem, e: React.DragEvent) => void;
@@ -13,10 +13,14 @@ interface Props {
 const ComponentPalette = ({ onDragStart }: Props) => {
   const [search, setSearch] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { grouped, loading, error } = useStaticComponents();
 
-  const filtered = COMPONENT_REGISTRY.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const searchText = search.toLowerCase();
+  const filteredGroups = Object.entries(grouped).reduce<Record<string, PaletteComponentItem[]>>((acc, [category, items]) => {
+    const filteredItems = items.filter((item) => item.name.toLowerCase().includes(searchText));
+    if (filteredItems.length > 0) acc[category] = filteredItems;
+    return acc;
+  }, {});
 
   return (
     <div className={`flex flex-col h-full border-l border-border bg-card transition-all duration-200 ${isCollapsed ? "w-12" : "w-72"}`}>
@@ -46,16 +50,33 @@ const ComponentPalette = ({ onDragStart }: Props) => {
           </div>
 
           <div className="flex-1 overflow-y-auto px-3 pb-3">
-            <div className="grid grid-cols-2 gap-2">
-              {filtered.map((comp) => (
-                <div
-                  key={comp.id}
-                  draggable
-                  onDragStart={(e) => onDragStart(comp, e)}
-                  className="flex flex-col items-center p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all bg-card"
-                >
-                  <comp.icon width={48} height={48} className="mb-2" />
-                  <span className="text-xs text-foreground font-medium">{comp.name}</span>
+            {loading && <div className="text-sm text-muted-foreground px-1 py-2">Loading components...</div>}
+            {error && <div className="text-sm text-red-600 px-1 py-2">{error}</div>}
+            <div className="space-y-4">
+              {Object.entries(filteredGroups).map(([category, items]) => (
+                <div key={category}>
+                  <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    {category}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((comp) => (
+                      <div
+                        key={comp.id}
+                        draggable
+                        onDragStart={(e) => onDragStart(comp, e)}
+                        className="flex flex-col items-center p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all bg-card"
+                      >
+                        {comp.imageSrc ? (
+                          <img src={comp.imageSrc} alt={comp.name} className="mb-2 h-12 w-12 object-contain" draggable={false} />
+                        ) : (
+                          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-md bg-secondary text-[10px] text-muted-foreground">
+                            No image
+                          </div>
+                        )}
+                        <span className="text-center text-xs text-foreground font-medium">{comp.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
