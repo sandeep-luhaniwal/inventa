@@ -3,7 +3,6 @@
 import { memo } from "react";
 import { Circle, Group, Image as KonvaImage } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import type { DragEvent } from "konva/lib/DragAndDrop";
 import type { CircuitComponentBase, PinDefinition } from "./types";
 import { useSvgImage } from "./useSvgImage";
 
@@ -32,7 +31,7 @@ function SvgComponentNodeInner<TComponent extends CircuitComponentBase>({
 }: SvgComponentNodeProps<TComponent>) {
   const image = useSvgImage(svgMarkup);
 
-  const handleDragEnd = (e: KonvaEventObject<DragEvent>) => {
+  const handleDragEnd = (e: KonvaEventObject<any>) => {
     onDragMove(component.id, e.target.x(), e.target.y());
   };
 

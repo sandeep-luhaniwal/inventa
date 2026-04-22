@@ -70,4 +70,5 @@ export interface ConnectingFrom {
 export interface HistoryEntry {
   components: PlacedComponent[];
   wires: Wire[];
+  notes: Note[];
 }
