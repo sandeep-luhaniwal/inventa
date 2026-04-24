@@ -62,7 +62,7 @@ const ToolButton = ({
   active,
   onClick,
 }: {
-  icon: React.ElementType;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
   tooltip: string;
   disabled?: boolean;
   active?: boolean;

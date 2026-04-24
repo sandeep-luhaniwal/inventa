@@ -109,6 +109,7 @@ const MicrobitSimulatorPanel: React.FC<MicrobitSimulatorPanelProps> = ({ onClose
   );
 };
 
+
 const ControlBtn = ({ icon, onClick }: { icon: React.ReactNode; onClick?: () => void }) => (
   <button onClick={onClick} className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-[#02adea] transition-all">
     {icon}

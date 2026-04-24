@@ -99,6 +99,28 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
             </div>
           )}
 
+          {/* LED Voltage selection */}
+          {(isLed || component.componentId === 'ac_bulb') && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                Voltage
+              </div>
+              <input
+                type="number"
+                value={component.voltageValue ?? 220}
+                onChange={(e) => {
+                  let val = parseFloat(e.target.value);
+                  if (isNaN(val)) val = 0;
+                  if (val > 220) val = 220;
+                  onUpdate(component.id, { voltageValue: val });
+                }}
+                className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none"
+                min="0"
+                max="220"
+              />
+            </div>
+          )}
+
           {/* Resistor-specific: Value and Unit */}
           {component.componentId === 'resistor' && (
             <>
@@ -133,6 +155,37 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
                 </div>
               </div>
             </>
+          )}
+
+          {/* Capacitor-specific: Value and Unit on same row as per image */}
+          {component.componentId === 'capacitor' && (
+            <div className="flex gap-1 h-9">
+              <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[85px]">
+                  Capacitance
+                </div>
+                <input
+                  type="number"
+                  value={component.capacitanceValue || 0}
+                  onChange={(e) => onUpdate(component.id, { capacitanceValue: parseFloat(e.target.value) || 0 })}
+                  className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                />
+              </div>
+              <div className="w-20 border-2 border-[#02adea] rounded-md overflow-hidden relative">
+                <select
+                  value={component.capacitanceUnit || 'µF'}
+                  onChange={(e) => onUpdate(component.id, { capacitanceUnit: e.target.value })}
+                  className="w-full h-full px-2 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  {['pF', 'nF', 'µF', 'mF', 'F'].map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Learn more button at bottom if info available */}

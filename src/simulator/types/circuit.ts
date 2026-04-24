@@ -31,6 +31,9 @@ export interface PlacedComponent {
   // Ohm's Law fields
   resistanceValue?: number;
   resistanceUnit?: string;
+  voltageValue?: number;
+  capacitanceValue?: number;
+  capacitanceUnit?: string;
   isBurned?: boolean;
   brightness?: number; // 0 to 1
 }
@@ -70,4 +73,5 @@ export interface ConnectingFrom {
 export interface HistoryEntry {
   components: PlacedComponent[];
   wires: Wire[];
+  notes: Note[];
 }

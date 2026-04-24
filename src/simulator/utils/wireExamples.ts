@@ -38,6 +38,7 @@ export function createExampleCircuit() {
       y: 150,
       rotation: 0,
       mirrored: false,
+      flipped: false,
       ports: map.resistor.ports,
     },
     {
@@ -48,6 +49,7 @@ export function createExampleCircuit() {
       y: 150,
       rotation: 0,
       mirrored: false,
+      flipped: false,
       ports: map.capacitor.ports,
     },
     {
@@ -58,6 +60,7 @@ export function createExampleCircuit() {
       y: 300,
       rotation: 0,
       mirrored: false,
+      flipped: false,
       ports: map.led.ports,
     },
   ];
@@ -78,6 +81,7 @@ export function explainPinPositions() {
     y: 150,              // Canvas Y position
     rotation: 0,
     mirrored: false,
+    flipped: false,
     ports: [
       { x: 0, y: 24 },   // Relative position within component
       { x: 80, y: 24 }

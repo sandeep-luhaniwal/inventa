@@ -44,7 +44,7 @@ export interface CanvasProps {
   onWireDelete: (wireId: string) => void;
   onWireMidPointsChange: (wireId: string, pts: { x: number; y: number }[]) => void;
   onCanvasWirePointAdd: (point: { x: number; y: number }) => void;
-  onPortsResolved?: (compId: string, resolvedPorts: { x: number; y: number }[]) => void;
+  onPortsResolved?: (compId: string, resolvedPorts: { x: number; y: number }[], width: number, height: number) => void;
 }
 
 const Canvas = ({

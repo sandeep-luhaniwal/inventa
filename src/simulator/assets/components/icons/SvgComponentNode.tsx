@@ -3,7 +3,6 @@
 import { memo } from "react";
 import { Circle, Group, Image as KonvaImage } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import type { DragEvent } from "konva/lib/DragAndDrop";
 import type { CircuitComponentBase, PinDefinition } from "./types";
 import { useSvgImage } from "./useSvgImage";
 

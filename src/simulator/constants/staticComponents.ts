@@ -25,6 +25,9 @@ export interface StaticComponentDef {
   litSvgBody?: string;
   relativePins: StaticPin[];
   ledColor?: string;
+  voltageValue?: number;
+  capacitanceValue?: number;
+  capacitanceUnit?: string;
 }
 
 export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = false): string {
@@ -198,6 +201,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       name: `LED ${color.charAt(0).toUpperCase() + color.slice(1)}`,
       category: "Indicators",
       ledColor: color,
+      voltageValue: 220,
       viewBoxW: 100,
       viewBoxH: 150,
       svgBody: sharedDefs(p.dome, false) + sharedBody(p.dark, false),
@@ -208,6 +212,75 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       ],
     } satisfies StaticComponentDef;
   }),
+  {
+    id: "ac_bulb",
+    name: "AC LED Bulb",
+    category: "Output",
+    voltageValue: 220,
+    viewBoxW: 100,
+    viewBoxH: 140,
+    svgBody: `
+      <defs>
+        <radialGradient id="bulb_glass" cx="40%" cy="30%" r="60%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#888888" stop-opacity="0.1"/>
+        </radialGradient>
+        <linearGradient id="bulb_base" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#717D7E"/>
+          <stop offset="50%" stop-color="#D5D8DC"/>
+          <stop offset="100%" stop-color="#717D7E"/>
+        </linearGradient>
+      </defs>
+      <!-- Pins -->
+      <rect x="35" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="59" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      
+      <!-- Screw Base -->
+      <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="url(#bulb_base)"/>
+      <line x1="32" y1="108" x2="68" y2="108" stroke="#5D6D7E" stroke-width="1"/>
+      <line x1="34" y1="116" x2="66" y2="116" stroke="#5D6D7E" stroke-width="1"/>
+      
+      <!-- Glass Dome -->
+      <path d="M 50 100 C 10 100, 10 20, 50 20 C 90 20, 90 100, 50 100 Z" fill="url(#bulb_glass)" stroke="#D5D8DC" stroke-width="1"/>
+      
+      <!-- Internal Filament (Unlit) -->
+      <path d="M 45 100 L 45 70 M 55 100 L 55 70" stroke="#7F8C8D" stroke-width="1.5"/>
+      <path d="M 45 70 Q 50 60, 55 70" stroke="#7F8C8D" stroke-width="1.5" fill="none"/>
+    `,
+    litSvgBody: `
+      <defs>
+        <radialGradient id="bulb_glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#FFF9C4" stop-opacity="1"/>
+          <stop offset="70%" stop-color="#FBC02D" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#FBC02D" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="bulb_outer_glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="8" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Pins -->
+      <rect x="35" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="59" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      
+      <!-- Screw Base -->
+      <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="#D5D8DC"/>
+      
+      <!-- Glow Effect -->
+      <circle cx="50" cy="60" r="45" fill="url(#bulb_glow)" filter="url(#bulb_outer_glow)"/>
+      
+      <!-- Glass Dome -->
+      <path d="M 50 100 C 10 100, 10 20, 50 20 C 90 20, 90 100, 50 100 Z" fill="rgba(255, 235, 59, 0.2)" stroke="#FBC02D" stroke-width="1.5"/>
+      
+      <!-- Internal Filament (Lit) -->
+      <path d="M 45 100 L 45 70 M 55 100 L 55 70" stroke="#F1C40F" stroke-width="2"/>
+      <path d="M 45 70 Q 50 50, 55 70" stroke="#FFF176" stroke-width="2.5" fill="none" filter="url(#bulb_outer_glow)"/>
+    `,
+    relativePins: [
+      { name: "Terminal 1", relX: 38 / 100, relY: 135 / 140 },
+      { name: "Terminal 2", relX: 62 / 100, relY: 135 / 140 },
+    ],
+  },
   {
     id: "battery9v",
     name: "Battery 9V",
@@ -294,6 +367,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     category: "Passive",
     viewBoxW: 100,
     viewBoxH: 150,
+    capacitanceValue: 1,
+    capacitanceUnit: "µF",
     svgBody: `
       <defs>
         <linearGradient id="c_bodyGrad" x1="0" y1="0" x2="1" y2="0">

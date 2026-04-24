@@ -6,7 +6,7 @@ import { computeSmartLayout, getInkBounds } from "@/simulator/utils/imageUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
 import { getComponentSnapOffset } from "@/simulator/utils/snapUtils";
 import { useEffect, useMemo, useState } from "react";
-import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect } from "react-konva";
+import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path } from "react-konva";
 import { getLedDataUrls, getMicrobitDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
@@ -57,7 +57,7 @@ const ComponentNode = ({
   allComponents,
   isSelected,
 }: ComponentNodeProps) => {
-  const isLitBase = (comp.componentId.startsWith("led") || comp.componentId === "microbit") && !!simulationState?.lit;
+  const isLitBase = (comp.componentId.startsWith("led") || comp.componentId === "microbit" || comp.componentId === "ac_bulb") && !!simulationState?.lit;
   const isBlinking = comp.isBlinking;
   const isLit = isLitBase && (!isBlinking || !!blinkToggle);
 
@@ -179,7 +179,9 @@ const ComponentNode = ({
           {/* LED Glow and Effects */}
           {(isLit || isBurned) && (() => {
             const ledOpt = LED_COLOR_OPTIONS.find(o => o.value === comp.ledColor) || LED_COLOR_OPTIONS[0];
-            const colorHex = ledOpt.hex;
+            const colorHex = comp.componentId === 'ac_bulb' ? '#FBC02D' : ledOpt.hex;
+            const glowY = comp.componentId === 'ac_bulb' ? h * 0.45 : h * 0.38;
+            const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * 0.45 : Math.max(w, h) * 0.38;
             
             if (isBurned) {
               return <SmokeAnimation x={w / 2} y={h * 0.3} />;
@@ -189,8 +191,8 @@ const ComponentNode = ({
               <>
                 <Circle
                   x={w / 2}
-                  y={h * 0.38}
-                  radius={Math.max(w, h) * 0.38}
+                  y={glowY}
+                  radius={glowRadius}
                   fill={`${colorHex}30`}
                   shadowColor={colorHex}
                   shadowBlur={32 * brightness}
@@ -199,8 +201,8 @@ const ComponentNode = ({
                 />
                 <Circle
                   x={w / 2}
-                  y={h * 0.38}
-                  radius={Math.max(w, h) * 0.22}
+                  y={glowY}
+                  radius={glowRadius * 0.6}
                   fill={`${colorHex}55`}
                   opacity={brightness}
                   listening={false}
@@ -363,10 +365,9 @@ const PinDot = ({
               shadowOpacity={0.3}
             />
             {/* Tooltip Arrow */}
-            <path 
-              d="M 35 18 L 40 23 L 45 18 Z" 
+            <Path 
+              data="M 35 18 L 40 23 L 45 18 Z" 
               fill="#34495E" 
-              transform="translate(0, 0)"
             />
             <Text
               text={displayName}

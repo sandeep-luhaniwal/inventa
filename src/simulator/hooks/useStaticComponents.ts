@@ -23,10 +23,12 @@ export interface PaletteComponentItem {
   viewBoxH: number;
 }
 
+const HIDDEN_COMPONENTS = ["led_red", "led_blue", "led_white"];
+
 export function useStaticComponents() {
   const components: PaletteComponentItem[] = useMemo(
     () =>
-      STATIC_COMPONENTS.map((def) => ({
+      STATIC_COMPONENTS.filter((def) => !HIDDEN_COMPONENTS.includes(def.id)).map((def) => ({
         id: def.id,
         name: def.name,
         category: def.category,

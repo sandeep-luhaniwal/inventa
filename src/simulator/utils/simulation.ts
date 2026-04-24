@@ -126,6 +126,7 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
       comp.componentId === "diode" ||
       comp.componentId === "slideswitch" ||
       comp.componentId === "pushbutton" ||
+      comp.componentId === "ac_bulb" ||
       comp.componentId.startsWith("led")
     ) {
       for (let i = 1; i < (comp.ports?.length ?? 0); i++) {
@@ -296,6 +297,28 @@ export function simulateCircuit(
           edgesC?.add(ledPins.anodeNode);
         }
       }
+
+      if (comp.componentId === "ac_bulb") {
+        const p0 = makeNodeKey(comp.id, 0);
+        const p1 = makeNodeKey(comp.id, 1);
+
+        const edges0 = graph.get(p0);
+        const edges1 = graph.get(p1);
+        edges0?.delete(p1);
+        edges1?.delete(p0);
+
+        const posReach = collectReachable(graph, battery.positiveRoot);
+        const negReach = collectReachable(graph, battery.negativeRoot);
+
+        // Non-polarized logic: Glows if T1 is Pos and T2 is Neg, OR T1 is Neg and T2 is Pos
+        if ((posReach.has(p0) && negReach.has(p1)) || (posReach.has(p1) && negReach.has(p0))) {
+          litComponents.add(comp.id);
+          hasPath = true;
+        }
+
+        edges0?.add(p1);
+        edges1?.add(p0);
+      }
     }
   }
 
@@ -318,18 +341,16 @@ export function simulateCircuit(
 
   // Calculate LED states based on current
   components.forEach(comp => {
-    if (comp.componentId.startsWith("led")) {
+    if (comp.componentId.startsWith("led") || comp.componentId === "ac_bulb") {
       if (litComponents.has(comp.id)) {
-        if (currentMA > 40 || isShortCircuit) {
+        if (currentMA > 100 || isShortCircuit) { // Bulbs are more robust than LEDs
           componentStates[comp.id] = { isBurned: true, brightness: 0 };
         } else if (currentMA >= 20) {
           componentStates[comp.id] = { isBurned: false, brightness: 1 };
         } else if (currentMA >= 10) {
           componentStates[comp.id] = { isBurned: false, brightness: 0.6 };
-        } else if (currentMA >= 5) {
-          componentStates[comp.id] = { isBurned: false, brightness: 0.3 };
         } else {
-          componentStates[comp.id] = { isBurned: false, brightness: 0.1 };
+          componentStates[comp.id] = { isBurned: false, brightness: 0.3 };
         }
       } else {
         componentStates[comp.id] = { isBurned: false, brightness: 0 };
