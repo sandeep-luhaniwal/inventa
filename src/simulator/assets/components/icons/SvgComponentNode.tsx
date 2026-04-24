@@ -31,7 +31,7 @@ function SvgComponentNodeInner<TComponent extends CircuitComponentBase>({
 }: SvgComponentNodeProps<TComponent>) {
   const image = useSvgImage(svgMarkup);
 
-  const handleDragEnd = (e: KonvaEventObject<DragEvent>) => {
+  const handleDragEnd = (e: KonvaEventObject<any>) => {
     onDragMove(component.id, e.target.x(), e.target.y());
   };
 
