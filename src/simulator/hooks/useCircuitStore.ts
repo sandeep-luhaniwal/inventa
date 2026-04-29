@@ -67,8 +67,14 @@ export function useCircuitStore() {
   const [isSimulating, setIsSimulating] = useState(false);
 
   // Use a ref for history so saveToHistory never goes stale
-  const historyRef = useRef<HistoryEntry[]>([]);
-  const historyIndexRef = useRef(-1);
+  const historyRef = useRef<HistoryEntry[]>([
+    {
+      components: initial.components,
+      wires: initial.wires,
+      notes: initial.notes,
+    },
+  ]);
+  const historyIndexRef = useRef(0);
   // Trigger re-render when undo/redo availability changes
   const [, forceUpdate] = useState(0);
 
@@ -99,6 +105,22 @@ export function useCircuitStore() {
   const moveComponent = useCallback((id: string, x: number, y: number) => {
     setComponents((prev) => prev.map((c) => (c.id === id ? { ...c, x, y } : c)));
   }, []);
+
+  const commitComponentMove = useCallback((id: string, x: number, y: number) => {
+    setComponents((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (c.id !== id) return c;
+        if (c.x === x && c.y === y) return c;
+        changed = true;
+        return { ...c, x, y };
+      });
+      if (changed) {
+        saveToHistory(next, wires, notes);
+      }
+      return next;
+    });
+  }, [notes, saveToHistory, wires]);
 
   const updateComponent = useCallback((id: string, updates: Partial<PlacedComponent>) => {
     setComponents((prev) => {
@@ -356,6 +378,7 @@ export function useCircuitStore() {
     setIsSimulating,
     addComponent,
     moveComponent,
+    commitComponentMove,
     updateComponent,
     handlePinClick,
     deleteSelected,

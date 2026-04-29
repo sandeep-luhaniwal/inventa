@@ -1,5 +1,5 @@
 import { PlacedComponent } from "../types/circuit";
-import { getAllPins, getAbsolutePinPosition } from "./circuitUtils";
+import { getAllPins } from "./circuitUtils";
 import { SNAP_RADIUS } from "../constants/circuit";
 
 /**
@@ -23,24 +23,29 @@ export function getComponentSnapOffset(
   // Check every pin of the moving component
   for (let i = 0; i < movingComp.ports.length; i++) {
     const port = movingComp.ports[i];
-    
-    // Calculate absolute position based on CURRENT drag coordinates
-    // We recreate the logic of getAbsolutePinPosition but using currentX/Y
-    let lx = movingComp.mirrored ? -port.x : port.x;
-    let ly = movingComp.flipped ? -port.y : port.y;
+    const width = movingComp.width ?? 100;
+    const height = movingComp.height ?? 100;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    let dx = port.x - centerX;
+    let dy = port.y - centerY;
+
+    if (movingComp.mirrored) dx *= -1;
+    if (movingComp.flipped) dy *= -1;
 
     if (movingComp.rotation !== 0) {
       const rad = (movingComp.rotation * Math.PI) / 180;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
-      const rx = lx * cos - ly * sin;
-      const ry = lx * sin + ly * cos;
-      lx = rx;
-      ly = ry;
+      const nextDx = dx * cos - dy * sin;
+      const nextDy = dx * sin + dy * cos;
+      dx = nextDx;
+      dy = nextDy;
     }
 
-    const curPinX = currentX + lx;
-    const curPinY = currentY + ly;
+    const curPinX = currentX + centerX + dx;
+    const curPinY = currentY + centerY + dy;
     
     for (const target of targetPins) {
       const dx = target.x - curPinX;
@@ -57,4 +62,3 @@ export function getComponentSnapOffset(
 
   return bestSnap ? { dx: bestSnap.dx, dy: bestSnap.dy } : null;
 }
-

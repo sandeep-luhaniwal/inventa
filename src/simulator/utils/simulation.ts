@@ -7,6 +7,7 @@ export interface SimulatedComponentState {
   brightness?: number;
   isBurned?: boolean;
   isShortCircuit?: boolean;
+  direction?: number;
 }
 
 export interface SimulationResult {
@@ -14,7 +15,7 @@ export interface SimulationResult {
   litComponents: string[];
   poweredComponents: string[];
   poweredWires: string[];
-  componentStates?: Record<string, { brightness: number; isBurned: boolean }>;
+  componentStates?: Record<string, { brightness: number; isBurned: boolean; direction?: number }>;
   summary: string;
   // Ohm's Law stats
   voltage?: number;
@@ -41,6 +42,13 @@ interface BatteryTerminal {
 }
 
 type Graph = Map<string, Set<string>>;
+
+const TWO_TERMINAL_LOAD_RESISTANCES: Record<string, number> = {
+  ac_bulb: 120,
+  dc_motor: 25,
+  gearmotor: 22,
+  vibration_motor: 18,
+};
 
 function makeNodeKey(compId: string, portIndex: number): string {
   return `${compId}:${portIndex}`;
@@ -172,6 +180,14 @@ function getLedPins(comp: PlacedComponent) {
   };
 }
 
+function getTwoTerminalNodes(comp: PlacedComponent) {
+  if ((comp.ports?.length ?? 0) < 2) return null;
+  return {
+    firstNode: makeNodeKey(comp.id, 0),
+    secondNode: makeNodeKey(comp.id, 1),
+  };
+}
+
 function buildPoweredWireIds(
   wires: Wire[],
   positiveReachable: Set<string>,
@@ -194,6 +210,9 @@ function buildPoweredWireIds(
 }
 
 function getBaseResistance(comp: PlacedComponent): number {
+  if (comp.componentId in TWO_TERMINAL_LOAD_RESISTANCES) {
+    return TWO_TERMINAL_LOAD_RESISTANCES[comp.componentId];
+  }
   const val = comp.resistanceValue ?? 0;
   const unit = comp.resistanceUnit ?? "Ω";
   return val * (UNIT_MULTIPLIERS[unit] ?? 1);
@@ -231,7 +250,7 @@ export function simulateCircuit(
   const poweredComponents = new Set<string>();
   const poweredWires = new Set<string>();
   
-  let totalVoltage = 9; // User specified 9V fixed
+  const totalVoltage = 9; // User specified 9V fixed
   let totalResistance = 0;
   let hasPath = false;
   
@@ -298,26 +317,26 @@ export function simulateCircuit(
         }
       }
 
-      if (comp.componentId === "ac_bulb") {
-        const p0 = makeNodeKey(comp.id, 0);
-        const p1 = makeNodeKey(comp.id, 1);
-
-        const edges0 = graph.get(p0);
-        const edges1 = graph.get(p1);
-        edges0?.delete(p1);
-        edges1?.delete(p0);
+      if (comp.componentId in TWO_TERMINAL_LOAD_RESISTANCES) {
+        const terminals = getTwoTerminalNodes(comp);
+        if (!terminals) continue;
 
         const posReach = collectReachable(graph, battery.positiveRoot);
         const negReach = collectReachable(graph, battery.negativeRoot);
 
-        // Non-polarized logic: Glows if T1 is Pos and T2 is Neg, OR T1 is Neg and T2 is Pos
-        if ((posReach.has(p0) && negReach.has(p1)) || (posReach.has(p1) && negReach.has(p0))) {
+        if (posReach.has(terminals.firstNode) && negReach.has(terminals.secondNode)) {
           litComponents.add(comp.id);
+          totalResistance += getBaseResistance(comp);
           hasPath = true;
+          // Terminal 1 is Pos, Terminal 2 is Neg -> Direction 1
+          (comp as any)._simDirection = 1;
+        } else if (posReach.has(terminals.secondNode) && negReach.has(terminals.firstNode)) {
+          litComponents.add(comp.id);
+          totalResistance += getBaseResistance(comp);
+          hasPath = true;
+          // Terminal 2 is Pos, Terminal 1 is Neg -> Direction -1
+          (comp as any)._simDirection = -1;
         }
-
-        edges0?.add(p1);
-        edges1?.add(p0);
       }
     }
   }
@@ -337,23 +356,26 @@ export function simulateCircuit(
   const currentMA = currentAmps * 1000;
   const powerWatts = totalVoltage * currentAmps;
 
-  const componentStates: Record<string, { brightness: number; isBurned: boolean }> = {};
+  const componentStates: Record<string, { brightness: number; isBurned: boolean; direction?: number }> = {};
 
-  // Calculate LED states based on current
+  // Calculate output states based on current
   components.forEach(comp => {
-    if (comp.componentId.startsWith("led") || comp.componentId === "ac_bulb") {
+    const isLed = comp.componentId.startsWith("led");
+    const isBulb = comp.componentId === "ac_bulb";
+    const isMotor = comp.componentId.toLowerCase().includes("motor");
+    const isMicrobit = comp.componentId === "microbit";
+
+    if (isLed || isBulb || isMotor || isMicrobit) {
       if (litComponents.has(comp.id)) {
-        if (currentMA > 100 || isShortCircuit) { // Bulbs are more robust than LEDs
+        if (isLed && (currentMA > 100 || isShortCircuit)) {
           componentStates[comp.id] = { isBurned: true, brightness: 0 };
-        } else if (currentMA >= 20) {
-          componentStates[comp.id] = { isBurned: false, brightness: 1 };
-        } else if (currentMA >= 10) {
-          componentStates[comp.id] = { isBurned: false, brightness: 0.6 };
         } else {
-          componentStates[comp.id] = { isBurned: false, brightness: 0.3 };
+          const direction = (comp as any)._simDirection ?? 1;
+          const brightness = (isLed || isBulb) ? (currentMA >= 10 ? 0.6 : 0.3) : 0;
+          componentStates[comp.id] = { isBurned: false, brightness, direction };
         }
       } else {
-        componentStates[comp.id] = { isBurned: false, brightness: 0 };
+        componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1 };
       }
     }
   });

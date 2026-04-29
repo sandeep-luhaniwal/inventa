@@ -11,6 +11,9 @@ import PropertyPanel from "../components/circuit/PropertyPanel";
 import { relativePinsToPorts } from "../utils/circuitUtils";
 import { simulateCircuit } from "../utils/simulation";
 import LiveStatsPanel from "../components/circuit/LiveStatsPanel";
+import AiAnalysisPanel from "../components/circuit/AiAnalysisPanel";
+import { analyzeCircuit } from "../actions/analyzeCircuit";
+import { STATIC_COMPONENTS } from "../constants/staticComponents";
 
 const SimilotaorMain = () => {
   const store = useCircuitStore();
@@ -18,20 +21,50 @@ const SimilotaorMain = () => {
   const [draggedComponent, setDraggedComponent] = useState<ComponentItem | null>(null);
   const [blinkToggle, setBlinkToggle] = useState(true);
 
+  // AI Analysis state
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<{ 
+    status: "Correct" | "Wrong"; 
+    reason: string;
+    visualStates?: Record<string, { 
+      lit: boolean; 
+      powered: boolean; 
+      direction?: number; 
+      brightness?: number; 
+      isBurned?: boolean; 
+    }>;
+  } | null>(null);
+  const [aiError, setAiError] = useState<string | undefined>();
+
   useEffect(() => {
     if (!store.isSimulating) return;
     const timer = setInterval(() => setBlinkToggle((b) => !b), 500);
     return () => clearInterval(timer);
   }, [store.isSimulating]);
 
-  const handleToggleSimulation = () => {
-    store.setIsSimulating((prev) => {
-      const next = !prev;
-      if (!next) {
-        setBlinkToggle(true);
+  const handleToggleSimulation = async () => {
+    const next = !store.isSimulating;
+    store.setIsSimulating(next);
+    
+    if (!next) {
+      setBlinkToggle(true);
+      setAiResult(null);
+      setAiError(undefined);
+    } else {
+      // Start AI Analysis
+      setIsAnalyzing(true);
+      setAiResult(null);
+      setAiError(undefined);
+      
+      try {
+        const result = await analyzeCircuit(store.components, store.wires, STATIC_COMPONENTS);
+        setAiResult(result);
+      } catch (err: any) {
+        setAiError(err.message || "Failed to connect to AI service.");
+      } finally {
+        setIsAnalyzing(false);
       }
-      return next;
-    });
+    }
   };
 
   const cancelWireRef = useRef(store.setConnectingFrom);
@@ -39,25 +72,22 @@ const SimilotaorMain = () => {
   const undoRef = useRef(store.undo);
   const redoRef = useRef(store.redo);
 
-  const simulation = useMemo(
-    () => simulateCircuit(store.components, store.wires),
-    [store.components, store.wires]
-  );
-
   const simulatedComponents = useMemo(
     () =>
-      store.components.reduce<Record<string, { lit?: boolean; powered?: boolean; brightness?: number; isBurned?: boolean; isShortCircuit?: boolean }>>((acc, component) => {
-        const simState = simulation.componentStates?.[component.id];
+      store.components.reduce<Record<string, { lit?: boolean; powered?: boolean; brightness?: number; isBurned?: boolean; isShortCircuit?: boolean; direction?: number }>>((acc, component) => {
+        const aiState = aiResult?.visualStates?.[component.id];
+
         acc[component.id] = {
-          lit: store.isSimulating && simulation.litComponents.includes(component.id),
-          powered: store.isSimulating && simulation.poweredComponents.includes(component.id),
-          brightness: store.isSimulating ? simState?.brightness : 0,
-          isBurned: store.isSimulating ? simState?.isBurned : false,
-          isShortCircuit: store.isSimulating && simulation.isShortCircuit
+          lit: store.isSimulating && !!aiState?.lit,
+          powered: store.isSimulating && !!aiState?.powered,
+          brightness: store.isSimulating ? aiState?.brightness || 0 : 0,
+          isBurned: store.isSimulating ? !!aiState?.isBurned : false,
+          isShortCircuit: store.isSimulating && aiResult?.status === "Wrong" && (aiResult.reason.toLowerCase().includes("short") || aiResult.reason.toLowerCase().includes("critical")),
+          direction: store.isSimulating ? aiState?.direction || 1 : 1
         };
         return acc;
       }, {}),
-    [simulation, store.components, store.isSimulating]
+    [store.components, store.isSimulating, aiResult]
   );
 
   useEffect(() => {
@@ -69,15 +99,23 @@ const SimilotaorMain = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditableTarget =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
       if (e.key === "Escape") {
         cancelWireRef.current(null);
       }
-      if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement === document.body) {
+      if (!isEditableTarget && (e.key === "Delete" || e.key === "Backspace") && document.activeElement === document.body) {
         deleteRef.current();
       }
 
       // Undo/Redo shortcuts
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      if (!isEditableTarget && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
           redoRef.current();
         } else {
@@ -85,7 +123,7 @@ const SimilotaorMain = () => {
         }
         e.preventDefault();
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+      if (!isEditableTarget && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         redoRef.current();
         e.preventDefault();
       }
@@ -120,6 +158,8 @@ const SimilotaorMain = () => {
         ledColor: draggedComponent.ledColor,
         x: stagePos.x - width / 2,
         y: stagePos.y - height / 2,
+        width,
+        height,
         rotation: 0,
         mirrored: false,
         flipped: false,
@@ -164,7 +204,7 @@ const SimilotaorMain = () => {
   }, [store.components]);
 
   const simulationSummary = store.isSimulating
-    ? simulation.summary
+    ? (isAnalyzing ? "AI is analyzing..." : (aiResult?.status || "Simulation running."))
     : "Click Run Simulation to test the circuit.";
 
   return (
@@ -173,20 +213,19 @@ const SimilotaorMain = () => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         isSimulating={store.isSimulating}
-        simulationSummary={store.isSimulating ? simulation.summary : "Simulation stopped."}
+        simulationSummary={store.isSimulating ? simulationSummary : "Simulation stopped."}
         onToggleSimulation={handleToggleSimulation}
       />
       <Toolbar
         canUndo={store.canUndo}
         canRedo={store.canRedo}
+        showGrid={store.showGrid}
         wireColor={store.wireColor}
         wireType={store.wireType}
         isSimulating={store.isSimulating}
         simulationSummary={simulationSummary}
         onDelete={store.deleteSelected}
         onToggleGrid={store.toggleGrid}
-        selectedComponent={store.components.find((c) => store.selectedComponents.includes(c.id))}
-        onUpdateComponent={store.updateComponent}
         onCopy={() => {}}
         onPaste={() => {}}
         onUndo={store.undo}
@@ -218,11 +257,12 @@ const SimilotaorMain = () => {
               onNoteDelete={store.deleteNote}
               simulatedComponents={simulatedComponents}
               blinkToggle={blinkToggle}
-              poweredWireIds={store.isSimulating ? simulation.poweredWires : []}
-              simulationSummary={simulation.summary}
+              poweredWireIds={[]} // Static wire powering removed for now
+              simulationSummary={simulationSummary}
               onDrop={handleCanvasDrop}
               onDragOver={handleCanvasDragOver}
               onComponentMove={store.moveComponent}
+              onComponentMoveEnd={store.commitComponentMove}
               onPinClick={store.handlePinClick}
               onComponentSelect={store.selectComponent}
               onWireSelect={store.setSelectedWire}
@@ -231,11 +271,6 @@ const SimilotaorMain = () => {
               onCanvasWirePointAdd={store.addConnectingMidPoint}
               onPortsResolved={store.updateComponentPorts}
             />
-
-            {/* Live stats panel overlay */}
-            {store.isSimulating && (
-              <LiveStatsPanel simulation={simulation} />
-            )}
 
             {/* Property Panel — floats over the canvas when a component is selected */}
             {store.selectedComponents.length === 1 && (

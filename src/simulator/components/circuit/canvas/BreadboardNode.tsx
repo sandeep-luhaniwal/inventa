@@ -88,9 +88,6 @@ const BreadboardNode = ({
     <Group
       x={comp.x}
       y={comp.y}
-      rotation={comp.rotation}
-      scaleX={comp.mirrored ? -1 : 1}
-      scaleY={comp.flipped  ? -1 : 1}
       draggable={!isConnecting}
       onDragMove={(e) => {
         const x = e.target.x();
@@ -121,6 +118,15 @@ const BreadboardNode = ({
         }
       }}
     >
+      <Group
+        x={BOARD_W / 2}
+        y={BOARD_H / 2}
+        offsetX={BOARD_W / 2}
+        offsetY={BOARD_H / 2}
+        rotation={comp.rotation}
+        scaleX={comp.mirrored ? -1 : 1}
+        scaleY={comp.flipped ? -1 : 1}
+      >
       {/* Background Body */}
       <Rect
         x={0} y={0} width={BOARD_W} height={BOARD_H}
@@ -297,6 +303,7 @@ const BreadboardNode = ({
         offsetX={BOARD_W / 2}
         fontStyle="bold"
       />
+      </Group>
     </Group>
   );
 };

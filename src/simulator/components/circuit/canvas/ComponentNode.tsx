@@ -1,4 +1,5 @@
 "use client"
+import Konva from "konva";
 import { COLORS, PIN_RADIUS, LED_COLOR_OPTIONS } from "@/simulator/constants/circuit";
 import { useImage } from "@/simulator/hooks/useImage";
 import { ConnectingFrom, PlacedComponent } from "@/simulator/types/circuit";
@@ -7,10 +8,11 @@ import { SimulatedComponentState } from "@/simulator/utils/simulation";
 import { getComponentSnapOffset } from "@/simulator/utils/snapUtils";
 import { useEffect, useMemo, useState } from "react";
 import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path } from "react-konva";
-import { getLedDataUrls, getMicrobitDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/constants/staticComponents";
+import { getMicrobitDataUrls } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
+const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit"]);
 
 function resolveFullImageLayout(
   img: HTMLImageElement,
@@ -30,7 +32,6 @@ interface ComponentNodeProps {
   comp: PlacedComponent;
   imageSrc?: string;
   litImageSrc?: string;
-  isSelected: boolean;
   connectingFrom: ConnectingFrom | null;
   simulationState?: SimulatedComponentState;
   blinkToggle?: boolean;
@@ -55,9 +56,8 @@ const ComponentNode = ({
   onSelect,
   onSizeResolved,
   allComponents,
-  isSelected,
 }: ComponentNodeProps) => {
-  const isLitBase = (comp.componentId.startsWith("led") || comp.componentId === "microbit" || comp.componentId === "ac_bulb") && !!simulationState?.lit;
+  const isLitBase = (comp.componentId.startsWith("led") || ANIMATED_OUTPUT_COMPONENTS.has(comp.componentId)) && !!simulationState?.lit;
   const isBlinking = comp.isBlinking;
   const isLit = isLitBase && (!isBlinking || !!blinkToggle);
 
@@ -70,9 +70,16 @@ const ComponentNode = ({
     activeLitSrc = urls.litImageSrc;
   }
 
-  // Prop litImageSrc takes precedence (live-resolved from ledColor); fallback to stored value
   const resolvedLitSrc = activeLitSrc ?? comp.litImageSrc;
-  const activeSrc = (isLit && resolvedLitSrc) ? resolvedLitSrc : (activeImageSrc ?? "");
+  let activeSrc = (isLit && resolvedLitSrc) ? resolvedLitSrc : (activeImageSrc ?? "");
+
+  // Hide the static gear in the SVG when we're going to overlay a live one
+  if (isLit && comp.componentId === "dc_motor" && activeSrc.startsWith("data:image/svg+xml")) {
+    const decoded = decodeURIComponent(activeSrc.replace("data:image/svg+xml;charset=utf-8,", ""));
+    const modified = decoded.replace('id="gear_group"', 'id="gear_group" style="display:none;opacity:0"');
+    activeSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(modified)}`;
+  }
+
   const img = useImage(activeSrc);
 
   const layout = useMemo(() => {
@@ -176,16 +183,23 @@ const ComponentNode = ({
           )}
 
 
-          {/* LED Glow and Effects */}
+          {/* Visual Effects (Glow/Animations) driven by AI/Simulation state */}
           {(isLit || isBurned) && (() => {
+            if (isBurned) {
+              return <SmokeAnimation x={w / 2} y={h * 0.3} />;
+            }
+
+            // If it's a motor (CW/CCW rotation)
+            const isMotor = comp.componentId.toLowerCase().includes('motor');
+            if (isMotor) {
+               return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} />;
+            }
+
+            // Default glow for LEDs and bulbs
             const ledOpt = LED_COLOR_OPTIONS.find(o => o.value === comp.ledColor) || LED_COLOR_OPTIONS[0];
             const colorHex = comp.componentId === 'ac_bulb' ? '#FBC02D' : ledOpt.hex;
             const glowY = comp.componentId === 'ac_bulb' ? h * 0.45 : h * 0.38;
             const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * 0.45 : Math.max(w, h) * 0.38;
-            
-            if (isBurned) {
-              return <SmokeAnimation x={w / 2} y={h * 0.3} />;
-            }
 
             return (
               <>
@@ -227,29 +241,6 @@ const ComponentNode = ({
             />
           ))}
         </Group>
-
-        <Text
-          text={comp.name}
-          x={w / 2}
-          y={h + 10}
-          fontSize={10}
-          fill={isBurned ? "#ff0000" : (simulationState?.powered ? COLORS.wireActive : COLORS.label)}
-          align="center"
-          offsetX={w / 2}
-          fontStyle={isBurned ? "bold" : "normal"}
-        />
-        {isBurned && (
-          <Text
-            text="BURNED"
-            x={w / 2}
-            y={-15}
-            fontSize={9}
-            fill="#ff0000"
-            align="center"
-            offsetX={w / 2}
-            fontStyle="bold"
-          />
-        )}
       </Group>
     );
   };
@@ -303,6 +294,54 @@ const ComponentNode = ({
     );
   };
 
+
+const RotatingGear = ({ x, y, direction }: { x: number; y: number; direction: number }) => {
+  const groupRef = useMemo(() => ({ current: null as any }), []);
+
+  useEffect(() => {
+    const anim = new Konva.Animation((frame) => {
+      if (groupRef.current && frame) {
+        groupRef.current.rotation((frame.time * 0.2 * direction) % 360);
+      }
+    }, groupRef.current?.getLayer());
+    
+    anim.start();
+    return () => { anim.stop(); };
+  }, [direction]);
+
+  return (
+    <Group x={x} y={y} ref={groupRef} shadowColor="#000" shadowBlur={4} shadowOpacity={0.2} shadowOffset={{ x: 1, y: 1 }}>
+      {/* 12 Tapered Teeth */}
+      {Array.from({ length: 12 }).map((_, i) => (
+        <Group key={i} rotation={i * 30}>
+          <Path 
+            data="M -4 -18 L 4 -18 L 3 -10 L -3 -10 Z"
+            fill="#f1c40f"
+            stroke="#d4ac0d"
+            strokeWidth={0.5}
+            y={-2} // Slight outward shift
+          />
+        </Group>
+      ))}
+      
+      {/* Main Gear Body with Gradient */}
+      <Circle 
+        radius={11} 
+        fillRadialGradientStartPoint={{ x: -2, y: -2 }}
+        fillRadialGradientStartRadius={0}
+        fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+        fillRadialGradientEndRadius={11}
+        fillRadialGradientColorStops={[0, '#f1c40f', 1, '#d4ac0d']}
+        stroke="#b7950b"
+        strokeWidth={0.5}
+      />
+      
+      {/* Center Detail */}
+      <Circle radius={6} fill="#b7950b" opacity={0.6} />
+      <Circle radius={3} fill="#7d6608" />
+    </Group>
+  );
+};
 
 const PinDot = ({
   x,

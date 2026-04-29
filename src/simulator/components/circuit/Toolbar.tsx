@@ -38,8 +38,6 @@ interface ToolbarProps {
   onAddNote?: () => void;
   isSimulating?: boolean;
   simulationSummary?: string;
-  selectedComponent?: any; // PlacedComponent
-  onUpdateComponent?: (id: string, updates: any) => void;
 }
 
 function useOutsideClick(
@@ -241,8 +239,6 @@ const Toolbar = ({
   isSimulating,
   simulationSummary,
   showGrid,
-  selectedComponent,
-  onUpdateComponent,
   onToggleGrid,
   onAddNote,
 }: ToolbarProps) => {

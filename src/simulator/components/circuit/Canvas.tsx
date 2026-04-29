@@ -38,6 +38,7 @@ export interface CanvasProps {
   onDrop: (e: React.DragEvent, stagePos: { x: number; y: number }) => void;
   onDragOver: (e: React.DragEvent) => void;
   onComponentMove: (id: string, x: number, y: number) => void;
+  onComponentMoveEnd: (id: string, x: number, y: number) => void;
   onPinClick: (compId: string, portIndex: number) => void;
   onComponentSelect: (compId: string, multi: boolean) => void;
   onWireSelect: (wireId: string) => void;
@@ -67,6 +68,7 @@ const Canvas = ({
   onDrop,
   onDragOver,
   onComponentMove,
+  onComponentMoveEnd,
   onPinClick,
   onComponentSelect,
   onWireSelect,
@@ -245,7 +247,7 @@ const Canvas = ({
                 isSelected={selectedComponents.includes(comp.id)}
                 connectingFrom={connectingFrom}
                 onDragMove={onComponentMove}
-                onDragEnd={onComponentMove}
+                onDragEnd={onComponentMoveEnd}
                 onPinClick={onPinClick}
                 onSelect={onComponentSelect}
                 allComponents={placedComponents}
@@ -266,12 +268,11 @@ const Canvas = ({
                     comp={comp}
                     imageSrc={ledUrls ? ledUrls.imageSrc : resolvedBaseImageSrc}
                     litImageSrc={ledUrls ? ledUrls.litImageSrc : comp.litImageSrc}
-                    isSelected={isSelected}
                     connectingFrom={connectingFrom}
                     simulationState={simulatedComponents?.[comp.id]}
                     blinkToggle={blinkToggle}
                     onDragMove={onComponentMove}
-                    onDragEnd={onComponentMove}
+                    onDragEnd={onComponentMoveEnd}
                     onPinClick={onPinClick}
                     onSelect={onComponentSelect}
                     onSizeResolved={onPortsResolved}

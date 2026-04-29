@@ -45,7 +45,7 @@ export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = fa
            <feDropShadow dx="-1.05" dy="-1.05" stdDeviation="0.2" flood-color="#3b82f6" flood-opacity="1"/>
          </filter>
        </defs>`
-    : "";
+    : "";  
   const wrappedBody = outlined ? `<g filter="url(#component_outline)">${body}</g>` : body;
   const svg = `<svg viewBox="0 0 ${def.viewBoxW} ${def.viewBoxH}" xmlns="http://www.w3.org/2000/svg">${outlineDefs}${wrappedBody}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -74,7 +74,7 @@ function buildBreadboardPins(): StaticPin[] {
   const pins: StaticPin[] = [];
   for (let r = 1; r <= BB_ROWS; r++) {
     const lx = BB_PAD_X + (r - 1) * BB_SPACING;
-    
+
     // Top Power Rails
     pins.push({ name: `Top +${r}`, relX: lx / BB_W, relY: BB_TOP_P_Y / BB_H, type: 'TP' });
     pins.push({ name: `Top -${r}`, relX: lx / BB_W, relY: BB_TOP_N_Y / BB_H, type: 'TN' });
@@ -83,7 +83,7 @@ function buildBreadboardPins(): StaticPin[] {
     ["j", "i", "h", "g", "f"].forEach((col, ci) => {
       pins.push({ name: `${col}${r}`, relX: lx / BB_W, relY: (BB_GRID_TOP_Y + ci * BB_SPACING) / BB_H, type: `T${r}` });
     });
-    
+
     // Bottom Grid (e-a)
     ["e", "d", "c", "b", "a"].forEach((col, ci) => {
       pins.push({ name: `${col}${r}`, relX: lx / BB_W, relY: (BB_GRID_BOT_Y + ci * BB_SPACING) / BB_H, type: `B${r}` });
@@ -97,7 +97,7 @@ function buildBreadboardPins(): StaticPin[] {
 }
 
 export const STATIC_COMPONENTS: StaticComponentDef[] = [
-  
+
   {
     id: "resistor",
     name: "Resistor",
@@ -147,10 +147,10 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
   },
   ...(["red", "orange", "blue", "white"] as const).map((color) => {
     const palette: Record<string, { dome: string[]; lit: string[]; dark: string; litDark: string; glow: string }> = {
-      red:    { dome: ["#FF6B6B", "#E74C3C", "#922B21"], lit: ["#FFFFFF", "#FF4444", "#CC0000"], dark: "#922B21", litDark: "#FF2222", glow: "#f87171" },
+      red: { dome: ["#FF6B6B", "#E74C3C", "#922B21"], lit: ["#FFFFFF", "#FF4444", "#CC0000"], dark: "#922B21", litDark: "#FF2222", glow: "#f87171" },
       orange: { dome: ["#e9eb7fff", "#F97316", "#9A3412"], lit: ["#FFFFFF", "#FF8C00", "#CC5500"], dark: "#9A3412", litDark: "#FF7700", glow: "#fb923c" },
-      blue:   { dome: ["#93C5FD", "#3B82F6", "#1E3A8A"], lit: ["#FFFFFF", "#60A5FA", "#1D4ED8"], dark: "#1E3A8A", litDark: "#3B82F6", glow: "#60a5fa" },
-      white:  { dome: ["#F8FAFC", "#E2E8F0", "#94A3B8"], lit: ["#FFFFFF", "#F8FAFC", "#E2E8F0"], dark: "#94A3B8", litDark: "#FFFFFF", glow: "#f1f5f9" },
+      blue: { dome: ["#93C5FD", "#3B82F6", "#1E3A8A"], lit: ["#FFFFFF", "#60A5FA", "#1D4ED8"], dark: "#1E3A8A", litDark: "#3B82F6", glow: "#60a5fa" },
+      white: { dome: ["#F8FAFC", "#E2E8F0", "#94A3B8"], lit: ["#FFFFFF", "#F8FAFC", "#E2E8F0"], dark: "#94A3B8", litDark: "#FFFFFF", glow: "#f1f5f9" },
     };
     const p = palette[color];
     const uid = `l_${color}`;
@@ -481,18 +481,18 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <line x1="${BB_PAD_X}" y1="${BB_BOT_N_Y - 10}" x2="${BB_W - BB_PAD_X}" y2="${BB_BOT_N_Y - 10}" stroke="#2980B9" stroke-width="1" opacity="0.5"/>
       <line x1="${BB_PAD_X}" y1="${BB_BOT_P_Y + 10}" x2="${BB_W - BB_PAD_X}" y2="${BB_BOT_P_Y + 10}" stroke="#E74C3C" stroke-width="1" opacity="0.5"/>
       ${Array.from({ length: BB_ROWS }, (_, ri) => {
-          const lx = BB_PAD_X + ri * BB_SPACING;
-          const holes = [];
-          holes.push(`<circle cx="${lx}" cy="${BB_TOP_N_Y}" r="3" fill="#333333"/>`);
-          holes.push(`<circle cx="${lx}" cy="${BB_TOP_P_Y}" r="3" fill="#333333"/>`);
-          holes.push(`<circle cx="${lx}" cy="${BB_BOT_N_Y}" r="3" fill="#333333"/>`);
-          holes.push(`<circle cx="${lx}" cy="${BB_BOT_P_Y}" r="3" fill="#333333"/>`);
-          for (let ci = 0; ci < 5; ci++) {
-            holes.push(`<circle cx="${lx}" cy="${BB_GRID_TOP_Y + ci * BB_SPACING}" r="3" fill="#333333"/>`);
-            holes.push(`<circle cx="${lx}" cy="${BB_GRID_BOT_Y + ci * BB_SPACING}" r="3" fill="#333333"/>`);
-          }
-          return holes.join("");
-      }).join("")}
+      const lx = BB_PAD_X + ri * BB_SPACING;
+      const holes = [];
+      holes.push(`<circle cx="${lx}" cy="${BB_TOP_N_Y}" r="3" fill="#333333"/>`);
+      holes.push(`<circle cx="${lx}" cy="${BB_TOP_P_Y}" r="3" fill="#333333"/>`);
+      holes.push(`<circle cx="${lx}" cy="${BB_BOT_N_Y}" r="3" fill="#333333"/>`);
+      holes.push(`<circle cx="${lx}" cy="${BB_BOT_P_Y}" r="3" fill="#333333"/>`);
+      for (let ci = 0; ci < 5; ci++) {
+        holes.push(`<circle cx="${lx}" cy="${BB_GRID_TOP_Y + ci * BB_SPACING}" r="3" fill="#333333"/>`);
+        holes.push(`<circle cx="${lx}" cy="${BB_GRID_BOT_Y + ci * BB_SPACING}" r="3" fill="#333333"/>`);
+      }
+      return holes.join("");
+    }).join("")}
     `,
     relativePins: buildBreadboardPins(),
   },
@@ -571,15 +571,15 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       
       <!-- Tick Marks -->
       ${Array.from({ length: 40 }).map((_, i) => {
-        const angle = (i * 9) - 90;
-        const r1 = 42;
-        const r2 = 50;
-        const x1 = 60 + r1 * Math.cos(angle * Math.PI / 180);
-        const y1 = 65 + r1 * Math.sin(angle * Math.PI / 180);
-        const x2 = 60 + r2 * Math.cos(angle * Math.PI / 180);
-        const y2 = 65 + r2 * Math.sin(angle * Math.PI / 180);
-        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#17202A" stroke-width="1.5" />`;
-      }).join("")}
+      const angle = (i * 9) - 90;
+      const r1 = 42;
+      const r2 = 50;
+      const x1 = 60 + r1 * Math.cos(angle * Math.PI / 180);
+      const y1 = 65 + r1 * Math.sin(angle * Math.PI / 180);
+      const x2 = 60 + r2 * Math.cos(angle * Math.PI / 180);
+      const y2 = 65 + r2 * Math.sin(angle * Math.PI / 180);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#17202A" stroke-width="1.5" />`;
+    }).join("")}
 
       <!-- Center Knob -->
       <circle cx="60" cy="65" r="40" fill="#5D9CEC" stroke="#2E86C1" stroke-width="1"/>
@@ -680,7 +680,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       
       <!-- Digital Pin Labels -->
       <text x="215" y="58" font-size="7" fill="#FFF" opacity="0.7" text-anchor="end" transform="rotate(-90, 215, 58)">DIGITAL (PWM~)</text>
-      ${[0,1,2,3,4,5,6,7,8,9,10,11,12,13].map(n => `
+      ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(n => `
         <text x="${288 - n * 10}" y="28" font-size="7" fill="#FFF" opacity="0.7" text-anchor="middle">${n}</text>
       `).join("")}
 
@@ -765,11 +765,11 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       `).join("")}
 
       <!-- LED Matrix (5x5) -->
-      ${Array.from({ length: 5 }).map((_, r) => 
-        Array.from({ length: 5 }).map((_, c) => `
+      ${Array.from({ length: 5 }).map((_, r) =>
+      Array.from({ length: 5 }).map((_, c) => `
           <rect x="${65 + c * 16}" y="${65 + r * 16}" width="8" height="5" rx="1" fill="#424242"/>
         `).join("")
-      ).join("")}
+    ).join("")}
 
       <!-- Buttons -->
       <!-- Button B (Top) -->
@@ -810,13 +810,13 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       `).join("")}
       
       <!-- LED Matrix (Heart) -->
-      ${Array.from({ length: 5 }).map((_, r) => 
-        Array.from({ length: 5 }).map((_, c) => {
-          const heart = [[0,1,0,1,0],[1,1,1,1,1],[1,1,1,1,1],[0,1,1,1,0],[0,0,1,0,0]];
-          const isLit = heart[r][c] === 1;
-          return `<rect x="${65 + c * 16}" y="${65 + r * 16}" width="8" height="5" rx="1" fill="${isLit ? "#FF5252" : "#424242"}" ${isLit ? 'filter="url(#led_glow_red)"' : ""} />`;
-        }).join("")
-      ).join("")}
+      ${Array.from({ length: 5 }).map((_, r) =>
+      Array.from({ length: 5 }).map((_, c) => {
+        const heart = [[0, 1, 0, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]];
+        const isLit = heart[r][c] === 1;
+        return `<rect x="${65 + c * 16}" y="${65 + r * 16}" width="8" height="5" rx="1" fill="${isLit ? "#FF5252" : "#424242"}" ${isLit ? 'filter="url(#led_glow_red)"' : ""} />`;
+      }).join("")
+    ).join("")}
 
       <!-- Buttons -->
       <circle cx="145" cy="45" r="10" fill="#333"/><circle cx="145" cy="155" r="10" fill="#333"/>
@@ -920,7 +920,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <circle cx="102" cy="70" r="8" fill="#5D6D7E"/>
 
       <!-- Gear (Static) -->
-      <g transform="translate(70, 70)">
+      <g id="gear_group" transform="translate(70, 70)">
         <circle r="12" fill="#F4D03F"/>
         ${Array.from({ length: 12 }).map((_, i) => `
           <rect x="-3" y="-18" width="6" height="8" rx="1.5" fill="#F4D03F" transform="rotate(${i * 30})"/>
@@ -939,15 +939,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <path d="M 30 20 L 110 20 Q 130 20 130 40 L 130 80 Q 130 100 110 100 L 30 100 Q 10 100 10 80 L 10 40 Q 10 20 30 20" fill="#BDC3C7" stroke="#95A5A6" stroke-width="2"/>
       <circle cx="70" cy="42" r="8" fill="#5D6D7E"/><circle cx="38" cy="70" r="8" fill="#5D6D7E"/><circle cx="102" cy="70" r="8" fill="#5D6D7E"/>
 
-      <!-- Rotating Gear -->
-      <g transform="translate(70, 70)">
-        <animateTransform attributeName="transform" type="rotate" from="0 70 70" to="360 70 70" dur="0.5s" repeatCount="indefinite" additive="sum"/>
-        <circle r="12" fill="#F4D03F"/>
-        ${Array.from({ length: 12 }).map((_, i) => `
-          <rect x="-3" y="-18" width="6" height="8" rx="1.5" fill="#F4D03F" transform="rotate(${i * 30})"/>
-        `).join("")}
-        <circle r="7" fill="#D4AC0D"/>
-      </g>
+      <!-- No gear here; it is rendered live by Konva in ComponentNode.tsx -->
 
       <rect x="52" y="100" width="10" height="12" rx="1" fill="#212121"/>
       <rect x="56" y="112" width="2" height="6" fill="#BDC3C7"/>
