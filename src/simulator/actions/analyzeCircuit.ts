@@ -22,8 +22,7 @@ export async function analyzeCircuit(
   wires: Wire[],
   staticDefs: any[]
 ): Promise<AnalysisResult> {
-  const apiKey = "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";
-  
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return {
       status: "Wrong",
