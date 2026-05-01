@@ -1,7 +1,11 @@
 "use client";
 
-import React from "react";
-import type { InorganicLibraryItem } from "@/chemistry/types";
+import {
+  MeasureBottleAsset,
+  RoundBottomFlaskAsset,
+  SeparatoryFunnelAsset,
+  TestTubeAsset,
+} from "./LabAssets";
 
 interface InorganicThumbnailProps {
   item: InorganicLibraryItem;
@@ -51,89 +55,6 @@ function GlassBottle() {
   );
 }
 
-function SampleJar() {
-  return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
-      <rect x="34" y="20" width="52" height="10" rx="4" fill="#cbd5e1" fillOpacity="0.24" stroke="#e2e8f0" strokeOpacity="0.55" />
-      <path
-        d="M38 28h44c3 0 6 3 6 6v48c0 12-8 22-18 22H50c-10 0-18-10-18-22V34c0-3 3-6 6-6Z"
-        fill="url(#glassFill)"
-        stroke="url(#glassStroke)"
-        strokeWidth="3"
-        filter="url(#softGlow)"
-      />
-      <path d="M47 32v66" stroke="url(#glassHighlight)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M74 38c-8 1-16 1-24 0" stroke="#e2e8f0" strokeOpacity="0.35" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function TestTube({ tall = false }: { tall?: boolean }) {
-  return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
-      <path
-        d={tall ? "M52 12h16v74a12 12 0 1 1-24 0V12h8Z" : "M50 18h20v62a12 12 0 1 1-28 0V18h8Z"}
-        fill="url(#glassFill)"
-        stroke="url(#glassStroke)"
-        strokeWidth="3"
-        filter="url(#softGlow)"
-      />
-      <path d={tall ? "M49 18v65" : "M47 24v55"} stroke="url(#glassHighlight)" strokeWidth="4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BeakerThumb() {
-  return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
-      <path
-        d="M36 20h48v8h-5v50c0 14-8 24-19 24H60c-11 0-19-10-19-24V28h-5v-8Z"
-        fill="url(#glassFill)"
-        stroke="url(#glassStroke)"
-        strokeWidth="3"
-        filter="url(#softGlow)"
-      />
-      <path d="M48 28v66" stroke="url(#glassHighlight)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M44 74c8-4 24-4 32 0" stroke="#38bdf8" strokeOpacity="0.5" strokeWidth="3" />
-    </svg>
-  );
-}
-
-function FlaskThumb() {
-  return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
-      <path
-        d="M53 16h14v18l20 42c5 11-3 24-16 24H49c-13 0-21-13-16-24l20-42V16Z"
-        fill="url(#glassFill)"
-        stroke="url(#glassStroke)"
-        strokeWidth="3"
-        filter="url(#softGlow)"
-      />
-      <path d="M58 20v62" stroke="url(#glassHighlight)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M43 73c9 4 25 4 34 0" stroke="#818cf8" strokeOpacity="0.45" strokeWidth="3" />
-    </svg>
-  );
-}
-
-function FunnelThumb() {
-  return (
-    <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
-      <path
-        d="M26 24h68L68 60v34a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6V60L26 24Z"
-        fill="url(#glassFill)"
-        stroke="url(#glassStroke)"
-        strokeWidth="3"
-        filter="url(#softGlow)"
-      />
-      <path d="M60 30v36" stroke="url(#glassHighlight)" strokeWidth="4" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function TubeRackBottle() {
   return (
@@ -153,21 +74,27 @@ function TubeRackBottle() {
 }
 
 export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
+  const wrap = (el: React.ReactNode) => (
+    <div className="h-20 w-20 flex items-center justify-center lg:h-24 lg:w-24 overflow-hidden">
+      {el}
+    </div>
+  );
+
   switch (item.id) {
-    case "beaker-250":
-      return <BeakerThumb />;
-    case "erlenmeyer-250":
-      return <FlaskThumb />;
-    case "funnel":
-      return <FunnelThumb />;
+    case "round-bottom-flask":
+      return wrap(<RoundBottomFlaskAsset />);
+    case "separatory-funnel":
+      return wrap(<SeparatoryFunnelAsset />);
+    case "measure-bottle":
+      return wrap(<MeasureBottleAsset />);
     case "test-tube":
-      return <TestTube tall />;
+      return wrap(<TestTubeAsset size="large" />);
     case "test-tube-small":
-      return <TestTube />;
+      return wrap(<TestTubeAsset size="small" />);
+    case "test-tube-mini":
+      return wrap(<TestTubeAsset size="mini" />);
     case "glass-bottle":
       return <GlassBottle />;
-    case "sample-jar":
-      return <SampleJar />;
     default:
       if (item.name.toLowerCase().includes("bottle")) {
         return <TubeRackBottle />;

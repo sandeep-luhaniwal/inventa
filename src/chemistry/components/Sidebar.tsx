@@ -15,6 +15,8 @@ import {
   Workflow,
 } from "lucide-react";
 import InorganicThumbnail from "@/chemistry/components/InorganicThumbnail";
+import ReactionVesselPanel from "@/chemistry/components/ReactionVesselPanel";
+import AssistiveDevicesPanel from "@/chemistry/components/AssistiveDevicesPanel";
 import type { ChemistryCategory, ChemistryLibraryItem, ChemistryModule, SidebarCategory } from "@/chemistry/types";
 
 interface SidebarProps {
@@ -124,57 +126,69 @@ export default function Sidebar({
           className="chemistry-scrollbar min-h-0 flex-1 overflow-y-auto p-3 lg:p-4"
           style={{ scrollbarGutter: "stable" }}
         >
-          <div className="grid grid-cols-2 gap-3">
-            {items.map((item) => {
-              const active = item.module === "organic" && item.id === selectedOrganicToolId;
-              const meta = item.module === "inorganic" ? item.symbol : getOrganicMeta(item);
-              const title = item.module === "inorganic" ? item.name : item.label;
-              const accent = item.module === "inorganic" ? item.accent : item.color;
+          {activeCategory === "glassware" ? (
+            <ReactionVesselPanel 
+              items={items.filter(i => i.module === "inorganic" && i.category === "glassware") as any} 
+              onItemClick={onItemClick as any} 
+            />
+          ) : activeCategory === "equipment" ? (
+            <AssistiveDevicesPanel 
+              items={items.filter(i => i.module === "inorganic" && i.category === "equipment") as any} 
+              onItemClick={onItemClick as any} 
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {items.map((item) => {
+                const active = item.module === "organic" && item.id === selectedOrganicToolId;
+                const meta = item.module === "inorganic" ? item.symbol : getOrganicMeta(item);
+                const title = item.module === "inorganic" ? item.name : item.label;
+                const accent = item.module === "inorganic" ? item.accent : item.color;
 
-              return (
-                <button
-                  key={item.id}
-                  draggable={item.module === "inorganic"}
-                  onDragStart={(event) => {
-                    if (item.module === "inorganic") {
-                      event.dataTransfer.setData("application/chemistry-item", item.id);
-                    }
-                  }}
-                  onClick={() => onItemClick(item)}
-                  className={`group min-h-[142px] rounded-2xl border p-3 text-left transition lg:min-h-[156px] lg:p-4 ${
-                    active
-                      ? "border-[#2990ff] bg-[#3b424a] shadow-[0_12px_30px_rgba(41,144,255,0.18)]"
-                      : "border-black/12 bg-[#353b43] hover:border-white/12 hover:bg-[#3a4048]"
-                  }`}
-                >
-                  <div
-                    className="mb-3 flex h-20 items-center justify-center rounded-2xl border lg:mb-4 lg:h-24"
-                    style={{
-                      borderColor: `${accent}22`,
-                      background: `radial-gradient(circle at 50% 35%, ${accent}44, transparent 62%)`,
+                return (
+                  <button
+                    key={item.id}
+                    draggable={item.module === "inorganic"}
+                    onDragStart={(event) => {
+                      if (item.module === "inorganic") {
+                        event.dataTransfer.setData("application/chemistry-item", item.id);
+                      }
                     }}
+                    onClick={() => onItemClick(item)}
+                    className={`group min-h-[142px] rounded-2xl border p-3 text-left transition lg:min-h-[156px] lg:p-4 ${
+                      active
+                        ? "border-[#2990ff] bg-[#3b424a] shadow-[0_12px_30px_rgba(41,144,255,0.18)]"
+                        : "border-black/12 bg-[#353b43] hover:border-white/12 hover:bg-[#3a4048]"
+                    }`}
                   >
-                    {item.module === "inorganic" ? (
-                      <InorganicThumbnail item={item} />
-                    ) : (
-                      <div
-                        className="flex h-14 min-w-14 items-center justify-center rounded-2xl border px-3 text-center text-lg font-semibold text-white shadow-lg lg:h-16 lg:min-w-16 lg:text-xl"
-                        style={{
-                          borderColor: `${accent}40`,
-                          backgroundColor: `${accent}20`,
-                        }}
-                      >
-                        {title}
-                      </div>
-                    )}
-                  </div>
+                    <div
+                      className="mb-3 flex h-20 items-center justify-center rounded-2xl border lg:mb-4 lg:h-24"
+                      style={{
+                        borderColor: `${accent}22`,
+                        background: `radial-gradient(circle at 50% 35%, ${accent}44, transparent 62%)`,
+                      }}
+                    >
+                      {item.module === "inorganic" ? (
+                        <InorganicThumbnail item={item} />
+                      ) : (
+                        <div
+                          className="flex h-14 min-w-14 items-center justify-center rounded-2xl border px-3 text-center text-lg font-semibold text-white shadow-lg lg:h-16 lg:min-w-16 lg:text-xl"
+                          style={{
+                            borderColor: `${accent}40`,
+                            backgroundColor: `${accent}20`,
+                          }}
+                        >
+                          {title}
+                        </div>
+                      )}
+                    </div>
 
-                  <h3 className="line-clamp-2 text-[15px] font-medium leading-7 text-white lg:text-[17px]">{title}</h3>
-                  <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/34 lg:text-xs">{meta}</p>
-                </button>
-              );
-            })}
-          </div>
+                    <h3 className="line-clamp-2 text-[15px] font-medium leading-7 text-white lg:text-[17px]">{title}</h3>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/34 lg:text-xs">{meta}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {items.length === 0 && (
             <div className="flex h-full min-h-[220px] items-center justify-center rounded-3xl border border-dashed border-white/12 bg-white/3 px-6 text-center">

@@ -2,7 +2,24 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import type { PlacedInorganicItem } from "@/chemistry/types";
-import { BeakerAsset, BurnerAsset, StandAsset } from "./LabAssets";
+import {
+  BurnerAsset,
+  DropperAsset,
+  ForcepsAsset,
+  GauzeAsset,
+  GlassBottleAsset,
+  GlassConduitAsset,
+  MatchAsset,
+  MatchboxAsset,
+  MeasureBottleAsset,
+  RoundBottomFlaskAsset,
+  RubberStopperAsset,
+  SeparatoryFunnelAsset,
+  SpatulaAsset,
+  SparkEffect,
+  StandAsset,
+  TestTubeAsset,
+} from "./LabAssets";
 
 interface InorganicCanvasProps {
   items: PlacedInorganicItem[];
@@ -11,6 +28,7 @@ interface InorganicCanvasProps {
   onMove: (id: string, x: number, y: number) => void;
   onCombine: (sourceId: string, targetId: string) => void;
   onDrop: (itemId: string, x: number, y: number) => void;
+  onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
 }
 
 interface DragState {
@@ -33,23 +51,79 @@ export default function InorganicCanvas({
 }: InorganicCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [sparkPos, setSparkPos] = useState<{ x: number; y: number } | null>(null);
 
   const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!dragState || !surfaceRef.current) return;
 
     const rect = surfaceRef.current.getBoundingClientRect();
-    const nextX = clamp(event.clientX - rect.left - dragState.offsetX, 18, rect.width - 150);
-    const nextY = clamp(event.clientY - rect.top - dragState.offsetY, 18, rect.height - 142);
+    let nextX = clamp(event.clientX - rect.left - dragState.offsetX, 18, rect.width - 150);
+    let nextY = clamp(event.clientY - rect.top - dragState.offsetY, 18, rect.height - 142);
+
+    // Smart Snapping Logic
+    const draggedItem = items.find((i) => i.instanceId === dragState.id);
+    if (draggedItem && draggedItem.state === "glassware") {
+      // Snap to Tripods
+      const tripod = items.find(
+        (i) => i.id === "tripod" && Math.abs(i.x - nextX) < 40 && Math.abs(i.y - (nextY + 80)) < 40
+      );
+      if (tripod) {
+        nextX = tripod.x - 12;
+        nextY = tripod.y - 70;
+      }
+
+      // Snap to Ring Stands
+      const stand = items.find(
+        (i) => i.id === "tripod" && Math.abs(i.x - nextX) < 40 && Math.abs(i.y - (nextY + 100)) < 40
+      );
+      // ... more snapping points could be added
+    } else if (draggedItem && draggedItem.id === "match") {
+      // 1. Strike against Matchbox - More forgiving radius
+      const matchbox = items.find(
+        (i) => i.id === "matchbox" && Math.abs(i.x - nextX) < 110 && Math.abs(i.y - nextY) < 85
+      );
+      if (matchbox && !draggedItem.isLit) {
+        onUpdate(draggedItem.instanceId, { isLit: true });
+        setSparkPos({ x: nextX + 80, y: nextY + 50 });
+        setTimeout(() => setSparkPos(null), 400);
+        setTimeout(() => onUpdate(draggedItem.instanceId, { isLit: false }), 20000);
+      }
+
+      // 2. Ignite Burner if already lit
+      if (draggedItem.isLit) {
+        const burner = items.find(
+          (i) => i.id === "burner" && !i.isLit && Math.abs(i.x - nextX) < 60 && Math.abs(i.y - nextY) < 60
+        );
+        if (burner) onUpdate(burner.instanceId, { isLit: true });
+      }
+    }
 
     onMove(dragState.id, nextX, nextY);
   };
 
   const handlePointerUp = () => {
     if (!dragState) return;
-
-    // Check for overlap with other items (glassware)
+    
+    // Check for overlap with other items (pouring/combining)
     const draggedItem = items.find((i) => i.instanceId === dragState.id);
-    if (draggedItem) {
+    if (draggedItem && draggedItem.state === "glassware") {
+      const target = items.find(
+        (i) =>
+          i.instanceId !== dragState.id &&
+          i.state === "glassware" &&
+          Math.abs(i.x - draggedItem.x) < 50 &&
+          Math.abs(i.y - (draggedItem.y + 60)) < 40
+      );
+
+      if (target) {
+        // Trigger Pouring Action
+        onUpdate(draggedItem.instanceId, { rotation: 45 });
+        setTimeout(() => {
+          onCombine(draggedItem.instanceId, target.instanceId);
+          onUpdate(draggedItem.instanceId, { rotation: 0 });
+        }, 800);
+      }
+    } else if (draggedItem) {
       const target = items.find(
         (i) =>
           i.instanceId !== dragState.id &&
@@ -128,6 +202,7 @@ export default function InorganicCanvas({
       {items.map((item) => {
         const active = selectedId === item.instanceId;
         const boiling = isBoiling[item.instanceId];
+        const isPouring = (item.rotation || 0) !== 0;
         
         return (
           <div
@@ -148,26 +223,73 @@ export default function InorganicCanvas({
             className={`absolute cursor-grab active:cursor-grabbing transition-transform ${
               active ? "z-50 scale-105" : "z-10"
             }`}
-            style={{ left: item.x, top: item.y }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(item.instanceId);
+              
+              // Interactive States
+              if (item.id === "burner") {
+                const burnerOpen = item.isOpen === true;
+                if (!burnerOpen) {
+                  onUpdate(item.instanceId, { isOpen: true });
+                } else if (!item.isLit) {
+                  onUpdate(item.instanceId, { isLit: true });
+                } else {
+                  onUpdate(item.instanceId, { isLit: false, isOpen: false });
+                }
+              } else if (item.id === "match") {
+                onUpdate(item.instanceId, { isLit: !item.isLit });
+                if (!item.isLit) {
+                  setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 15000);
+                }
+              } else if (item.id.includes("bottle") || item.id.includes("jar") || item.id === "rubber-stopper") {
+                onUpdate(item.instanceId, { isOpen: !item.isOpen });
+              }
+            }}
+            style={{ left: item.x, top: item.y, transform: `rotate(${item.rotation || 0}deg)` }}
           >
             {/* High Fidelity Asset Rendering */}
-            <div className="relative pointer-events-none select-none">
-              {item.id === "beaker-250" || item.id === "erlenmeyer-250" ? (
-                <BeakerAsset 
-                  boiling={boiling} 
-                  color={item.accent} 
-                  level={item.contents && item.contents.length > 0 ? 40 + item.contents.length * 10 : 0} 
-                />
+            <div className="relative select-none pointer-events-auto">
+              {item.id === "round-bottom-flask" ? (
+                <RoundBottomFlaskAsset />
+              ) : item.id === "separatory-funnel" ? (
+                <SeparatoryFunnelAsset />
+              ) : item.id === "measure-bottle" ? (
+                <MeasureBottleAsset isOpen={item.isOpen} />
+              ) : item.id === "glass-bottle" ? (
+                <GlassBottleAsset isOpen={item.isOpen} />
+              ) : item.id === "test-tube" ? (
+                <TestTubeAsset size="large" />
+              ) : item.id === "test-tube-small" ? (
+                <TestTubeAsset size="small" />
+              ) : item.id === "test-tube-mini" ? (
+                <TestTubeAsset size="mini" />
               ) : item.id === "burner" ? (
-                <BurnerAsset lit={true} />
+                <BurnerAsset lit={item.isLit} isOpen={item.isOpen} />
               ) : item.id === "tripod" ? (
                 <StandAsset />
+              ) : item.id === "match" ? (
+                <MatchAsset lit={item.isLit} />
+              ) : item.id === "matchbox" ? (
+                <MatchboxAsset />
+              ) : item.id === "dropper" ? (
+                <DropperAsset />
+              ) : item.id === "forceps" ? (
+                <ForcepsAsset />
+              ) : item.id === "gauze" ? (
+                <GauzeAsset />
+              ) : item.id === "spatula" ? (
+                <SpatulaAsset />
+              ) : item.id === "glass-conduit" ? (
+                <GlassConduitAsset />
+              ) : item.id === "rubber-stopper" ? (
+                <RubberStopperAsset />
               ) : (
                 /* Fallback for other items */
                 <div
-                  className={`w-32 rounded-[28px] border px-4 py-4 shadow-xl transition ${
+                  className={`w-32 rounded-[28px] border px-4 py-4 transition ${
                     active
-                      ? "border-[#2990ff] bg-[#262c32] text-white shadow-[0_12px_36px_rgba(41,144,255,0.22)]"
+                      ? "border-white/20 bg-[#323840] text-white"
                       : "border-white/6 bg-[#323840] text-white shadow-black/20"
                   }`}
                 >
@@ -185,10 +307,13 @@ export default function InorganicCanvas({
                 </div>
               )}
 
-              {/* Selection Indicator */}
-              {active && (
-                <div className="absolute -inset-2 rounded-3xl border-2 border-[#2990ff]/50 animate-pulse pointer-events-none" />
+              {/* Pouring Stream Effect */}
+              {isPouring && (
+                <div className="absolute top-[80px] left-[60px] w-1 h-20 bg-blue-400/40 blur-[1px] animate-pulse origin-top">
+                  <div className="absolute inset-0 bg-white/20 w-px mx-auto" />
+                </div>
               )}
+
 
               {/* Contents Label (only for vessels) */}
               {item.state === "glassware" && item.contents && item.contents.length > 0 && (
@@ -202,6 +327,16 @@ export default function InorganicCanvas({
           </div>
         );
       })}
+
+      {/* Spark Burst Effect */}
+      {sparkPos && (
+        <div 
+          className="absolute z-[100] pointer-events-none"
+          style={{ left: sparkPos.x, top: sparkPos.y }}
+        >
+          <SparkEffect />
+        </div>
+      )}
     </div>
   );
 }

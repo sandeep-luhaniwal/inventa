@@ -245,6 +245,12 @@ export default function ChemistryPage() {
     setSelectedInorganicId(placedItem.instanceId);
   };
 
+  const handleInorganicUpdate = (id: string, updates: Partial<PlacedInorganicItem>) => {
+    setInorganicItems((current) =>
+      current.map((item) => (item.instanceId === id ? { ...item, ...updates } : item))
+    );
+  };
+
   const handleOrganicCanvasAction = (x: number, y: number) => {
     setSelectedOrganicNodeId(null);
 
@@ -440,6 +446,7 @@ export default function ChemistryPage() {
                 },
                 onCombine: handleInorganicCombine,
                 onDrop: handleInorganicDrop,
+                onUpdate: handleInorganicUpdate,
               }}
               organic={{
                 atoms: organicAtoms,

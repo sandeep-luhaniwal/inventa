@@ -46,6 +46,9 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   instanceId: string;
   x: number;
   y: number;
+  rotation?: number;
+  isOpen?: boolean;
+  isLit?: boolean;
   note?: string;
   contents?: InorganicLibraryItem[];
 }
