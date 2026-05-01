@@ -1,11 +1,11 @@
 "use client"
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Stage, Layer, Rect } from "react-konva";
+import { Stage, Layer, Rect, Line } from "react-konva";
 import Konva from "konva";
 import WireSVGOverlay from "./canvas/WireLayer";
 import ComponentNode from "./canvas/ComponentNode";
 import BreadboardNode from "./canvas/BreadboardNode";
-import { ConnectingFrom, Note, PlacedComponent, Wire } from "@/simulator/types/circuit";
+import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulator/types/circuit";
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
@@ -13,6 +13,9 @@ import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/con
 import { ZoomIn, ZoomOut, Maximize, RefreshCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
+
+const PENCIL_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE3IDNsNCA0TDcgMjFIM3YtNEwxNyAzeiIvPjwvc3ZnPg==") 0 24, auto`;
+const ERASER_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSIxMiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iMSIgdHJhbnNmb3JtPSJyb3RhdGUoLTQ1IDggMTIpIiBmaWxsPSIjRkZCOEMxIiBzdHJva2U9IiNGRjY5QjQiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik03IDIyTDIyIDciIHN0cm9rZT0iI0ZGNjlCNCIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSIyIDIiLz48L3N2Zz4=") 0 24, auto`;
 
 const ZOOM_SCALE = 1.08;
 const ZOOM_MIN = 0.2;
@@ -46,6 +49,11 @@ export interface CanvasProps {
   onWireMidPointsChange: (wireId: string, pts: { x: number; y: number }[]) => void;
   onCanvasWirePointAdd: (point: { x: number; y: number }) => void;
   onPortsResolved?: (compId: string, resolvedPorts: { x: number; y: number }[], width: number, height: number) => void;
+  drawings: Drawing[];
+  activeTool: "select" | "pencil" | "eraser";
+  pencilColor: string;
+  onAddDrawing: (drawing: Drawing) => void;
+  onDeleteDrawing: (id: string) => void;
 }
 
 const Canvas = ({
@@ -76,6 +84,11 @@ const Canvas = ({
   onWireMidPointsChange,
   onCanvasWirePointAdd,
   onPortsResolved,
+  drawings,
+  activeTool,
+  pencilColor,
+  onAddDrawing,
+  onDeleteDrawing,
 }: CanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -83,6 +96,9 @@ const Canvas = ({
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const [snapTarget, setSnapTarget] = useState<{ x: number; y: number } | null>(null);
   const [stageTransform, setStageTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const [currentLine, setCurrentLine] = useState<number[] | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -106,6 +122,7 @@ const Canvas = ({
   }, [connectingFrom, placedComponents]);
 
   const handleStageClick = useCallback(() => {
+    if (activeTool === "pencil" || activeTool === "eraser") return;
     if (!connectingFrom) {
       onComponentSelect("", false);
       return;
@@ -116,7 +133,61 @@ const Canvas = ({
 
     const nextPoint = snapTarget ?? pos;
     onCanvasWirePointAdd(nextPoint);
-  }, [connectingFrom, onCanvasWirePointAdd, onComponentSelect, snapTarget]);
+  }, [activeTool, connectingFrom, onCanvasWirePointAdd, onComponentSelect, snapTarget]);
+
+  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (activeTool === "pencil") {
+      setIsDrawing(true);
+      const pos = stageRef.current?.getRelativePointerPosition();
+      if (pos) {
+        setCurrentLine([pos.x, pos.y]);
+      }
+    } else if (activeTool === "eraser") {
+      setIsErasing(true);
+      // Immediate erase on click
+      const pos = stageRef.current?.getPointerPosition();
+      if (pos) {
+        const shape = stageRef.current?.getIntersection(pos);
+        if (shape && shape.attrs.id?.startsWith("drawing-")) {
+          onDeleteDrawing(shape.attrs.id);
+        }
+      }
+    }
+  }, [activeTool, onDeleteDrawing]);
+
+  const handleMouseMoveDrawing = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    handleMouseMove();
+    if (activeTool === "pencil" && isDrawing) {
+      const pos = stageRef.current?.getRelativePointerPosition();
+      if (pos && currentLine) {
+        setCurrentLine([...currentLine, pos.x, pos.y]);
+      }
+    } else if (activeTool === "eraser" && isErasing) {
+      const pos = stageRef.current?.getPointerPosition();
+      if (pos) {
+        const shape = stageRef.current?.getIntersection(pos);
+        if (shape && shape.attrs.id?.startsWith("drawing-")) {
+          onDeleteDrawing(shape.attrs.id);
+        }
+      }
+    }
+  }, [activeTool, isDrawing, isErasing, currentLine, handleMouseMove, onDeleteDrawing]);
+
+  const handleMouseUp = useCallback(() => {
+    if (activeTool === "pencil" && isDrawing && currentLine) {
+      if (currentLine.length >= 4) {
+        onAddDrawing({
+          id: `drawing-${Date.now()}`,
+          points: currentLine,
+          color: pencilColor,
+          width: 3,
+        });
+      }
+    }
+    setIsDrawing(false);
+    setIsErasing(false);
+    setCurrentLine(null);
+  }, [activeTool, currentLine, isDrawing, onAddDrawing, pencilColor]);
 
   const centerCircuit = useCallback((padding = 80) => {
     if (!stageRef.current || placedComponents.length === 0) return;
@@ -201,14 +272,24 @@ const Canvas = ({
       className="flex-1 relative overflow-hidden bg-canvas"
       onDrop={handleDrop}
       onDragOver={onDragOver}
-      style={{ cursor: connectingFrom ? "crosshair" : "default" }}
+      style={{ 
+        cursor: connectingFrom 
+          ? "crosshair" 
+          : activeTool === "pencil" 
+            ? PENCIL_CURSOR 
+            : activeTool === "eraser"
+              ? ERASER_CURSOR
+              : "default" 
+      }}
     >
       <Stage
         ref={stageRef}
         width={size.w}
         height={size.h}
-        draggable={!connectingFrom}
-        onMouseMove={handleMouseMove}
+        draggable={!connectingFrom && activeTool !== "pencil"}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMoveDrawing}
+        onMouseUp={handleMouseUp}
         onClick={handleStageClick}
         onWheel={handleWheel}
         onDragEnd={syncTransform}
@@ -227,6 +308,46 @@ const Canvas = ({
             }
             return lines;
           })()}
+        </Layer>
+        <Layer>
+          {drawings.map((drawing) => (
+            <Line
+              key={drawing.id}
+              id={drawing.id}
+              points={drawing.points}
+              stroke={drawing.color}
+              strokeWidth={drawing.width}
+              hitStrokeWidth={drawing.width + 10} // Larger hit area for easier erasing
+              tension={0.5}
+              lineCap="round"
+              lineJoin="round"
+              onClick={() => {
+                if (activeTool === "eraser") {
+                  onDeleteDrawing(drawing.id);
+                }
+              }}
+              onMouseEnter={(e) => {
+                if (activeTool === "eraser") {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = "pointer";
+                }
+              }}
+              onMouseLeave={(e) => {
+                const container = e.target.getStage()?.container();
+                if (container) container.style.cursor = activeTool === "eraser" ? ERASER_CURSOR : (activeTool === "pencil" ? PENCIL_CURSOR : "default");
+              }}
+            />
+          ))}
+          {isDrawing && currentLine && (
+            <Line
+              points={currentLine}
+              stroke={pencilColor}
+              strokeWidth={3}
+              tension={0.5}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
         </Layer>
         <Layer>
           {notes.map((note) => (

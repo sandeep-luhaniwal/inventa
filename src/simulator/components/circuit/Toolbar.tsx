@@ -12,6 +12,9 @@ import {
   FlipVertical2,
   RotateCcw,
   ChevronDown,
+  Pencil,
+  MousePointer2,
+  Eraser,
 } from "lucide-react";
 import { WIRE_COLOR_OPTIONS, WIRE_STYLES } from "@/simulator/constants/circuit";
 
@@ -38,6 +41,10 @@ interface ToolbarProps {
   onAddNote?: () => void;
   isSimulating?: boolean;
   simulationSummary?: string;
+  activeTool?: "select" | "pencil" | "eraser";
+  onActiveToolChange?: (tool: "select" | "pencil" | "eraser") => void;
+  pencilColor?: string;
+  onPencilColorChange?: (color: string) => void;
 }
 
 function useOutsideClick(
@@ -137,7 +144,68 @@ const WireColorPicker = ({
               />
               {opt.label}
               {wireColor === opt.value && (
-                <span className="ml-auto text-blue-500 text-xs font-bold">?</span>
+                <span className="ml-auto text-blue-500 text-xs font-bold">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PencilColorPicker = ({
+  pencilColor,
+  onPencilColorChange,
+}: {
+  pencilColor?: string;
+  onPencilColorChange?: (color: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useOutsideClick(ref, () => setOpen(false));
+
+  const currentLabel =
+    WIRE_COLOR_OPTIONS.find((o) => o.value === pencilColor)?.label ?? "Color";
+
+  return (
+    <div ref={ref} className="relative flex items-center">
+      <button
+        title={`Pencil color: ${currentLabel}`}
+        onClick={() => setOpen((p) => !p)}
+        className="flex items-center gap-1 h-9 px-1.5 rounded-l-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+      >
+        <span
+          className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-500 shadow-inner shrink-0"
+          style={{ backgroundColor: pencilColor ?? "#ef4444" }}
+        />
+      </button>
+      <button
+        title="Pick pencil color"
+        onClick={() => setOpen((p) => !p)}
+        className="flex items-center justify-center w-5 h-9 rounded-r-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500"
+      >
+        <ChevronDown size={12} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-10 z-40 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl py-1 max-h-64 overflow-y-auto">
+          {WIRE_COLOR_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                onPencilColorChange?.(opt.value);
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
+            >
+              <span
+                className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-500 shrink-0"
+                style={{ backgroundColor: opt.value }}
+              />
+              {opt.label}
+              {pencilColor === opt.value && (
+                <span className="ml-auto text-blue-500 text-xs font-bold">✓</span>
               )}
             </button>
           ))}
@@ -211,7 +279,7 @@ const WireTypePicker = ({
               </svg>
               <span>{style.label}</span>
               {wireType === key && (
-                <span className="ml-auto text-blue-500 text-xs font-bold">?</span>
+                <span className="ml-auto text-blue-500 text-xs font-bold">✓</span>
               )}
             </button>
           ))}
@@ -241,6 +309,10 @@ const Toolbar = ({
   showGrid,
   onToggleGrid,
   onAddNote,
+  activeTool,
+  onActiveToolChange,
+  pencilColor,
+  onPencilColorChange,
 }: ToolbarProps) => {
   return (
     <div
@@ -251,6 +323,27 @@ const Toolbar = ({
         "shadow-sm",
       ].join(" ")}
     >
+      <ToolButton 
+        icon={MousePointer2} 
+        tooltip="Select Tool" 
+        onClick={() => onActiveToolChange?.("select")} 
+        active={activeTool === "select"}
+      />
+      <ToolButton 
+        icon={Pencil} 
+        tooltip="Pencil Tool" 
+        onClick={() => onActiveToolChange?.("pencil")} 
+        active={activeTool === "pencil"}
+      />
+      <ToolButton 
+        icon={Eraser} 
+        tooltip="Eraser Tool" 
+        onClick={() => onActiveToolChange?.("eraser")} 
+        active={activeTool === "eraser"}
+      />
+
+      <Divider />
+
       <ToolButton icon={Copy} tooltip="Copy (Ctrl+C)" onClick={onCopy} />
       <ToolButton icon={ClipboardPaste} tooltip="Paste (Ctrl+V)" onClick={onPaste} />
       <ToolButton icon={Trash2} tooltip="Delete (Del)" onClick={onDelete} />
@@ -273,6 +366,12 @@ const Toolbar = ({
       <Divider />
 
       <WireColorPicker wireColor={wireColor} onWireColorChange={onWireColorChange} />
+
+      <Divider />
+
+      <div className="flex items-center gap-1">
+        <PencilColorPicker pencilColor={pencilColor} onPencilColorChange={onPencilColorChange} />
+      </div>
 
       <Divider />
 

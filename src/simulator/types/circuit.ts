@@ -64,14 +64,23 @@ export interface Wire {
   midPoints?: WirePoint[];
 }
 
+
 export interface ConnectingFrom {
   compId: string;
   portIndex: number;
   draftMidPoints?: WirePoint[];
 }
 
+export interface Drawing {
+  id: string;
+  points: number[]; // Flat array of [x, y, x, y, ...]
+  color: string;
+  width: number;
+}
+
 export interface HistoryEntry {
   components: PlacedComponent[];
   wires: Wire[];
   notes: Note[];
+  drawings: Drawing[];
 }

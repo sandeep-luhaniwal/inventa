@@ -233,9 +233,12 @@ const SimilotaorMain = () => {
         onRotate={store.rotateSelected}
         onMirror={store.mirrorSelected}
         onFlip={store.flipSelected}
-        onWireColorChange={store.setWireColor}
         onWireTypeChange={store.setWireType}
         onAddNote={store.addNote}
+        activeTool={store.activeTool}
+        onActiveToolChange={store.setActiveTool}
+        pencilColor={store.pencilColor}
+        onPencilColorChange={store.setPencilColor}
       />
 
       {viewMode === "canvas" && (
@@ -253,6 +256,11 @@ const SimilotaorMain = () => {
               wireColor={store.wireColor}
               wireType={store.wireType}
               notes={store.notes}
+              drawings={store.drawings}
+              activeTool={store.activeTool}
+              pencilColor={store.pencilColor}
+              onAddDrawing={store.addDrawing}
+              onDeleteDrawing={store.deleteDrawing}
               onNoteUpdate={store.updateNote}
               onNoteDelete={store.deleteNote}
               simulatedComponents={simulatedComponents}

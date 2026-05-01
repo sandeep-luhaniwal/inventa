@@ -1,6 +1,6 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint } from "../types/circuit";
+import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint, Drawing } from "../types/circuit";
 import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "../constants/staticComponents";
 
 export type { PlacedComponent, Wire, ConnectingFrom };
@@ -39,18 +39,19 @@ function resolveStaticComponentImages(comp: PlacedComponent): PlacedComponent {
   };
 }
 
-function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; notes: Note[] } {
+function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; notes: Note[]; drawings: Drawing[] } {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved) as { components?: PlacedComponent[]; wires?: Wire[]; notes?: Note[] };
+      const parsed = JSON.parse(saved) as { components?: PlacedComponent[]; wires?: Wire[]; notes?: Note[]; drawings?: Drawing[] };
       const components = (parsed.components ?? []).map(resolveStaticComponentImages);
       const wires = parsed.wires ?? [];
       const notes = parsed.notes ?? [];
-      return { components, wires, notes };
+      const drawings = parsed.drawings ?? [];
+      return { components, wires, notes, drawings };
     }
   } catch {}
-  return { components: [], wires: [], notes: [] };
+  return { components: [], wires: [], notes: [], drawings: [] };
 }
 
 export function useCircuitStore() {
@@ -58,6 +59,7 @@ export function useCircuitStore() {
   const [components, setComponents] = useState<PlacedComponent[]>(initial.components);
   const [wires, setWires] = useState<Wire[]>(initial.wires);
   const [notes, setNotes] = useState<Note[]>(initial.notes);
+  const [drawings, setDrawings] = useState<Drawing[]>(initial.drawings);
   const [connectingFrom, setConnectingFrom] = useState<ConnectingFrom | null>(null);
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const [selectedWire, setSelectedWire] = useState<string | null>(null);
@@ -65,6 +67,8 @@ export function useCircuitStore() {
   const [wireColor, setWireColor] = useState("#3b82f6");
   const [wireType, setWireType] = useState("normal");
   const [isSimulating, setIsSimulating] = useState(false);
+  const [activeTool, setActiveTool] = useState<"select" | "pencil" | "eraser">("select");
+  const [pencilColor, setPencilColor] = useState("#ef4444");
 
   // Use a ref for history so saveToHistory never goes stale
   const historyRef = useRef<HistoryEntry[]>([
@@ -72,6 +76,7 @@ export function useCircuitStore() {
       components: initial.components,
       wires: initial.wires,
       notes: initial.notes,
+      drawings: initial.drawings,
     },
   ]);
   const historyIndexRef = useRef(0);
@@ -80,13 +85,13 @@ export function useCircuitStore() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ components, wires, notes }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ components, wires, notes, drawings }));
     } catch {}
-  }, [components, wires, notes]);
+  }, [components, wires, notes, drawings]);
 
-  const saveToHistory = useCallback((comps: PlacedComponent[], ws: Wire[], ns: Note[]) => {
+  const saveToHistory = useCallback((comps: PlacedComponent[], ws: Wire[], ns: Note[], ds: Drawing[]) => {
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
-    historyRef.current.push({ components: comps, wires: ws, notes: ns });
+    historyRef.current.push({ components: comps, wires: ws, notes: ns, drawings: ds });
     historyIndexRef.current = historyRef.current.length - 1;
     forceUpdate((n) => n + 1);
   }, []);
@@ -95,7 +100,7 @@ export function useCircuitStore() {
     (comp: PlacedComponent) => {
       setComponents((prev) => {
         const next = [...prev, comp];
-        saveToHistory(next, wires, notes);
+        saveToHistory(next, wires, notes, drawings);
         return next;
       });
     },
@@ -116,7 +121,7 @@ export function useCircuitStore() {
         return { ...c, x, y };
       });
       if (changed) {
-        saveToHistory(next, wires, notes);
+        saveToHistory(next, wires, notes, drawings);
       }
       return next;
     });
@@ -177,7 +182,7 @@ export function useCircuitStore() {
       setWires((prevWires) => {
         const next = [...prevWires, nextWire];
         setComponents((prevComps) => {
-          saveToHistory(prevComps, next, notes);
+          saveToHistory(prevComps, next, notes, drawings);
           return prevComps;
         });
         return next;
@@ -213,7 +218,7 @@ export function useCircuitStore() {
             !selectedComponents.includes(w.to.compId) &&
             w.id !== selectedWire
         );
-        saveToHistory(nextComps, nextWires, notes);
+        saveToHistory(nextComps, nextWires, notes, drawings);
         return nextWires;
       });
       return nextComps;
@@ -227,7 +232,7 @@ export function useCircuitStore() {
       setWires((prevWires) => {
         const next = prevWires.filter((w) => w.id !== wireId);
         setComponents((prevComps) => {
-          saveToHistory(prevComps, next, notes);
+          saveToHistory(prevComps, next, notes, drawings);
           return prevComps;
         });
         return next;
@@ -242,7 +247,7 @@ export function useCircuitStore() {
       const next = prev.map((c) =>
         selectedComponents.includes(c.id) ? { ...c, rotation: (c.rotation + 30) % 360 } : c
       );
-      saveToHistory(next, wires, notes);
+      saveToHistory(next, wires, notes, drawings);
       return next;
     });
   }, [selectedComponents, saveToHistory, wires, notes]);
@@ -252,7 +257,7 @@ export function useCircuitStore() {
       const next = prev.map((c) =>
         selectedComponents.includes(c.id) ? { ...c, mirrored: !c.mirrored } : c
       );
-      saveToHistory(next, wires, notes);
+      saveToHistory(next, wires, notes, drawings);
       return next;
     });
   }, [selectedComponents, saveToHistory, wires, notes]);
@@ -262,7 +267,7 @@ export function useCircuitStore() {
       const next = prev.map((c) =>
         selectedComponents.includes(c.id) ? { ...c, flipped: !c.flipped } : c
       );
-      saveToHistory(next, wires, notes);
+      saveToHistory(next, wires, notes, drawings);
       return next;
     });
   }, [selectedComponents, saveToHistory, wires, notes]);
@@ -283,6 +288,7 @@ export function useCircuitStore() {
     setComponents(state.components);
     setWires(state.wires);
     setNotes(state.notes);
+    setDrawings(state.drawings);
     forceUpdate((n) => n + 1);
   }, []);
 
@@ -293,6 +299,7 @@ export function useCircuitStore() {
     setComponents(state.components);
     setWires(state.wires);
     setNotes(state.notes);
+    setDrawings(state.drawings);
     forceUpdate((n) => n + 1);
   }, []);
 
@@ -325,7 +332,7 @@ export function useCircuitStore() {
     };
     setNotes((prev) => {
       const next = [...prev, newNote];
-      saveToHistory(components, wires, next);
+      saveToHistory(components, wires, next, drawings);
       return next;
     });
   }, [components, wires, saveToHistory]);
@@ -333,7 +340,7 @@ export function useCircuitStore() {
   const updateNote = useCallback((id: string, updates: Partial<Note>) => {
     setNotes((prev) => {
       const next = prev.map((n) => (n.id === id ? { ...n, ...updates } : n));
-      saveToHistory(components, wires, next);
+      saveToHistory(components, wires, next, drawings);
       return next;
     });
   }, [components, wires, saveToHistory]);
@@ -341,7 +348,7 @@ export function useCircuitStore() {
   const deleteNote = useCallback((id: string) => {
     setNotes((prev) => {
       const next = prev.filter((n) => n.id !== id);
-      saveToHistory(components, wires, next);
+      saveToHistory(components, wires, next, drawings);
       return next;
     });
   }, [components, wires, saveToHistory]);
@@ -350,17 +357,40 @@ export function useCircuitStore() {
     setComponents([]);
     setWires([]);
     setNotes([]);
+    setDrawings([]);
     setSelectedComponents([]);
     setSelectedWire(null);
     setConnectingFrom(null);
-    saveToHistory([], [], []);
+    saveToHistory([], [], [], []);
     localStorage.removeItem(STORAGE_KEY);
   }, [saveToHistory]);
+
+  const addDrawing = useCallback((drawing: Drawing) => {
+    setDrawings((prev) => {
+      const next = [...prev, drawing];
+      saveToHistory(components, wires, notes, next);
+      return next;
+    });
+  }, [components, wires, notes, saveToHistory]);
+
+  const deleteDrawing = useCallback((id: string) => {
+    setDrawings((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      saveToHistory(components, wires, notes, next);
+      return next;
+    });
+  }, [components, wires, notes, saveToHistory]);
+
+  const clearDrawings = useCallback(() => {
+    setDrawings([]);
+    saveToHistory(components, wires, notes, []);
+  }, [components, wires, notes, saveToHistory]);
 
   return {
     components,
     wires,
     notes,
+    drawings,
     connectingFrom,
     setConnectingFrom,
     addConnectingMidPoint,
@@ -376,6 +406,10 @@ export function useCircuitStore() {
     toggleGrid: () => setShowGrid((p) => !p),
     isSimulating,
     setIsSimulating,
+    activeTool,
+    setActiveTool,
+    pencilColor,
+    setPencilColor,
     addComponent,
     moveComponent,
     commitComponentMove,
@@ -395,6 +429,9 @@ export function useCircuitStore() {
     addNote,
     updateNote,
     deleteNote,
+    addDrawing,
+    deleteDrawing,
+    clearDrawings,
     // eslint-disable-next-line react-hooks/refs
     canUndo: historyIndexRef.current > 0,
     // eslint-disable-next-line react-hooks/refs
