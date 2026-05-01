@@ -1,6 +1,6 @@
 "use client"
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Stage, Layer, Rect, Line } from "react-konva";
+import { Stage, Layer, Rect, Line, Circle } from "react-konva";
 import Konva from "konva";
 import WireSVGOverlay from "./canvas/WireLayer";
 import ComponentNode from "./canvas/ComponentNode";
@@ -15,7 +15,7 @@ import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
 
 const PENCIL_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE3IDNsNCA0TDcgMjFIM3YtNEwxNyAzeiIvPjwvc3ZnPg==") 0 24, auto`;
-const ERASER_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSIxMiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iMSIgdHJhbnNmb3JtPSJyb3RhdGUoLTQ1IDggMTIpIiBmaWxsPSIjRkZCOEMxIiBzdHJva2U9IiNGRjY5QjQiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik03IDIyTDIyIDciIHN0cm9rZT0iI0ZGNjlCNCIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSIyIDIiLz48L3N2Zz4=") 0 24, auto`;
+const ERASER_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNOS4zIDEyTDE1IDYuM0wyMC43IDEyTDE1IDE3LjdMOS4zIDEyeiIgZmlsbD0iI0ZGNjlCNCIvPjxwYXRoIGQ9Ik0zIDIxSDExTDcuMTUgMTcuMTUiIGZpbGw9IiNDMEMwQzAiLz48cGF0aCBkPSJNMTEgMjFMMjEgMTEiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=") 0 24, auto`;
 
 const ZOOM_SCALE = 1.08;
 const ZOOM_MIN = 0.2;
@@ -346,6 +346,17 @@ const Canvas = ({
               tension={0.5}
               lineCap="round"
               lineJoin="round"
+            />
+          )}
+          {activeTool === "eraser" && cursor && (
+            <Circle
+              x={cursor.x}
+              y={cursor.y}
+              radius={10 / stageTransform.scale}
+              stroke="#ef4444"
+              strokeWidth={1 / stageTransform.scale}
+              dash={[4, 4]}
+              listening={false}
             />
           )}
         </Layer>

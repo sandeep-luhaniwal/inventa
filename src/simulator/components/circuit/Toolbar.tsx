@@ -66,28 +66,45 @@ const ToolButton = ({
   disabled,
   active,
   onClick,
+  activeColor = "blue",
 }: {
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
   tooltip: string;
   disabled?: boolean;
   active?: boolean;
   onClick?: () => void;
-}) => (
-  <button
-    title={tooltip}
-    onClick={onClick}
-    disabled={disabled}
-    className={[
-      "relative flex items-center justify-center w-9 h-9 rounded-md transition-all duration-150",
-      "disabled:opacity-40 disabled:cursor-not-allowed",
-      active
-        ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white",
-    ].join(" ")}
-  >
-    <Icon size={17} strokeWidth={1.8} />
-  </button>
-);
+  activeColor?: "blue" | "pink";
+}) => {
+  const activeStyles = {
+    blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+    pink: "bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
+  };
+
+  const dotStyles = {
+    blue: "bg-blue-500",
+    pink: "bg-pink-500",
+  };
+
+  return (
+    <button
+      title={tooltip}
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+        "disabled:opacity-40 disabled:cursor-not-allowed",
+        active
+          ? activeStyles[activeColor]
+          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white",
+      ].join(" ")}
+    >
+      <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+      {active && (
+        <span className={`absolute -bottom-0.5 w-1 h-1 rounded-full ${dotStyles[activeColor]}`} />
+      )}
+    </button>
+  );
+};
 
 const Divider = () => (
   <div className="w-px h-6 bg-slate-200 dark:bg-slate-600 mx-0.5 shrink-0" />
@@ -340,6 +357,7 @@ const Toolbar = ({
         tooltip="Eraser Tool" 
         onClick={() => onActiveToolChange?.("eraser")} 
         active={activeTool === "eraser"}
+        activeColor="pink"
       />
 
       <Divider />

@@ -183,9 +183,9 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     const sharedBody = (dark: string, litMode: boolean) => `
       <!-- Leads -->
       <!-- Left Lead (Anode, Bent) -->
-      <path d="M 38 100 L 38 115 L 28 125 L 28 145" stroke="url(#${uid}_pin)" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <path d="M 38 100 L 38 115 L 36.5 125 L 36.5 145" stroke="url(#${uid}_pin)" stroke-width="8" fill="none" stroke-linecap="round"/>
       <!-- Right Lead (Cathode, Straight) -->
-      <rect x="58" y="100" width="8" height="45" rx="4" fill="url(#${uid}_pin)"/>
+      <rect x="59.5" y="100" width="8" height="45" rx="4" fill="url(#${uid}_pin)"/>
       
       <!-- Rim -->
       <path d="M 22 90 L 78 90 A 28 10 0 0 1 78 105 L 22 105 A 28 10 0 0 1 22 90 Z" fill="url(#${uid}_base)"/>
@@ -207,8 +207,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       svgBody: sharedDefs(p.dome, false) + sharedBody(p.dark, false),
       litSvgBody: sharedDefs(p.lit, true) + sharedBody(p.litDark, true),
       relativePins: [
-        { name: "Anode (+)", relX: 28 / 100, relY: 145 / 150, type: "anode" },
-        { name: "Cathode (-)", relX: 62 / 100, relY: 145 / 150, type: "cathode" },
+        { name: "Anode (+)", relX: 36.5 / 100, relY: 145 / 150, type: "anode" },
+        { name: "Cathode (-)", relX: 63.5 / 100, relY: 145 / 150, type: "cathode" },
       ],
     } satisfies StaticComponentDef;
   }),
@@ -232,8 +232,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
         </linearGradient>
       </defs>
       <!-- Pins -->
-      <rect x="35" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
-      <rect x="59" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="34" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="60" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
       
       <!-- Screw Base -->
       <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="url(#bulb_base)"/>
@@ -260,8 +260,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
         </filter>
       </defs>
       <!-- Pins -->
-      <rect x="35" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
-      <rect x="59" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="34" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
+      <rect x="60" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
       
       <!-- Screw Base -->
       <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="#D5D8DC"/>
@@ -277,8 +277,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <path d="M 45 70 Q 50 50, 55 70" stroke="#FFF176" stroke-width="2.5" fill="none" filter="url(#bulb_outer_glow)"/>
     `,
     relativePins: [
-      { name: "Terminal 1", relX: 38 / 100, relY: 135 / 140 },
-      { name: "Terminal 2", relX: 62 / 100, relY: 135 / 140 },
+      { name: "Terminal 1", relX: 37 / 100, relY: 135 / 140 },
+      { name: "Terminal 2", relX: 63 / 100, relY: 135 / 140 },
     ],
   },
   {
@@ -312,12 +312,12 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       
       <!-- Red/Black Caps (Pins) -->
       <!-- Red Cap (Positive) -->
-      <path d="M 31 32 L 39 32 L 41 20 L 29 20 Z" fill="#C0392B"/>
-      <rect x="33" y="12" width="4" height="8" rx="1" fill="#7B7D7D"/>
+      <path d="M 29.5 32 L 37.5 32 L 39.5 20 L 27.5 20 Z" fill="#C0392B"/>
+      <rect x="31.5" y="12" width="4" height="8" rx="1" fill="#7B7D7D"/>
       
       <!-- Black Cap (Negative) -->
-      <path d="M 61 32 L 69 32 L 71 20 L 59 20 Z" fill="#1C2833"/>
-      <rect x="63" y="12" width="4" height="8" rx="1" fill="#7B7D7D"/>
+      <path d="M 62.5 32 L 70.5 32 L 72.5 20 L 60.5 20 Z" fill="#1C2833"/>
+      <rect x="64.5" y="12" width="4" height="8" rx="1" fill="#7B7D7D"/>
 
       <!-- Polarity Symbols -->
       <circle cx="35" cy="78" r="8" fill="#000" opacity="0.2"/>
@@ -329,8 +329,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <text x="50" y="145" font-size="38" font-weight="bold" text-anchor="middle" fill="#FFFFFF" opacity="0.9">9V</text>
     `,
     relativePins: [
-      { name: "Positive (+)", relX: 35 / 100, relY: 12 / 180, type: "positive" },
-      { name: "Negative (-)", relX: 65 / 100, relY: 12 / 180, type: "negative" },
+      { name: "Positive (+)", relX: 33.5 / 100, relY: 12 / 180, type: "positive" },
+      { name: "Negative (-)", relX: 66.5 / 100, relY: 12 / 180, type: "negative" },
     ],
   },
   {
@@ -871,12 +871,12 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       
       <!-- Wires -->
       <!-- Black Wire (Negative) -->
-      <path d="M 44 85 L 44 120 L 38 145 L 38 195" fill="none" stroke="#1C2833" stroke-width="5" stroke-linecap="round"/>
-      <rect x="37" y="195" width="2" height="8" fill="#BDC3C7"/>
+      <path d="M 44 85 L 44 120 L 30 145 L 30 195" fill="none" stroke="#1C2833" stroke-width="5" stroke-linecap="round"/>
+      <rect x="29" y="195" width="2" height="8" fill="#BDC3C7"/>
 
       <!-- Red Wire (Positive) -->
-      <path d="M 56 85 L 56 120 L 62 145 L 62 195" fill="none" stroke="#C0392B" stroke-width="5" stroke-linecap="round"/>
-      <rect x="61" y="195" width="2" height="8" fill="#BDC3C7"/>
+      <path d="M 56 85 L 56 120 L 70 145 L 70 195" fill="none" stroke="#C0392B" stroke-width="5" stroke-linecap="round"/>
+      <rect x="69" y="195" width="2" height="8" fill="#BDC3C7"/>
 
       <!-- Motor Body -->
       <circle cx="50" cy="45" r="38" fill="url(#motor_rim)" stroke="#7F8C8D" stroke-width="1.5"/>
@@ -886,10 +886,10 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     litSvgBody: `
       <!-- Base and Wires same as static -->
       <rect x="38" y="75" width="24" height="15" rx="2" fill="#7F8C8D"/>
-      <path d="M 44 85 L 44 120 L 38 145 L 38 195" fill="none" stroke="#1C2833" stroke-width="5" stroke-linecap="round"/>
-      <rect x="37" y="195" width="2" height="8" fill="#BDC3C7"/>
-      <path d="M 56 85 L 56 120 L 62 145 L 62 195" fill="none" stroke="#C0392B" stroke-width="5" stroke-linecap="round"/>
-      <rect x="61" y="195" width="2" height="8" fill="#BDC3C7"/>
+      <path d="M 44 85 L 44 120 L 30 145 L 30 195" fill="none" stroke="#1C2833" stroke-width="5" stroke-linecap="round"/>
+      <rect x="29" y="195" width="2" height="8" fill="#BDC3C7"/>
+      <path d="M 56 85 L 56 120 L 70 145 L 70 195" fill="none" stroke="#C0392B" stroke-width="5" stroke-linecap="round"/>
+      <rect x="69" y="195" width="2" height="8" fill="#BDC3C7"/>
 
       <!-- Vibrating Body (Slightly offset/blur) -->
       <g>
@@ -900,8 +900,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       </g>
     `,
     relativePins: [
-      { name: "Positive (+)", relX: 62 / 100, relY: 200 / 220, type: "positive" },
-      { name: "Negative (-)", relX: 38 / 100, relY: 200 / 220, type: "negative" },
+      { name: "Positive (+)", relX: 70 / 100, relY: 200 / 220, type: "positive" },
+      { name: "Negative (-)", relX: 30 / 100, relY: 200 / 220, type: "negative" },
     ],
   },
   {
