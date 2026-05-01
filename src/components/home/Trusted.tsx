@@ -39,7 +39,7 @@ const Trusted = () => {
                                     ))}
                                 </div>
                                 <Paragraph lg medium className='py-3 lg:py-4' gray>
-                                    "{obj.review}"
+                                    &quot;{obj.review}&quot;
                                 </Paragraph>
                                 <Paragraph lg bold mainblack>
                                     {obj.name}

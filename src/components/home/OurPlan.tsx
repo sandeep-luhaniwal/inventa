@@ -21,7 +21,7 @@ const OurPlan = () => {
           Simple, honest pricing
         </Heading>
         <Paragraph xl center gray className='pt-1'>
-          Start free, upgrade when you're ready.
+          Start free, upgrade when you&apos;re ready.
         </Paragraph>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 md:gap-3 lg:gap-9.5 gap-9.5 pt-9">
           {OUR_PLANS_Data.map((obj, i) => {

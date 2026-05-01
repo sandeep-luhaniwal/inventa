@@ -110,7 +110,7 @@ const BoardHero = () => {
             </div>
             <div className="pt-7.5 mt-7.5 border-t border-[#E5E7EB]">
                 <Paragraph sm bold center className='text-[#4F39F6]!'>
-                    Can't find your board? Request it
+                    Can&apos;t find your board? Request it
                 </Paragraph>
             </div>
         </div>

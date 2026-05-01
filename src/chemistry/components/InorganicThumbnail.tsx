@@ -6,6 +6,7 @@ import {
   SeparatoryFunnelAsset,
   TestTubeAsset,
 } from "./LabAssets";
+import type { InorganicLibraryItem } from "../types";
 
 interface InorganicThumbnailProps {
   item: InorganicLibraryItem;

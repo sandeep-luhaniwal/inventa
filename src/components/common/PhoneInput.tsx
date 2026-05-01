@@ -76,11 +76,15 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   // Parse the value into dial code and number
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState<string | null>(null)
+  const [prevDefaultCountry, setPrevDefaultCountry] = useState<string | null>(null)
+
+  if (value !== prevValue || defaultCountryCode !== prevDefaultCountry) {
+    setPrevValue(value)
+    setPrevDefaultCountry(defaultCountryCode)
+
     if (value) {
-      const matchedCountry = COUNTRY_CODES.find(country =>
-        value.startsWith(country.dialCode)
-      )
+      const matchedCountry = COUNTRY_CODES.find((country) => value.startsWith(country.dialCode))
       if (matchedCountry) {
         setSelectedCountry(matchedCountry)
         const number = value.slice(matchedCountry.dialCode.length)
@@ -90,16 +94,16 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
         setLocalNumber(value)
       } else {
         // Default to selected or default country
-        const defaultCountry = COUNTRY_CODES.find(c => c.code === defaultCountryCode) || COUNTRY_CODES[0]
+        const defaultCountry = COUNTRY_CODES.find((c) => c.code === defaultCountryCode) || COUNTRY_CODES[0]
         setSelectedCountry(defaultCountry)
         setLocalNumber(value)
       }
     } else {
-      const defaultCountry = COUNTRY_CODES.find(c => c.code === defaultCountryCode) || COUNTRY_CODES[0]
+      const defaultCountry = COUNTRY_CODES.find((c) => c.code === defaultCountryCode) || COUNTRY_CODES[0]
       setSelectedCountry(defaultCountry)
       setLocalNumber("")
     }
-  }, [value, defaultCountryCode])
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {

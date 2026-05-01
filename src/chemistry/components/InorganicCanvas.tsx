@@ -48,6 +48,7 @@ export default function InorganicCanvas({
   onMove,
   onCombine,
   onDrop,
+  onUpdate,
 }: InorganicCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
