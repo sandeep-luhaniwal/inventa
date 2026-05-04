@@ -4,17 +4,22 @@ import { useState, useEffect } from "react";
 const cache: Record<string, HTMLImageElement> = {};
 
 export function useImage(src: string): HTMLImageElement | null {
-  const [img, setImg] = useState<HTMLImageElement | null>(() => cache[src] ?? null);
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [prevSrc, setPrevSrc] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!src) return;
+  if (src !== prevSrc) {
+    setPrevSrc(src);
     if (cache[src]) {
       setImg(cache[src]);
-      return;
+    } else {
+      setImg(null);
     }
+  }
+
+  useEffect(() => {
+    if (!src || cache[src]) return;
+
     const el = new window.Image();
-    // crossOrigin is only needed for external URLs (not data: URLs)
-    // Setting it on data: URLs causes issues in some browsers
     if (!src.startsWith("data:")) {
       el.crossOrigin = "anonymous";
     }

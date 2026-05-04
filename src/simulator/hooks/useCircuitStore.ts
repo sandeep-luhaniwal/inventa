@@ -104,7 +104,7 @@ export function useCircuitStore() {
         return next;
       });
     },
-    [wires, notes, saveToHistory]
+    [wires, notes, drawings, saveToHistory]
   );
 
   const moveComponent = useCallback((id: string, x: number, y: number) => {
@@ -125,7 +125,7 @@ export function useCircuitStore() {
       }
       return next;
     });
-  }, [notes, saveToHistory, wires]);
+  }, [notes, saveToHistory, wires, drawings]);
 
   const updateComponent = useCallback((id: string, updates: Partial<PlacedComponent>) => {
     setComponents((prev) => {
@@ -190,7 +190,7 @@ export function useCircuitStore() {
 
       return true;
     },
-    [connectingFrom, saveToHistory, wires, notes]
+    [connectingFrom, saveToHistory, wires, notes, drawings]
   );
 
   const addConnectingMidPoint = useCallback((point: WirePoint) => {
@@ -225,7 +225,7 @@ export function useCircuitStore() {
     });
     setSelectedComponents([]);
     setSelectedWire(null);
-  }, [selectedComponents, selectedWire, saveToHistory, notes]);
+  }, [selectedComponents, selectedWire, saveToHistory, notes, drawings]);
 
   const deleteWire = useCallback(
     (wireId: string) => {
@@ -239,7 +239,7 @@ export function useCircuitStore() {
       });
       setSelectedWire((prev) => (prev === wireId ? null : prev));
     },
-    [saveToHistory, notes]
+    [saveToHistory, notes, drawings]
   );
 
   const rotateSelected = useCallback(() => {
@@ -250,7 +250,7 @@ export function useCircuitStore() {
       saveToHistory(next, wires, notes, drawings);
       return next;
     });
-  }, [selectedComponents, saveToHistory, wires, notes]);
+  }, [selectedComponents, saveToHistory, wires, notes, drawings]);
 
   const mirrorSelected = useCallback(() => {
     setComponents((prev) => {
@@ -260,7 +260,7 @@ export function useCircuitStore() {
       saveToHistory(next, wires, notes, drawings);
       return next;
     });
-  }, [selectedComponents, saveToHistory, wires, notes]);
+  }, [selectedComponents, saveToHistory, wires, notes, drawings]);
 
   const flipSelected = useCallback(() => {
     setComponents((prev) => {
@@ -270,7 +270,7 @@ export function useCircuitStore() {
       saveToHistory(next, wires, notes, drawings);
       return next;
     });
-  }, [selectedComponents, saveToHistory, wires, notes]);
+  }, [selectedComponents, saveToHistory, wires, notes, drawings]);
 
   const selectComponent = useCallback((compId: string, multi: boolean) => {
     setSelectedWire(null);
@@ -335,7 +335,7 @@ export function useCircuitStore() {
       saveToHistory(components, wires, next, drawings);
       return next;
     });
-  }, [components, wires, saveToHistory]);
+  }, [components, wires, drawings, saveToHistory]);
 
   const updateNote = useCallback((id: string, updates: Partial<Note>) => {
     setNotes((prev) => {
@@ -343,7 +343,7 @@ export function useCircuitStore() {
       saveToHistory(components, wires, next, drawings);
       return next;
     });
-  }, [components, wires, saveToHistory]);
+  }, [components, wires, drawings, saveToHistory]);
 
   const deleteNote = useCallback((id: string) => {
     setNotes((prev) => {
@@ -351,7 +351,7 @@ export function useCircuitStore() {
       saveToHistory(components, wires, next, drawings);
       return next;
     });
-  }, [components, wires, saveToHistory]);
+  }, [components, wires, drawings, saveToHistory]);
 
   const reset = useCallback(() => {
     setComponents([]);

@@ -10,22 +10,23 @@ import { useRouter } from 'next/navigation'
 
 const ClassesHero = () => {
     const router = useRouter()
-    const [selectedBoard, setSelectedBoard] = useState<{ title: string; logo: string } | null>(null)
+    const [selectedBoard, setSelectedBoard] = useState<{ title: string; logo: string } | null>(() => {
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("selectedBoard")
+            if (stored) {
+                const board = BOARDS_DASHBOARD_DATA.find((b) => b.title === stored)
+                return board ? { title: board.title, logo: board.logo } : null
+            }
+        }
+        return null
+    })
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
     const handleSelectClass = (className: string) => {
-        localStorage.setItem('selectedClass', className)
-        router.push('/design')
+        localStorage.setItem("selectedClass", className)
+        router.push("/design")
     }
-
-    useEffect(() => {
-        const stored = localStorage.getItem('selectedBoard')
-        if (stored) {
-            const board = BOARDS_DASHBOARD_DATA.find(b => b.title === stored)
-            if (board) setSelectedBoard({ title: board.title, logo: board.logo })
-        }
-    }, [])
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {

@@ -15,7 +15,7 @@ const YourPath = () => {
                     Choose your path
                 </Heading>
                 <Paragraph xl center gray className='pt-1'>
-                    Pick how you want to get started. We'll tailor your experience.
+                    Pick how you want to get started. We&apos;ll tailor your experience.
                 </Paragraph>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-4 lg:gap-6 md:grid-cols-3 pt-6 md:pt-8 lg:pt-8">
                     {CHOOSE_YOUR_PATH_DATA_LIST.map((obj, i) => {
