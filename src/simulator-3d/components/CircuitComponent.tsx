@@ -10,6 +10,7 @@ import { PlacedComponent } from "../types";
 import { snapVector } from "../utils";
 import PinHandle from "./PinHandle";
 
+
 interface CircuitComponentProps {
   component: PlacedComponent;
   isWireSource: boolean;
