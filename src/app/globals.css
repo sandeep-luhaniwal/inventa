@@ -87,3 +87,182 @@ body {
 .font-medium {
   font-family: Satoshi-medium !important;
 }
+
+.chemistry-steam span {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 48px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.42));
+  filter: blur(4px);
+  animation: chemistry-steam-rise 1.45s ease-in-out infinite;
+}
+
+.chemistry-steam span:nth-child(1) {
+  left: 8px;
+}
+
+.chemistry-steam span:nth-child(2) {
+  left: 26px;
+  animation-delay: 0.25s;
+}
+
+.chemistry-steam span:nth-child(3) {
+  left: 44px;
+  animation-delay: 0.5s;
+}
+
+.chemistry-gas-cloud {
+  animation: chemistry-gas-float 2.4s ease-in-out infinite;
+}
+
+.chemistry-burst {
+  animation: chemistry-burst-pop 0.85s ease-out infinite;
+}
+
+.chemistry-settle {
+  animation: chemistry-settle-pulse 1.6s ease-in-out infinite;
+}
+
+.chemistry-heat-glow {
+  animation: chemistry-heat-pulse 0.9s ease-in-out infinite;
+}
+
+.chemistry-liquid-transfer {
+  border-radius: 999px;
+  filter: blur(0.5px);
+  animation: chemistry-liquid-pour 0.72s ease-in-out infinite;
+}
+
+.chemistry-solid-transfer span {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.22);
+  animation: chemistry-solid-fall 0.72s ease-in infinite;
+}
+
+.chemistry-gas-transfer span {
+  position: absolute;
+  left: 0;
+  top: 26px;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  opacity: 0.22;
+  filter: blur(7px);
+  animation: chemistry-gas-drift 0.9s ease-out infinite;
+}
+
+.chemistry-gas-transfer span:nth-child(2) {
+  top: 39px;
+  animation-delay: 0.14s;
+}
+
+.chemistry-gas-transfer span:nth-child(3) {
+  top: 13px;
+  animation-delay: 0.28s;
+}
+
+@keyframes chemistry-steam-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scaleX(0.7);
+  }
+  45% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scaleX(1.35);
+  }
+}
+
+@keyframes chemistry-gas-float {
+  0%, 100% {
+    opacity: 0.36;
+    transform: translateY(0) scale(0.96);
+  }
+  50% {
+    opacity: 0.75;
+    transform: translateY(-8px) scale(1.08);
+  }
+}
+
+@keyframes chemistry-burst-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45) rotate(20deg);
+  }
+}
+
+@keyframes chemistry-settle-pulse {
+  0%, 100% {
+    opacity: 0.52;
+    transform: scaleX(0.86);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleX(1.06);
+  }
+}
+
+@keyframes chemistry-heat-pulse {
+  0%, 100% {
+    opacity: 0.35;
+    box-shadow: 0 0 16px rgba(251, 146, 60, 0.25);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 30px rgba(251, 146, 60, 0.65);
+  }
+}
+
+@keyframes chemistry-liquid-pour {
+  0%, 100% {
+    opacity: 0.42;
+    transform: scaleY(0.82);
+  }
+  45% {
+    opacity: 0.95;
+    transform: scaleY(1.08);
+  }
+}
+
+@keyframes chemistry-solid-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(18px, 78px) scale(1.05);
+  }
+}
+
+@keyframes chemistry-gas-drift {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  35% {
+    opacity: 0.34;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(78px, -16px) scale(1.8);
+  }
+}

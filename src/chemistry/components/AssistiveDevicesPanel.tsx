@@ -4,13 +4,15 @@ import React from "react";
 import type { InorganicLibraryItem } from "@/chemistry/types";
 import {
   BurnerAsset,
-  StandAsset,
+  ClayNetAsset,
   MatchAsset,
+  MatchboxAsset,
   DropperAsset,
   ForcepsAsset,
   GauzeAsset,
   SpatulaAsset,
   GlassConduitAsset,
+  RetortStandAsset,
   RubberStopperAsset,
 } from "./LabAssets";
 
@@ -50,13 +52,18 @@ function DeviceSVG({ type }: { type: string }) {
     case "burner":
       return <BurnerAsset lit={false} />;
     case "tripod":
-      return <StandAsset />;
+    case "retort-stand":
+      return <RetortStandAsset />;
     case "match":
       return <MatchAsset />;
+    case "matchbox":
+      return <MatchboxAsset />;
     case "dropper":
       return <DropperAsset />;
     case "forceps":
       return <ForcepsAsset />;
+    case "clay-net":
+      return <ClayNetAsset />;
     case "gauze":
       return <GauzeAsset />;
     case "spatula":

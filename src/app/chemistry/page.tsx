@@ -213,17 +213,18 @@ export default function ChemistryPage() {
 
       if (!source || !target || target.state !== "glassware") return current;
 
-      // Add source to target's contents
-      const updatedContents = [...(target.contents || []), source];
+      const sourceContents =
+        source.state === "glassware" && source.contents?.length ? source.contents : [source];
+      const updatedContents = [...(target.contents || []), ...sourceContents];
       
       // Resolve any reactions
-      const reactedContents = resolveReaction(updatedContents);
+      const reaction = resolveReaction(updatedContents);
 
       return current
         .filter((i) => i.instanceId !== sourceId) // Remove the added chemical from canvas
         .map((i) =>
           i.instanceId === targetId
-            ? { ...i, contents: reactedContents }
+            ? { ...i, contents: reaction.contents, reactionState: reaction.state ?? "idle", note: reaction.note }
             : i
         );
     });
