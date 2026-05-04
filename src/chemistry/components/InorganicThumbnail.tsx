@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+import type { InorganicLibraryItem } from "@/chemistry/types";
 import {
   MeasureBottleAsset,
   RoundBottomFlaskAsset,
