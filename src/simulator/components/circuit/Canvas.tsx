@@ -135,7 +135,7 @@ const Canvas = ({
     onCanvasWirePointAdd(nextPoint);
   }, [activeTool, connectingFrom, onCanvasWirePointAdd, onComponentSelect, snapTarget]);
 
-  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (activeTool === "pencil") {
       setIsDrawing(true);
       const pos = stageRef.current?.getRelativePointerPosition();
@@ -155,7 +155,7 @@ const Canvas = ({
     }
   }, [activeTool, onDeleteDrawing]);
 
-  const handleMouseMoveDrawing = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleMouseMoveDrawing = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     handleMouseMove();
     if (activeTool === "pencil" && isDrawing) {
       const pos = stageRef.current?.getRelativePointerPosition();
@@ -290,7 +290,11 @@ const Canvas = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMoveDrawing}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMoveDrawing}
+        onTouchEnd={handleMouseUp}
         onClick={handleStageClick}
+        onTap={handleStageClick}
         onWheel={handleWheel}
         onDragEnd={syncTransform}
       >

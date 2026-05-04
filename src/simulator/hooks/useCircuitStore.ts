@@ -136,10 +136,10 @@ export function useCircuitStore() {
         resolvedUpdates = { ...updates, imageSrc, litImageSrc };
       }
       const next = prev.map((c) => (c.id === id ? { ...c, ...resolvedUpdates } : c));
-      saveToHistory(next, wires, notes);
+      saveToHistory(next, wires, notes, drawings);
       return next;
     });
-  }, [saveToHistory, wires, notes]);
+  }, [saveToHistory, wires, notes, drawings]);
 
   const handlePinClick = useCallback(
     (compId: string, portIndex: number) => {
