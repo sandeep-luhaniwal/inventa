@@ -3,6 +3,7 @@
 import React from "react";
 import type { InorganicLibraryItem } from "@/chemistry/types";
 import {
+  GasJarAsset,
   GlassBottleAsset,
   MeasureBottleAsset,
   RoundBottomFlaskAsset,
@@ -49,6 +50,9 @@ function LabSVG({ type }: { type: string }) {
 
     case "separatory-funnel":
       return <SeparatoryFunnelAsset />;
+
+    case "gas-jar":
+      return <GasJarAsset />;
 
     case "glass-bottle":
       return <GlassBottleAsset />;

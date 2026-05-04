@@ -4,8 +4,11 @@ import React, { useMemo, useRef, useState } from "react";
 import type { PlacedInorganicItem } from "@/chemistry/types";
 import {
   BurnerAsset,
+  ChemicalContainerAsset,
+  ClayNetAsset,
   DropperAsset,
   ForcepsAsset,
+  GasJarAsset,
   GauzeAsset,
   GlassBottleAsset,
   GlassConduitAsset,
@@ -14,6 +17,7 @@ import {
   MeasureBottleAsset,
   RoundBottomFlaskAsset,
   RubberStopperAsset,
+  RetortStandAsset,
   SeparatoryFunnelAsset,
   SpatulaAsset,
   SparkEffect,
@@ -37,6 +41,8 @@ interface DragState {
   offsetY: number;
 }
 
+type DispenseMode = "solid" | "liquid" | "gas";
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -53,6 +59,7 @@ export default function InorganicCanvas({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [sparkPos, setSparkPos] = useState<{ x: number; y: number } | null>(null);
+  const [dispensing, setDispensing] = useState<Record<string, DispenseMode>>({});
 
   const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!dragState || !surfaceRef.current) return;
@@ -64,38 +71,23 @@ export default function InorganicCanvas({
     // Smart Snapping Logic
     const draggedItem = items.find((i) => i.instanceId === dragState.id);
     if (draggedItem && draggedItem.state === "glassware") {
-      // Snap to Tripods
-      const tripod = items.find(
-        (i) => i.id === "tripod" && Math.abs(i.x - nextX) < 40 && Math.abs(i.y - (nextY + 80)) < 40
+      const burner = items.find(
+        (i) => i.id === "burner" && Math.abs(i.x - nextX) < 62 && Math.abs(i.y - (nextY + 104)) < 78
       );
-      if (tripod) {
-        nextX = tripod.x - 12;
-        nextY = tripod.y - 70;
+      if (burner) {
+        nextX = burner.x - 2;
+        nextY = burner.y - 110;
       }
-
-      // Snap to Ring Stands
-      const stand = items.find(
-        (i) => i.id === "tripod" && Math.abs(i.x - nextX) < 40 && Math.abs(i.y - (nextY + 100)) < 40
+    } else if (draggedItem && (draggedItem.id === "matchbox" || draggedItem.id === "match")) {
+      const burner = items.find(
+        (i) => i.id === "burner" && !i.isLit && Math.abs(i.x - nextX) < 92 && Math.abs(i.y - nextY) < 82
       );
-      // ... more snapping points could be added
-    } else if (draggedItem && draggedItem.id === "match") {
-      // 1. Strike against Matchbox - More forgiving radius
-      const matchbox = items.find(
-        (i) => i.id === "matchbox" && Math.abs(i.x - nextX) < 110 && Math.abs(i.y - nextY) < 85
-      );
-      if (matchbox && !draggedItem.isLit) {
+      if (burner) {
         onUpdate(draggedItem.instanceId, { isLit: true });
-        setSparkPos({ x: nextX + 80, y: nextY + 50 });
-        setTimeout(() => setSparkPos(null), 400);
-        setTimeout(() => onUpdate(draggedItem.instanceId, { isLit: false }), 20000);
-      }
-
-      // 2. Ignite Burner if already lit
-      if (draggedItem.isLit) {
-        const burner = items.find(
-          (i) => i.id === "burner" && !i.isLit && Math.abs(i.x - nextX) < 60 && Math.abs(i.y - nextY) < 60
-        );
-        if (burner) onUpdate(burner.instanceId, { isLit: true });
+        onUpdate(burner.instanceId, { isOpen: true, isLit: true });
+        setSparkPos({ x: burner.x + 70, y: burner.y + 34 });
+        setTimeout(() => setSparkPos(null), 500);
+        setTimeout(() => onUpdate(draggedItem.instanceId, { isLit: false }), 12000);
       }
     }
 
@@ -129,31 +121,51 @@ export default function InorganicCanvas({
         (i) =>
           i.instanceId !== dragState.id &&
           i.state === "glassware" &&
-          Math.abs(i.x - draggedItem.x) < 60 &&
-          Math.abs(i.y - draggedItem.y) < 60
+          Math.abs(i.x - draggedItem.x) < 86 &&
+          Math.abs(i.y - draggedItem.y) < 86
       );
 
       if (target && draggedItem.state !== "glassware") {
-        onCombine(dragState.id, target.instanceId);
+        const mode = draggedItem.state === "gas" ? "gas" : draggedItem.state === "solid" ? "solid" : "liquid";
+        setDispensing((current) => ({ ...current, [draggedItem.instanceId]: mode }));
+        onUpdate(draggedItem.instanceId, { rotation: mode === "gas" ? -18 : -42 });
+        setTimeout(() => {
+          onCombine(dragState.id, target.instanceId);
+          setDispensing((current) => {
+            const next = { ...current };
+            delete next[draggedItem.instanceId];
+            return next;
+          });
+        }, 720);
       }
     }
 
     setDragState(null);
   };
 
-  const isBoiling = useMemo(() => {
-    // A vessel boils if it's near a stand and a burner is lit below
-    const stands = items.filter((i) => i.id === "tripod");
+  const vesselHeat = useMemo(() => {
     const burners = items.filter((i) => i.id === "burner");
     const vessels = items.filter((i) => i.state === "glassware");
 
     return vessels.reduce<Record<string, boolean>>((acc, v) => {
-      const onStand = stands.some((s) => Math.abs(s.x - v.x) < 40 && Math.abs(s.y - v.y) < 50);
-      const heatedByBurner = burners.some((b) => Math.abs(b.x - v.x) < 60 && b.y > v.y && b.y - v.y < 150);
-      acc[v.instanceId] = onStand && heatedByBurner;
+      const heatedByBurner = burners.some(
+        (b) => b.isLit && b.isOpen && Math.abs(b.x - v.x) < 76 && b.y > v.y && b.y - v.y < 170
+      );
+      acc[v.instanceId] = heatedByBurner;
       return acc;
     }, {});
   }, [items]);
+
+  const getLiveReactionState = (item: PlacedInorganicItem) => {
+    const ids = new Set((item.contents ?? []).map((content) => content.id));
+    if (item.reactionState === "burst" || (ids.has("sodium") && ids.has("water"))) return "burst";
+    if (item.reactionState === "precipitate" || (ids.has("iron") && ids.has("cuso4-solution"))) return "precipitate";
+    if (ids.has("co2")) return "gas";
+    if (vesselHeat[item.instanceId] && ids.has("cuo")) return "reduction";
+    if (vesselHeat[item.instanceId] && (item.contents?.length ?? 0) > 0) return "boiling";
+    if (vesselHeat[item.instanceId]) return "heating";
+    return item.reactionState ?? "idle";
+  };
 
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
@@ -202,8 +214,9 @@ export default function InorganicCanvas({
 
       {items.map((item) => {
         const active = selectedId === item.instanceId;
-        const boiling = isBoiling[item.instanceId];
+        const reactionState = item.state === "glassware" ? getLiveReactionState(item) : "idle";
         const isPouring = (item.rotation || 0) !== 0;
+        const dispenseMode = dispensing[item.instanceId];
         
         return (
           <div
@@ -238,10 +251,15 @@ export default function InorganicCanvas({
                 } else {
                   onUpdate(item.instanceId, { isLit: false, isOpen: false });
                 }
+              } else if (item.id === "matchbox") {
+                onUpdate(item.instanceId, { isLit: true });
+                setSparkPos({ x: item.x + 95, y: item.y + 70 });
+                setTimeout(() => setSparkPos(null), 450);
+                setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 900);
               } else if (item.id === "match") {
                 onUpdate(item.instanceId, { isLit: !item.isLit });
                 if (!item.isLit) {
-                  setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 15000);
+                  setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 12000);
                 }
               } else if (item.id.includes("bottle") || item.id.includes("jar") || item.id === "rubber-stopper") {
                 onUpdate(item.instanceId, { isOpen: !item.isOpen });
@@ -255,6 +273,8 @@ export default function InorganicCanvas({
                 <RoundBottomFlaskAsset />
               ) : item.id === "separatory-funnel" ? (
                 <SeparatoryFunnelAsset />
+              ) : item.id === "gas-jar" ? (
+                <GasJarAsset isOpen={item.isOpen} />
               ) : item.id === "measure-bottle" ? (
                 <MeasureBottleAsset isOpen={item.isOpen} />
               ) : item.id === "glass-bottle" ? (
@@ -277,6 +297,10 @@ export default function InorganicCanvas({
                 <DropperAsset />
               ) : item.id === "forceps" ? (
                 <ForcepsAsset />
+              ) : item.id === "clay-net" ? (
+                <ClayNetAsset />
+              ) : item.id === "retort-stand" ? (
+                <RetortStandAsset />
               ) : item.id === "gauze" ? (
                 <GauzeAsset />
               ) : item.id === "spatula" ? (
@@ -285,6 +309,13 @@ export default function InorganicCanvas({
                 <GlassConduitAsset />
               ) : item.id === "rubber-stopper" ? (
                 <RubberStopperAsset />
+              ) : item.state === "solid" || item.state === "liquid" || item.state === "gas" ? (
+                <ChemicalContainerAsset
+                  state={item.state}
+                  label={item.name}
+                  symbol={item.symbol}
+                  accent={item.accent}
+                />
               ) : (
                 /* Fallback for other items */
                 <div
@@ -310,18 +341,24 @@ export default function InorganicCanvas({
 
               {/* Pouring Stream Effect */}
               {isPouring && (
-                <div className="absolute top-[80px] left-[60px] w-1 h-20 bg-blue-400/40 blur-[1px] animate-pulse origin-top">
-                  <div className="absolute inset-0 bg-white/20 w-px mx-auto" />
-                </div>
+                <DispenseEffect mode={dispenseMode ?? "liquid"} color={item.accent} />
               )}
 
+              {item.state === "glassware" && (
+                <VesselContents item={item} heated={vesselHeat[item.instanceId]} reactionState={reactionState} />
+              )}
 
               {/* Contents Label (only for vessels) */}
               {item.state === "glassware" && item.contents && item.contents.length > 0 && (
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-lg">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex max-w-56 items-center gap-1 bg-black/45 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-lg">
                   {item.contents.map((c, i) => (
                     <span key={i} className="text-[10px] font-bold" style={{ color: c.accent }}>{c.symbol}</span>
                   ))}
+                </div>
+              )}
+              {item.note && (
+                <div className="absolute left-1/2 top-full mt-1 w-48 -translate-x-1/2 rounded-lg border border-white/10 bg-black/55 px-2 py-1 text-center text-[10px] leading-4 text-white/80 shadow-lg">
+                  {item.note}
                 </div>
               )}
             </div>
@@ -338,6 +375,144 @@ export default function InorganicCanvas({
           <SparkEffect />
         </div>
       )}
+    </div>
+  );
+}
+
+function mixContentColor(contents: PlacedInorganicItem["contents"]) {
+  const liquid = contents?.find((item) => item.state === "liquid");
+  const gas = contents?.find((item) => item.state === "gas");
+  const solid = contents?.find((item) => item.state === "solid");
+  return liquid?.accent ?? gas?.accent ?? solid?.accent ?? "#67e8f9";
+}
+
+function DispenseEffect({ mode, color }: { mode: DispenseMode; color: string }) {
+  if (mode === "gas") {
+    return (
+      <div className="pointer-events-none absolute left-[86px] top-[44px] h-20 w-28 chemistry-gas-transfer">
+        <span style={{ backgroundColor: color }} />
+        <span style={{ backgroundColor: color }} />
+        <span style={{ backgroundColor: color }} />
+      </div>
+    );
+  }
+
+  if (mode === "solid") {
+    return (
+      <div className="pointer-events-none absolute left-[76px] top-[70px] h-24 w-20 chemistry-solid-transfer">
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
+          <span
+            key={index}
+            style={{
+              backgroundColor: color,
+              left: 8 + (index % 4) * 10,
+              animationDelay: `${index * 0.06}s`,
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="pointer-events-none absolute left-[82px] top-[58px] h-28 w-2 origin-top chemistry-liquid-transfer"
+      style={{
+        background: `linear-gradient(180deg, ${color}, ${color}55, transparent)`,
+        boxShadow: `0 0 12px ${color}99`,
+      }}
+    >
+      <div className="mx-auto h-full w-px bg-white/35" />
+    </div>
+  );
+}
+
+function VesselContents({
+  item,
+  heated,
+  reactionState,
+}: {
+  item: PlacedInorganicItem;
+  heated?: boolean;
+  reactionState: NonNullable<PlacedInorganicItem["reactionState"]>;
+}) {
+  const contents = item.contents ?? [];
+  if (contents.length === 0 && !heated) return null;
+
+  const color = mixContentColor(contents);
+  const hasLiquid = contents.some((content) => content.state === "liquid");
+  const solids = contents.filter((content) => content.state === "solid");
+  const hasGas = contents.some((content) => content.state === "gas");
+  const shape =
+    item.id === "test-tube"
+      ? "left-[73px] top-[94px] h-[50px] w-[30px] rounded-b-[18px]"
+      : item.id === "gas-jar"
+        ? "left-[62px] top-[70px] h-[72px] w-[48px] rounded-b-[18px]"
+        : item.id === "separatory-funnel"
+          ? "left-[57px] top-[56px] h-[42px] w-[60px] rounded-full"
+          : "left-[52px] top-[102px] h-[42px] w-[72px] rounded-b-full";
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-visible">
+      {hasLiquid && (
+        <div
+          className={`absolute ${shape} opacity-75 mix-blend-screen`}
+          style={{
+            background: `linear-gradient(180deg, ${color}88, ${color}dd)`,
+            boxShadow: `0 0 22px ${color}40 inset, 0 0 18px ${color}22`,
+          }}
+        >
+          <div className="absolute -top-1 left-1/2 h-2 w-[86%] -translate-x-1/2 rounded-full bg-white/35" />
+        </div>
+      )}
+
+      {solids.map((solid, index) => (
+        <div
+          key={`${solid.id}-${index}`}
+          className="absolute h-2.5 w-2.5 rounded-full shadow-sm"
+          style={{
+            left: 69 + (index % 5) * 9,
+            top: item.id === "test-tube" ? 128 - Math.floor(index / 5) * 7 : 132 - Math.floor(index / 5) * 8,
+            background: solid.accent,
+            boxShadow: `0 0 8px ${solid.accent}70`,
+          }}
+        />
+      ))}
+
+      {(hasGas || reactionState === "gas") && (
+        <div className="absolute left-[54px] top-[36px] h-24 w-24 rounded-full bg-slate-100/14 blur-sm chemistry-gas-cloud" />
+      )}
+
+      {(heated || reactionState === "boiling" || reactionState === "heating") && (
+        <div className="absolute left-[64px] top-[36px] h-20 w-16 chemistry-steam">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+
+      {reactionState === "burst" && <BurstEffect />}
+      {reactionState === "precipitate" && (
+        <div className="absolute left-[64px] top-[120px] h-7 w-14 rounded-full bg-orange-500/80 blur-[1px] chemistry-settle" />
+      )}
+      {reactionState === "reduction" && (
+        <div className="absolute left-[55px] top-[98px] h-12 w-16 rounded-full border border-orange-300/40 bg-orange-500/35 chemistry-heat-glow" />
+      )}
+    </div>
+  );
+}
+
+function BurstEffect() {
+  return (
+    <div className="absolute left-[34px] top-[34px] h-32 w-32 chemistry-burst">
+      <div className="absolute inset-8 rounded-full bg-amber-300/75 blur-md" />
+      {[0, 35, 70, 110, 150, 205, 250, 300].map((angle) => (
+        <span
+          key={angle}
+          className="absolute left-1/2 top-1/2 h-1.5 w-14 origin-left rounded-full bg-orange-300"
+          style={{ transform: `rotate(${angle}deg)` }}
+        />
+      ))}
     </div>
   );
 }

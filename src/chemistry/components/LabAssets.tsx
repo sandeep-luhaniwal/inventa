@@ -42,6 +42,14 @@ export function GlassDefs() {
       <filter id="softRim" x="-10%" y="-10%" width="120%" height="120%">
         <feGaussianBlur stdDeviation="0.5" />
       </filter>
+
+      <filter id="flameGlow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="3" result="glow" />
+        <feMerge>
+          <feMergeNode in="glow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
     </defs>
   );
 }
@@ -290,6 +298,43 @@ export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
   );
 }
 
+export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
+  return (
+    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        <rect
+          x="34"
+          y="22"
+          width="52"
+          height="112"
+          rx="15"
+          fill="url(#glassBody)"
+          stroke="#ffffff"
+          strokeWidth="0.6"
+          strokeOpacity="0.38"
+        />
+        <rect x="34" y="22" width="52" height="112" rx="15" fill="url(#internalReflection)" />
+        <ellipse cx="60" cy="22" rx="26" ry="5" fill="none" stroke="url(#glassRim)" strokeWidth="1.7" strokeOpacity="0.75" />
+        <ellipse cx="60" cy="134" rx="20" ry="5" fill="#ffffff" fillOpacity="0.05" stroke="#ffffff" strokeOpacity="0.2" />
+        {[0, 1, 2, 3].map((i) => (
+          <line
+            key={i}
+            x1="39"
+            y1={111 - i * 20}
+            x2="51"
+            y2={111 - i * 20}
+            stroke="#ffffff"
+            strokeWidth="1"
+            strokeOpacity="0.24"
+          />
+        ))}
+        {!isOpen && <rect x="35" y="15" width="50" height="8" rx="4" fill="#d8e2ee" fillOpacity="0.65" />}
+      </g>
+    </svg>
+  );
+}
+
 export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "mini" }) {
   const dims = {
     small: { x: 38, y: 15, w: 24, h: 105, rx: 12 },
@@ -361,23 +406,110 @@ export function GlassBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
   );
 }
 
+export function ChemicalContainerAsset({
+  state,
+  label,
+  symbol,
+  accent,
+}: {
+  state: "solid" | "liquid" | "gas";
+  label: string;
+  symbol: string;
+  accent: string;
+}) {
+  if (state === "gas") {
+    return (
+      <svg viewBox="0 0 130 160" className="h-40 w-40 drop-shadow-[0_18px_28px_rgba(0,0,0,0.22)]">
+        <GlassDefs />
+        <defs>
+          <linearGradient id={`gasCylinder-${symbol}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#334155" />
+            <stop offset="45%" stopColor="#dbe4ef" />
+            <stop offset="70%" stopColor="#64748b" />
+            <stop offset="100%" stopColor="#1f2937" />
+          </linearGradient>
+        </defs>
+        <rect x="42" y="35" width="46" height="100" rx="18" fill={`url(#gasCylinder-${symbol})`} stroke="#d8e2ee" strokeWidth="1.5" />
+        <ellipse cx="65" cy="43" rx="22" ry="9" fill="#edf4fb" fillOpacity="0.45" />
+        <path d="M56 31 h18 v10 h-18z" fill="#475569" stroke="#cbd5e1" strokeWidth="1" />
+        <path d="M48 28 h34" stroke="#cbd5e1" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="86" cy="28" r="9" fill="#e2e8f0" stroke="#64748b" strokeWidth="2" />
+        <path d="M86 28 l5 -4" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M51 54 q14 -10 28 0" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.22" filter="url(#softRim)" />
+        <rect x="48" y="83" width="34" height="29" rx="4" fill="#f8fafc" fillOpacity="0.86" stroke="#dbe4ef" />
+        <text x="65" y="99" textAnchor="middle" fill="#111827" fontSize="11" fontWeight="700" fontFamily="system-ui">
+          {symbol}
+        </text>
+        <text x="65" y="109" textAnchor="middle" fill="#334155" fontSize="5.5" fontFamily="system-ui">
+          {label.slice(0, 14)}
+        </text>
+        <path d="M89 52 q16 8 16 24 q0 16 -13 24" fill="none" stroke={accent} strokeWidth="2" strokeOpacity="0.34" strokeDasharray="4 5" />
+      </svg>
+    );
+  }
+
+  const isSolid = state === "solid";
+
+  return (
+    <svg viewBox="0 0 130 160" className="h-40 w-40 drop-shadow-[0_18px_28px_rgba(0,0,0,0.2)]">
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        <rect x="36" y="48" width="58" height="82" rx="11" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.7" strokeOpacity="0.45" />
+        <rect x="36" y="48" width="58" height="82" rx="11" fill="url(#internalReflection)" />
+        <rect x="48" y="27" width="34" height="24" rx="5" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.7" strokeOpacity="0.36" />
+        <path d="M46 25 h38 v9 h-38z" fill="#1f2937" stroke="#0f172a" strokeWidth="1" />
+        <ellipse cx="65" cy="50" rx="27" ry="7" fill="#ffffff" fillOpacity="0.13" stroke="#ffffff" strokeOpacity="0.22" />
+        {isSolid ? (
+          <g>
+            <path d="M41 102 q24 -14 48 0 v20 q-24 12 -48 0z" fill={accent} fillOpacity="0.8" />
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+              <circle
+                key={index}
+                cx={47 + (index % 5) * 9}
+                cy={96 + Math.floor(index / 5) * 12}
+                r={index % 3 === 0 ? 2.8 : 2.1}
+                fill={accent}
+                opacity={index % 2 === 0 ? 0.95 : 0.62}
+              />
+            ))}
+          </g>
+        ) : (
+          <g>
+            <path d="M40 88 q25 5 50 0 v34 q-25 10 -50 0z" fill={accent} fillOpacity="0.78" />
+            <path d="M42 87 q23 5 46 0" fill="none" stroke="#ffffff" strokeWidth="2" strokeOpacity="0.4" />
+            <path d="M45 98 q18 4 38 0" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.18" />
+          </g>
+        )}
+        <rect x="43" y="67" width="44" height="25" rx="4" fill="#f8fafc" fillOpacity="0.86" stroke="#dbe4ef" />
+        <text x="65" y="82" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="700" fontFamily="system-ui">
+          {symbol}
+        </text>
+        <text x="65" y="90" textAnchor="middle" fill="#334155" fontSize="5.5" fontFamily="system-ui">
+          {label.slice(0, 13)}
+        </text>
+        <path d="M47 55 q-10 24 0 56" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.13" filter="url(#softRim)" />
+      </g>
+    </svg>
+  );
+}
+
 export function MatchAsset({ lit = false }: { lit?: boolean }) {
   return (
-    <svg viewBox="0 0 100 100" className="h-32 w-32 drop-shadow-lg">
+    <svg viewBox="0 0 100 150" className="h-40 w-28 drop-shadow-[0_14px_22px_rgba(0,0,0,0.22)]">
       <GlassDefs />
-      {/* Stick - Longer and more wood-like */}
-      <rect x="10" y="55" width="75" height="3" fill="#f5e6d3" rx="0.5" stroke="#d9c39a" strokeWidth="0.5" />
-      {/* Head - Slightly charred if lit */}
-      <ellipse cx="85" cy="56.5" rx="5" ry="3.5" fill={lit ? "#0f172a" : "#dc2626"} />
-      
-      {/* Flame - More vibrant with inner core */}
+      <g transform="translate(50 82)">
+        <rect x="-3" y="-6" width="6" height="58" rx="2" fill="#d8c7a4" stroke="#9d8356" strokeWidth="0.8" />
+        <path d="M-3 -2 h6 v52 q-3 4 -6 0z" fill="#efe0bd" opacity="0.4" />
+        <ellipse cx="0" cy="-11" rx="8" ry="13" fill={lit ? "#20120d" : "#c23b2a"} />
+        <ellipse cx="-2" cy="-14" rx="3" ry="5" fill="#ff6b4a" opacity={lit ? 0.25 : 0.65} />
+      </g>
       {lit && (
-        <g filter="url(#flameGlow)" transform="translate(85, 56.5)">
-          <path d="M0 -4 q-10 -15 0 -50 q10 35 0 50Z" fill="#fb923c">
-            <animate attributeName="d" values="M0 -4 q-10 -15 0 -50 q10 35 0 50Z; M0 -4 q-14 -18 0 -55 q14 -37 0 -55Z; M0 -4 q-10 -15 0 -50 q10 35 0 50Z" dur="0.2s" repeatCount="indefinite" />
+        <g filter="url(#flameGlow)" transform="translate(50, 71)">
+          <path d="M0 0 q-12 -18 0 -52 q12 34 0 52Z" fill="#fb923c">
+            <animate attributeName="d" values="M0 0 q-12 -18 0 -52 q12 34 0 52Z; M0 0 q-15 -20 0 -58 q15 38 0 58Z; M0 0 q-12 -18 0 -52 q12 34 0 52Z" dur="0.18s" repeatCount="indefinite" />
           </path>
-          <path d="M0 -4 q-5 -12 0 -30 q5 18 0 30Z" fill="#ffedd5" opacity="0.9">
-            <animate attributeName="d" values="M0 -4 q-5 -12 0 -30 q5 18 0 30Z; M0 -4 q-7 -15 0 -35 q7 -20 0 -35Z; M0 -4 q-5 -12 0 -30 q5 18 0 30Z" dur="0.1s" repeatCount="indefinite" />
+          <path d="M0 0 q-5 -14 0 -32 q5 18 0 32Z" fill="#ffedd5" opacity="0.92">
+            <animate attributeName="d" values="M0 0 q-5 -14 0 -32 q5 18 0 32Z; M0 0 q-7 -16 0 -36 q7 20 0 36Z; M0 0 q-5 -14 0 -32 q5 18 0 32Z" dur="0.11s" repeatCount="indefinite" />
           </path>
         </g>
       )}
@@ -420,9 +552,96 @@ export function DropperAsset() {
 
 export function ForcepsAsset() {
   return (
-    <svg viewBox="0 0 100 100" className="h-32 w-32">
-      <path d="M40 20 L55 85 M60 20 L45 85" fill="none" stroke="#cfd8e3" strokeWidth="3" strokeLinecap="round" />
-      <rect x="46" y="20" width="8" height="4" rx="1" fill="#9ca7b5" />
+    <svg viewBox="0 0 160 160" className="h-40 w-40 drop-shadow-[0_16px_24px_rgba(0,0,0,0.24)]">
+      <defs>
+        <linearGradient id="forcepsSteel" x1="18" y1="130" x2="132" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#eef3f8" />
+          <stop offset="18%" stopColor="#aeb9c3" />
+          <stop offset="48%" stopColor="#f7fafc" />
+          <stop offset="78%" stopColor="#8e99a4" />
+          <stop offset="100%" stopColor="#e5ebf1" />
+        </linearGradient>
+        <linearGradient id="forcepsShadow" x1="30" y1="136" x2="126" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#5f6b75" />
+          <stop offset="55%" stopColor="#cbd3db" />
+          <stop offset="100%" stopColor="#f8fafc" />
+        </linearGradient>
+        <filter id="forcepsSoft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="0.7" />
+        </filter>
+      </defs>
+
+      <g transform="rotate(-43 80 80)">
+        <path
+          d="M72 18 q8 -8 16 0 q4 4 3 10 q-2 10 -7 24 l-19 70 q-4 14 -13 23 q-3 3 -6 1 q-3 -2 -1 -6 q6 -13 9 -26 l14 -67 q3 -17 4 -29Z"
+          fill="url(#forcepsShadow)"
+          opacity="0.9"
+        />
+        <path
+          d="M78 17 q7 -7 15 1 q4 4 2 10 q-3 12 -10 29 l-31 80 q-4 10 -13 17 q-3 2 -5 0 q-2 -2 0 -5 q8 -10 12 -22 l22 -77 q5 -18 8 -33Z"
+          fill="url(#forcepsSteel)"
+          stroke="#f8fafc"
+          strokeWidth="1.2"
+          strokeOpacity="0.72"
+        />
+        <path
+          d="M67 26 q5 -9 11 -9 q2 14 -2 30 l-24 86 q-4 13 -13 21"
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeOpacity="0.42"
+          filter="url(#forcepsSoft)"
+        />
+        <path
+          d="M88 30 q-1 12 -7 28 l-28 82"
+          fill="none"
+          stroke="#5d6872"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeOpacity="0.42"
+        />
+
+        <path
+          d="M62 51 q11 7 24 4"
+          fill="none"
+          stroke="#dfe5eb"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          opacity="0.72"
+        />
+        {[0, 1, 2, 3, 4, 5, 6].map((line) => (
+          <line
+            key={line}
+            x1={61 + line * 2.8}
+            y1={61 + line * 3.2}
+            x2={76 + line * 2.8}
+            y2={58 + line * 3.2}
+            stroke="#7f8a94"
+            strokeWidth="1"
+            strokeLinecap="round"
+            opacity="0.55"
+          />
+        ))}
+
+        <path
+          d="M36 149 q4 -13 11 -23"
+          fill="none"
+          stroke="#f8fafc"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          opacity="0.8"
+        />
+        <path
+          d="M45 146 q3 -13 8 -24"
+          fill="none"
+          stroke="#88939d"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.72"
+        />
+        <ellipse cx="86" cy="23" rx="10" ry="11" fill="#d8e0e8" opacity="0.75" />
+      </g>
     </svg>
   );
 }
@@ -438,6 +657,61 @@ export function GauzeAsset() {
            <line x1={20+i*12} y1="30" x2={20+i*12} y2="70" stroke="#475569" strokeWidth="0.5" />
          </React.Fragment>
       ))}
+    </svg>
+  );
+}
+
+export function ClayNetAsset() {
+  return (
+    <svg viewBox="0 0 130 90" className="h-28 w-40 drop-shadow-[0_12px_18px_rgba(0,0,0,0.2)]">
+      <defs>
+        <linearGradient id="clayNetSteel" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#f8fafc" />
+          <stop offset="48%" stopColor="#b7c0c8" />
+          <stop offset="100%" stopColor="#6b7480" />
+        </linearGradient>
+        <radialGradient id="clayCenter" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stopColor="#fff7df" />
+          <stop offset="70%" stopColor="#dad4bd" />
+          <stop offset="100%" stopColor="#a39b85" />
+        </radialGradient>
+      </defs>
+      <g transform="translate(12 19) skewX(-13)">
+        <rect x="0" y="0" width="104" height="42" rx="4" fill="url(#clayNetSteel)" opacity="0.42" stroke="#e7edf4" strokeWidth="1.2" />
+        {[0, 1, 2, 3, 4, 5, 6].map((line) => (
+          <line key={`h-${line}`} x1="1" y1={6 + line * 5.2} x2="103" y2={6 + line * 5.2} stroke="#6f7a85" strokeWidth="0.65" opacity="0.58" />
+        ))}
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((line) => (
+          <line key={`v-${line}`} x1={8 + line * 11} y1="1" x2={8 + line * 11} y2="41" stroke="#f8fafc" strokeWidth="0.6" opacity="0.48" />
+        ))}
+        <ellipse cx="52" cy="21" rx="34" ry="13" fill="url(#clayCenter)" stroke="#f8fafc" strokeOpacity="0.42" />
+        <ellipse cx="52" cy="19" rx="24" ry="7" fill="#ffffff" fillOpacity="0.22" />
+      </g>
+    </svg>
+  );
+}
+
+export function RetortStandAsset() {
+  return (
+    <svg viewBox="0 0 150 210" className="h-56 w-36 drop-shadow-[0_18px_26px_rgba(0,0,0,0.24)]">
+      <defs>
+        <linearGradient id="standSteel" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#7c8792" />
+          <stop offset="45%" stopColor="#f4f7fa" />
+          <stop offset="100%" stopColor="#5f6873" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="72" cy="190" rx="48" ry="8" fill="#27313b" opacity="0.55" />
+      <path d="M34 179 h78 q10 0 14 9 q-49 12 -102 0 q2 -9 10 -9Z" fill="#6b7480" stroke="#dfe6ee" strokeWidth="1" />
+      <rect x="68" y="20" width="8" height="162" rx="4" fill="url(#standSteel)" />
+      <path d="M72 35 h46 q7 0 7 7 q0 7 -7 7 h-46Z" fill="url(#standSteel)" stroke="#edf2f7" strokeWidth="0.8" />
+      <circle cx="72" cy="42" r="9" fill="#56616b" stroke="#e5ecf2" strokeWidth="1.2" />
+      <path d="M115 42 q18 8 0 18" fill="none" stroke="#cbd5e1" strokeWidth="5" strokeLinecap="round" />
+      <path d="M116 42 q14 8 0 16" fill="none" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M75 72 h34 q7 0 7 6 q0 6 -7 6 h-34Z" fill="url(#standSteel)" opacity="0.95" />
+      <path d="M108 78 l24 -11 M108 79 l24 11" stroke="#cfd8e3" strokeWidth="4" strokeLinecap="round" />
+      <path d="M108 78 l24 -11 M108 79 l24 11" stroke="#4b5563" strokeWidth="1" strokeLinecap="round" />
+      <path d="M62 24 q7 -9 18 0" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.48" />
     </svg>
   );
 }

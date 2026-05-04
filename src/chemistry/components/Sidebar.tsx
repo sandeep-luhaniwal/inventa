@@ -17,7 +17,13 @@ import {
 import InorganicThumbnail from "@/chemistry/components/InorganicThumbnail";
 import ReactionVesselPanel from "@/chemistry/components/ReactionVesselPanel";
 import AssistiveDevicesPanel from "@/chemistry/components/AssistiveDevicesPanel";
-import type { ChemistryCategory, ChemistryLibraryItem, ChemistryModule, SidebarCategory } from "@/chemistry/types";
+import type {
+  ChemistryCategory,
+  ChemistryLibraryItem,
+  ChemistryModule,
+  InorganicLibraryItem,
+  SidebarCategory,
+} from "@/chemistry/types";
 
 interface SidebarProps {
   module: ChemistryModule;
@@ -65,6 +71,11 @@ export default function Sidebar({
   onSearchChange,
   onItemClick,
 }: SidebarProps) {
+  const inorganicItems = items.filter((item): item is InorganicLibraryItem => item.module === "inorganic");
+  const reactionVessels = inorganicItems.filter((item) => item.category === "glassware");
+  const assistiveDevices = inorganicItems.filter((item) => item.category === "equipment");
+  const handleInorganicClick = (item: InorganicLibraryItem) => onItemClick(item);
+
   return (
     <aside className="flex h-full min-h-0 overflow-hidden bg-[#2c3138] text-white">
       <div className="flex w-[84px] flex-col items-center border-r border-white/8 bg-[#353b43] py-2.5 lg:w-[88px]">
@@ -128,13 +139,13 @@ export default function Sidebar({
         >
           {activeCategory === "glassware" ? (
             <ReactionVesselPanel 
-              items={items.filter(i => i.module === "inorganic" && i.category === "glassware") as any} 
-              onItemClick={onItemClick as any} 
+              items={reactionVessels}
+              onItemClick={handleInorganicClick}
             />
           ) : activeCategory === "equipment" ? (
             <AssistiveDevicesPanel 
-              items={items.filter(i => i.module === "inorganic" && i.category === "equipment") as any} 
-              onItemClick={onItemClick as any} 
+              items={assistiveDevices}
+              onItemClick={handleInorganicClick}
             />
           ) : (
             <div className="grid grid-cols-2 gap-3">

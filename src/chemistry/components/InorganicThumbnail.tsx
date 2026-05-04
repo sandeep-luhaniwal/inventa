@@ -1,14 +1,14 @@
 "use client";
 
-import React from "react";
 import type { InorganicLibraryItem } from "@/chemistry/types";
 import {
+  ChemicalContainerAsset,
+  GasJarAsset,
   MeasureBottleAsset,
   RoundBottomFlaskAsset,
   SeparatoryFunnelAsset,
   TestTubeAsset,
 } from "./LabAssets";
-import type { InorganicLibraryItem } from "../types";
 
 interface InorganicThumbnailProps {
   item: InorganicLibraryItem;
@@ -88,6 +88,8 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
       return wrap(<RoundBottomFlaskAsset />);
     case "separatory-funnel":
       return wrap(<SeparatoryFunnelAsset />);
+    case "gas-jar":
+      return wrap(<GasJarAsset />);
     case "measure-bottle":
       return wrap(<MeasureBottleAsset />);
     case "test-tube":
@@ -99,6 +101,16 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
     case "glass-bottle":
       return <GlassBottle />;
     default:
+      if (item.state === "solid" || item.state === "liquid" || item.state === "gas") {
+        return wrap(
+          <ChemicalContainerAsset
+            state={item.state}
+            label={item.name}
+            symbol={item.symbol}
+            accent={item.accent}
+          />
+        );
+      }
       if (item.name.toLowerCase().includes("bottle")) {
         return <TubeRackBottle />;
       }

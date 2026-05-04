@@ -49,6 +49,8 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   rotation?: number;
   isOpen?: boolean;
   isLit?: boolean;
+  isHeated?: boolean;
+  reactionState?: "idle" | "heating" | "boiling" | "burst" | "gas" | "precipitate" | "reduction";
   note?: string;
   contents?: InorganicLibraryItem[];
 }
