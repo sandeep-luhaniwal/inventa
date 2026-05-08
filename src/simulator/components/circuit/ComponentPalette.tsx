@@ -1,16 +1,18 @@
 "use client"
 /* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { PaletteComponentItem, useStaticComponents } from "@/simulator/hooks/useStaticComponents";
 
 export type ComponentItem = PaletteComponentItem;
 
 interface Props {
   onDragStart: (component: ComponentItem, e: React.DragEvent) => void;
+  onCoulombClick?: () => void;
+  isCoulombActive?: boolean;
 }
 
-const ComponentPalette = ({ onDragStart }: Props) => {
+const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Props) => {
   const [search, setSearch] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { grouped, loading, error } = useStaticComponents();
@@ -24,18 +26,36 @@ const ComponentPalette = ({ onDragStart }: Props) => {
 
   return (
     <div className={`flex flex-col h-full border-l border-border bg-card transition-all duration-200 ${isCollapsed ? "w-12" : "w-72"}`}>
-      <div className="flex items-center justify-start p-2">
+      <div className="flex items-center justify-end p-2">
         <button
           onClick={() => setIsCollapsed((p) => !p)}
           className="p-1 rounded-md border border-border hover:bg-secondary text-muted-foreground"
           title={isCollapsed ? "Expand palette" : "Collapse palette"}
         >
-          {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          {isCollapsed ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
         </button>
       </div>
 
       {!isCollapsed && (
         <>
+          {/* Coulomb's Law Button */}
+          {onCoulombClick && (
+            <div className="px-3 pb-3">
+              <button
+                onClick={onCoulombClick}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                  isCoulombActive
+                    ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20"
+                    : "bg-gradient-to-r from-indigo-500/10 to-blue-500/10 text-indigo-400 border-indigo-500/30 hover:from-indigo-500/20 hover:to-blue-500/20 hover:border-indigo-500/50"
+                }`}
+              >
+                <Zap size={16} className={isCoulombActive ? "text-yellow-300" : "text-indigo-400"} />
+                <span>Coulomb&apos;s Law</span>
+                <span className="ml-auto text-[10px] font-medium opacity-60">⚡ Lab</span>
+              </button>
+            </div>
+          )}
+
           <div className="px-3 pb-2">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

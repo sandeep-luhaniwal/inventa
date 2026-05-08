@@ -4,8 +4,8 @@ import Image from 'next/image'
 import { Grid, Layers, ListChecks } from "lucide-react";
 
 interface NavbarProps {
-  viewMode: "canvas" | "schematic" | "bom";
-  onViewModeChange: (mode: "canvas" | "schematic" | "bom") => void;
+  viewMode: "canvas" | "schematic" | "bom" | "coulomb";
+  onViewModeChange: (mode: "canvas" | "schematic" | "bom" | "coulomb") => void;
   isSimulating: boolean;
   simulationSummary: string;
   onToggleSimulation: () => void;
@@ -95,11 +95,7 @@ const Navbar = ({
           />
         </div>
       </div>
-      <div className="mt-2 flex justify-end">
-        <Paragraph xs className='text-[#94A3B8]!'>
-          {simulationSummary}
-        </Paragraph>
-      </div>
+      {/* Navbar summary removed to keep UI clean */}
     </div>
   )
 }

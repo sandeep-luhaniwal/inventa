@@ -27,6 +27,7 @@ export interface InorganicLibraryItem {
   state: "glassware" | "device" | "solid" | "liquid" | "gas";
   accent: string;
   description: string;
+  hidden?: boolean;
 }
 
 export type OrganicTool =
@@ -49,7 +50,9 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   rotation?: number;
   isOpen?: boolean;
   isLit?: boolean;
+  isStriking?: boolean;
   isHeated?: boolean;
+  showStick?: boolean;
   reactionState?: "idle" | "heating" | "boiling" | "burst" | "gas" | "precipitate" | "reduction";
   note?: string;
   contents?: InorganicLibraryItem[];

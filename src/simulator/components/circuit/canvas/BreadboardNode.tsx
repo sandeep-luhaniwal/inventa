@@ -66,6 +66,7 @@ interface Props {
   comp: PlacedComponent;
   isSelected: boolean;
   connectingFrom: ConnectingFrom | null;
+  isSimulating?: boolean;
   onDragMove?: (id: string, x: number, y: number) => void;
   onDragEnd: (id: string, x: number, y: number) => void;
   onPinClick: (compId: string, portIndex: number) => void;
@@ -74,7 +75,7 @@ interface Props {
 }
 
 const BreadboardNode = ({
-  comp, isSelected, connectingFrom, onDragMove, onDragEnd, onPinClick, onSelect, allComponents,
+  comp, isSelected, connectingFrom, isSimulating, onDragMove, onDragEnd, onPinClick, onSelect, allComponents,
 }: Props) => {
   const [hoveredPin, setHoveredPin] = useState<number | null>(null);
 
@@ -88,7 +89,7 @@ const BreadboardNode = ({
     <Group
       x={comp.x}
       y={comp.y}
-      draggable={!isConnecting}
+      draggable={!isConnecting && !isSimulating}
       onDragMove={(e) => {
         const x = e.target.x();
         const y = e.target.y();

@@ -155,6 +155,7 @@ export default function ChemistryPage() {
   const filteredLibraryItems = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return getLibraryForModule(activeModule).filter((item) => {
+      if ("hidden" in item && item.hidden) return false;
       const matchesCategory = item.category === activeCategory;
       if (!matchesCategory) return false;
 
@@ -230,7 +231,12 @@ export default function ChemistryPage() {
     });
   };
 
-  const handleInorganicDrop = (itemId: string, x: number, y: number) => {
+  const handleInorganicDrop = (
+    itemId: string,
+    x: number,
+    y: number,
+    overrides: Partial<PlacedInorganicItem> = {}
+  ) => {
     const library = getLibraryForModule("inorganic") as InorganicLibraryItem[];
     const item = library.find((i) => i.id === itemId);
     if (!item) return;
@@ -240,6 +246,10 @@ export default function ChemistryPage() {
       instanceId: createId("lab"),
       x,
       y,
+      showStick: item.id === "matchbox" ? true : undefined,
+      isStriking: item.id === "matchbox" ? false : undefined,
+      isLit: item.id === "match", // Auto-light matches when spawned
+      ...overrides,
     };
 
     setInorganicItems((current) => [...current, placedItem]);
@@ -250,6 +260,11 @@ export default function ChemistryPage() {
     setInorganicItems((current) =>
       current.map((item) => (item.instanceId === id ? { ...item, ...updates } : item))
     );
+  };
+
+  const handleInorganicRemove = (id: string) => {
+    setInorganicItems((current) => current.filter((item) => item.instanceId !== id));
+    if (selectedInorganicId === id) setSelectedInorganicId(null);
   };
 
   const handleOrganicCanvasAction = (x: number, y: number) => {
@@ -448,6 +463,7 @@ export default function ChemistryPage() {
                 onCombine: handleInorganicCombine,
                 onDrop: handleInorganicDrop,
                 onUpdate: handleInorganicUpdate,
+                onRemove: handleInorganicRemove,
               }}
               organic={{
                 atoms: organicAtoms,

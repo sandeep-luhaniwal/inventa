@@ -57,7 +57,7 @@ function DeviceSVG({ type }: { type: string }) {
     case "match":
       return <MatchAsset />;
     case "matchbox":
-      return <MatchboxAsset />;
+      return <MatchboxAsset lit={false} />;
     case "dropper":
       return <DropperAsset />;
     case "forceps":

@@ -266,3 +266,810 @@ body {
     transform: translate(78px, -16px) scale(1.8);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PHYSICS LAB STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.physics-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #020617;
+}
+
+/* ── 3-Column Lab Shell ───────────────────────────────────── */
+
+.physics-lab-shell {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.physics-lab-nav {
+  width: 240px;
+  min-width: 240px;
+  background: linear-gradient(180deg, #0f172a 0%, #0a0e1a 100%);
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.physics-lab-canvas {
+  flex: 1;
+  min-width: 0;
+  background: #020617;
+  position: relative;
+  overflow: hidden;
+}
+
+.physics-lab-sidebar {
+  width: 340px;
+  min-width: 340px;
+  background: linear-gradient(180deg, #0f172a 0%, #0a0e1a 100%);
+  border-left: 1px solid #1e293b;
+  overflow-y: auto;
+}
+
+/* ── Left Navigation ──────────────────────────────────────── */
+
+.physics-nav-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.physics-nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.physics-nav-logo-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));
+}
+
+.physics-nav-logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-family: Satoshi-bold;
+}
+
+.physics-nav-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.physics-nav-chapter-num {
+  font-size: 11px;
+  color: #818cf8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.physics-nav-chapter-title {
+  font-size: 14px;
+  color: #cbd5e1;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.physics-nav-chapter-hi {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.physics-nav-topics {
+  flex: 1;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.physics-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.physics-nav-item:hover {
+  background: #1e293b;
+}
+
+.physics-nav-item.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.physics-nav-item.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.physics-nav-icon {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+}
+
+.physics-nav-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.physics-nav-title {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.physics-nav-title-hi {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.physics-nav-badge {
+  font-size: 10px;
+  color: #94a3b8;
+  background: #1e293b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.physics-nav-footer {
+  padding: 16px;
+  border-top: 1px solid #1e293b;
+}
+
+.physics-nav-back {
+  font-size: 13px;
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.physics-nav-back:hover {
+  color: #818cf8;
+}
+
+/* ── Canvas ───────────────────────────────────────────────── */
+
+.coulomb-canvas-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.coulomb-canvas-svg {
+  display: block;
+}
+
+.coulomb-drag-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 16px;
+  color: #94a3b8;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* ── Charged Sphere Animations ────────────────────────────── */
+
+.physics-glow-ring {
+  animation: physics-glow-pulse 2s ease-in-out infinite;
+}
+
+.physics-ion {
+  animation: physics-ion-float 2.5s ease-in-out infinite;
+}
+
+@keyframes physics-sphere-vibrate {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(var(--vib-amp, 2px), calc(var(--vib-amp, 2px) * -0.5));
+  }
+  20% {
+    transform: translate(calc(var(--vib-amp, 2px) * -1), var(--vib-amp, 2px));
+  }
+  30% {
+    transform: translate(var(--vib-amp, 2px), calc(var(--vib-amp, 2px) * 0.7));
+  }
+  40% {
+    transform: translate(calc(var(--vib-amp, 2px) * -0.5), calc(var(--vib-amp, 2px) * -1));
+  }
+  50% {
+    transform: translate(calc(var(--vib-amp, 2px) * 0.8), 0);
+  }
+  60% {
+    transform: translate(calc(var(--vib-amp, 2px) * -1), calc(var(--vib-amp, 2px) * 0.5));
+  }
+  70% {
+    transform: translate(0, calc(var(--vib-amp, 2px) * -0.7));
+  }
+  80% {
+    transform: translate(var(--vib-amp, 2px), 0);
+  }
+  90% {
+    transform: translate(calc(var(--vib-amp, 2px) * -0.3), var(--vib-amp, 2px));
+  }
+}
+
+@keyframes physics-glow-pulse {
+  0%, 100% {
+    opacity: 0.25;
+    r: inherit;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes physics-ion-float {
+  0%, 100% {
+    transform: translate(0, 0);
+    opacity: 0.7;
+  }
+  33% {
+    transform: translate(1px, -1.5px);
+    opacity: 0.9;
+  }
+  66% {
+    transform: translate(-1px, 1px);
+    opacity: 0.75;
+  }
+}
+
+/* ── Electric Field Lines ─────────────────────────────────── */
+
+.physics-field-line {
+  animation: physics-field-flow 1.2s linear infinite;
+}
+
+@keyframes physics-field-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -28;
+  }
+}
+
+/* ── Output Panel ─────────────────────────────────────────── */
+
+.output-panel {
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+}
+
+.output-title-section {
+  text-align: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.output-title {
+  font-size: 20px;
+  color: #f1f5f9;
+  font-weight: 700;
+  font-family: Satoshi-bold;
+  margin: 0;
+}
+
+.output-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+.output-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.output-section-title {
+  font-size: 12px;
+  color: #818cf8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0;
+}
+
+.output-charge-group {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
+
+.output-charge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.output-charge-badge {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 12px;
+}
+
+.output-polarity-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.polarity-btn {
+  width: 30px;
+  height: 28px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.polarity-btn:hover {
+  opacity: 0.85;
+}
+
+.output-charge-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.output-input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-family: var(--font-geist-mono), monospace;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.output-input:focus {
+  border-color: #818cf8;
+}
+
+.output-select {
+  width: 70px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.output-select:focus {
+  border-color: #818cf8;
+}
+
+.output-slider {
+  width: 100%;
+  margin-top: 4px;
+  accent-color: #818cf8;
+  height: 4px;
+  cursor: pointer;
+}
+
+.output-reset-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  color: #818cf8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: auto;
+}
+
+.output-reset-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* ── Formula Display ──────────────────────────────────────── */
+
+.formula-display {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formula-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  font-size: 22px;
+  font-family: var(--font-geist-mono), monospace;
+  padding: 8px 0;
+}
+
+.formula-eq {
+  color: #64748b;
+  margin: 0 4px;
+}
+
+.formula-op {
+  color: #475569;
+  font-size: 16px;
+  margin: 0 2px;
+}
+
+.formula-fraction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.formula-num {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+
+.formula-line {
+  width: 100%;
+  height: 2px;
+  background: #475569;
+  border-radius: 1px;
+}
+
+.formula-den {
+  padding-top: 4px;
+}
+
+.formula-var {
+  font-weight: 700;
+}
+
+.formula-substituted {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #1e293b;
+}
+
+.formula-sub-label {
+  font-size: 11px;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.formula-sub-row {
+  padding-left: 8px;
+}
+
+.formula-sub-var {
+  font-size: 12px;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.formula-result {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(59, 130, 246, 0.06));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+}
+
+.formula-result-label {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.formula-result-value {
+  font-size: 18px;
+  color: #e2e8f0;
+  font-weight: 700;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.formula-force-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.formula-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ── Chapter Index Page ───────────────────────────────────── */
+
+.physics-index {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0a0e1a 0%, #020617 50%);
+  padding: 48px 24px;
+}
+
+.physics-index-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.physics-index-logo {
+  font-size: 48px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.4));
+}
+
+.physics-index-title {
+  font-size: 36px;
+  color: #f1f5f9;
+  font-weight: 700;
+  font-family: Satoshi-bold;
+  margin: 0 0 8px;
+  background: linear-gradient(135deg, #818cf8, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.physics-index-subtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+.physics-chapters-grid {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.physics-chapter-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  padding: 28px;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.3s;
+}
+
+.physics-chapter-card:hover {
+  border-color: #334155;
+}
+
+.physics-chapter-card-header {
+  margin-bottom: 12px;
+}
+
+.physics-chapter-number {
+  font-size: 11px;
+  color: #818cf8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.physics-chapter-title {
+  font-size: 22px;
+  color: #e2e8f0;
+  font-weight: 700;
+  margin: 4px 0 2px;
+  font-family: Satoshi-bold;
+}
+
+.physics-chapter-title-hi {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.physics-chapter-desc {
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.physics-chapter-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.physics-topic-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  background: rgba(30, 41, 59, 0.3);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.physics-topic-link:hover:not(.disabled) {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: #334155;
+}
+
+.physics-topic-link.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.physics-topic-icon {
+  font-size: 22px;
+  width: 36px;
+  text-align: center;
+}
+
+.physics-topic-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.physics-topic-name {
+  font-size: 14px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.physics-topic-name-hi {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.physics-topic-badge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.physics-topic-badge.ready {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.physics-topic-badge.coming-soon {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  border: 1px solid #1e293b;
+}
+
+/* ── Physics Scrollbar ────────────────────────────────────── */
+
+.physics-lab-nav::-webkit-scrollbar,
+.physics-lab-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.physics-lab-nav::-webkit-scrollbar-track,
+.physics-lab-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.physics-lab-nav::-webkit-scrollbar-thumb,
+.physics-lab-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 3px;
+}
+
+.physics-lab-nav::-webkit-scrollbar-thumb:hover,
+.physics-lab-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.4);
+}
+
+/* ── Coulomb Lab (inside circuit editor) ──────────────────── */
+
+.coulomb-field {
+  animation: coulomb-flow 1.2s linear infinite;
+}
+
+.coulomb-glow-ring {
+  animation: coulomb-pulse 2s ease-in-out infinite;
+}
+
+.coulomb-ion {
+  animation: coulomb-ion-bob 2.4s ease-in-out infinite;
+}
+
+.coulomb-vib {
+  animation: coulomb-shake 0.15s ease-in-out infinite;
+}
+
+.coulomb-panel-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.coulomb-panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.coulomb-panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 3px;
+}
+
+@keyframes coulomb-flow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -28; }
+}
+
+@keyframes coulomb-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes coulomb-ion-bob {
+  0%, 100% { transform: translate(0, 0); opacity: 0.7; }
+  33% { transform: translate(1px, -1.5px); opacity: 0.9; }
+  66% { transform: translate(-1px, 1px); opacity: 0.75; }
+}
+
+@keyframes coulomb-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(2px, -1px); }
+  50% { transform: translate(-2px, 1px); }
+  75% { transform: translate(1px, -2px); }
+}
+

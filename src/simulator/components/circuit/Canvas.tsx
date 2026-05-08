@@ -39,7 +39,7 @@ export interface CanvasProps {
   poweredWireIds?: string[];
   simulationSummary?: string;
   onDrop: (e: React.DragEvent, stagePos: { x: number; y: number }) => void;
-  onDragOver: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void; 
   onComponentMove: (id: string, x: number, y: number) => void;
   onComponentMoveEnd: (id: string, x: number, y: number) => void;
   onPinClick: (compId: string, portIndex: number) => void;
@@ -256,6 +256,7 @@ const Canvas = ({
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (isSimulating) return;
     const stage = stageRef.current;
     if (!stage) return;
     const box = stage.container().getBoundingClientRect();
@@ -264,7 +265,7 @@ const Canvas = ({
       y: (e.clientY - box.top - stage.y()) / stage.scaleY(),
     };
     onDrop(e, stagePos);
-  }, [onDrop]);
+  }, [onDrop, isSimulating]);
 
   return (
     <div
@@ -297,6 +298,7 @@ const Canvas = ({
         onTap={handleStageClick}
         onWheel={handleWheel}
         onDragEnd={syncTransform}
+        onDragMove={syncTransform}
       >
         <Layer>
           {showGrid && (() => {
@@ -382,6 +384,7 @@ const Canvas = ({
                 comp={comp}
                 isSelected={selectedComponents.includes(comp.id)}
                 connectingFrom={connectingFrom}
+                isSimulating={isSimulating}
                 onDragMove={onComponentMove}
                 onDragEnd={onComponentMoveEnd}
                 onPinClick={onPinClick}
@@ -405,6 +408,7 @@ const Canvas = ({
                     imageSrc={ledUrls ? ledUrls.imageSrc : resolvedBaseImageSrc}
                     litImageSrc={ledUrls ? ledUrls.litImageSrc : comp.litImageSrc}
                     connectingFrom={connectingFrom}
+                    isSimulating={isSimulating}
                     simulationState={simulatedComponents?.[comp.id]}
                     blinkToggle={blinkToggle}
                     onDragMove={onComponentMove}
@@ -451,10 +455,8 @@ const Canvas = ({
         </div>
       )}
 
-      {isSimulating && simulationSummary && (
-        <div className="absolute top-4 right-4 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full pointer-events-none select-none">
-          {simulationSummary}
-        </div>
+      {isSimulating && placedComponents.some(c => c.componentId === 'microbit') && (
+        <MicrobitSimulatorPanel />
       )}
 
       {/* ZOOM CONTROLS */}
@@ -515,10 +517,6 @@ const Canvas = ({
           <RefreshCcw className="h-4 w-4" />
         </Button>
       </div>
-
-      {isSimulating && placedComponents.some(c => c.componentId === 'microbit') && (
-        <MicrobitSimulatorPanel />
-      )}
     </div>
   );
 };

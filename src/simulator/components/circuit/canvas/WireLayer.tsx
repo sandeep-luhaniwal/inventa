@@ -33,60 +33,51 @@ function normalizeRoutePoints(points: WirePoint[]): WirePoint[] {
   });
 }
 
-function expandOrthogonalRoute(points: WirePoint[]): WirePoint[] {
-  if (points.length < 2) return points;
-
-  const expanded: WirePoint[] = [points[0]];
-  for (let index = 1; index < points.length; index += 1) {
-    const next = points[index];
-    const prev = expanded[expanded.length - 1];
-
-    if (prev.x !== next.x && prev.y !== next.y) {
-      expanded.push({ x: next.x, y: prev.y });
-    }
-
-    expanded.push(next);
-  }
-
-  return normalizeRoutePoints(expanded);
-}
-
-function buildRoundedOrthPath(points: WirePoint[], radius = 14): string {
+function buildNaturalRoundedPath(points: WirePoint[], radius = 14): string {
   const pts = normalizeRoutePoints(points);
   if (pts.length < 2) return "";
   if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
 
   let path = `M ${pts[0].x} ${pts[0].y}`;
 
-  for (let index = 1; index < pts.length - 1; index += 1) {
-    const prev = pts[index - 1];
-    const current = pts[index];
-    const next = pts[index + 1];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p1 = pts[i - 1];
+    const p2 = pts[i];
+    const p3 = pts[i + 1];
 
-    const inDx = current.x - prev.x;
-    const inDy = current.y - prev.y;
-    const outDx = next.x - current.x;
-    const outDy = next.y - current.y;
+    const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
+    const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
 
-    if ((inDx === 0 && outDx === 0) || (inDy === 0 && outDy === 0)) {
-      path += ` L ${current.x} ${current.y}`;
+    const len1 = Math.hypot(v1.x, v1.y);
+    const len2 = Math.hypot(v2.x, v2.y);
+
+    if (len1 < 0.1 || len2 < 0.1) continue;
+
+    // Angle between v1 and v2
+    const cosTheta = (v1.x * v2.x + v1.y * v2.y) / (len1 * len2);
+    const theta = Math.acos(Math.min(Math.max(cosTheta, -1), 1));
+
+    // If points are nearly collinear, just draw a line
+    if (theta > Math.PI * 0.99) {
+      path += ` L ${p2.x} ${p2.y}`;
       continue;
     }
 
-    const inLength = Math.hypot(inDx, inDy);
-    const outLength = Math.hypot(outDx, outDy);
-    const cornerRadius = Math.min(radius, inLength / 2, outLength / 2);
+    // Distance to tangent points
+    // If the segments are too short, we must reduce the offset to avoid overlapping curves
+    const maxL = Math.min(len1 / 2.1, len2 / 2.1);
+    const offset = Math.min(radius / Math.tan(theta / 2), maxL);
 
-    const enter = {
-      x: current.x - (inDx / inLength) * cornerRadius,
-      y: current.y - (inDy / inLength) * cornerRadius,
-    };
-    const exit = {
-      x: current.x + (outDx / outLength) * cornerRadius,
-      y: current.y + (outDy / outLength) * cornerRadius,
-    };
+    // If offset is tiny, just draw to the point
+    if (offset < 1) {
+      path += ` L ${p2.x} ${p2.y}`;
+      continue;
+    }
 
-    path += ` L ${enter.x} ${enter.y} Q ${current.x} ${current.y} ${exit.x} ${exit.y}`;
+    const t1 = { x: p2.x + (v1.x / len1) * offset, y: p2.y + (v1.y / len1) * offset };
+    const t2 = { x: p2.x + (v2.x / len2) * offset, y: p2.y + (v2.y / len2) * offset };
+
+    path += ` L ${t1.x} ${t1.y} Q ${p2.x} ${p2.y} ${t2.x} ${t2.y}`;
   }
 
   const last = pts[pts.length - 1];
@@ -95,7 +86,7 @@ function buildRoundedOrthPath(points: WirePoint[], radius = 14): string {
 }
 
 function buildWireRoute(start: WirePoint, midPoints: WirePoint[], end: WirePoint): WirePoint[] {
-  return expandOrthogonalRoute([start, ...midPoints, end]);
+  return [start, ...midPoints, end];
 }
 
 function Spark({ x, y, onDone }: { x: number; y: number; onDone: () => void }) {
@@ -246,7 +237,6 @@ export default function WireSVGOverlay({
     onMidPointsChange(wire.id, newMids);
   }, [components, domToCanvas, onMidPointsChange]);
 
-  const committedStroke = isSimulating ? COLORS.wireSimulate : wireColor;
   const dashAttr = wireDash.length ? wireDash.join(",") : undefined;
   const transform = `translate(${stageX},${stageY}) scale(${stageScale})`;
 
@@ -276,16 +266,10 @@ export default function WireSVGOverlay({
           const p2 = getAbsolutePinPosition(toComp, wire.to.portIndex);
           const anchorPoints = wire.midPoints ?? [];
           const routePoints = buildWireRoute(p1, anchorPoints, p2);
-          const d = buildRoundedOrthPath(routePoints);
+          const d = buildNaturalRoundedPath(routePoints);
           const isSel = wire.id === selectedWire;
           const isPowered = poweredWireSet.has(wire.id);
-          const stroke = isSel
-            ? COLORS.wireSelected
-            : isSimulating
-              ? isPowered
-                ? COLORS.wireActive
-                : "#94a3b8"
-              : committedStroke;
+          const wireStroke = wire.color || wireColor;
 
           return (
             <g key={wire.id} style={{ pointerEvents: "all" }}>
@@ -305,19 +289,19 @@ export default function WireSVGOverlay({
                 <path
                   d={d}
                   fill="none"
-                  stroke={stroke}
-                  strokeWidth={6}
+                  stroke={COLORS.wireSelected}
+                  strokeWidth={8}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  opacity={0.35}
+                  opacity={0.5}
                   filter="url(#wire-glow)"
                 />
               )}
               <path
                 d={d}
                 fill="none"
-                stroke={stroke}
-                strokeWidth={isSel ? 3 : 2.5}
+                stroke={wireStroke}
+                strokeWidth={isSel ? 3.5 : 2.5}
                 strokeDasharray={dashAttr}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -349,8 +333,8 @@ export default function WireSVGOverlay({
                   />
                 </path>
               )}
-              <circle cx={p1.x} cy={p1.y} r={3} fill={stroke} />
-              <circle cx={p2.x} cy={p2.y} r={3} fill={stroke} />
+              <circle cx={p1.x} cy={p1.y} r={isSel ? 4 : 3} fill={wireStroke} />
+              <circle cx={p2.x} cy={p2.y} r={isSel ? 4 : 3} fill={wireStroke} />
 
               {isSel && anchorPoints.map((mp, idx) => (
                 <g
@@ -365,7 +349,7 @@ export default function WireSVGOverlay({
                     width={10}
                     height={10}
                     rx={2}
-                    fill={stroke}
+                    fill={COLORS.wireSelected}
                     stroke="#fff"
                     strokeWidth={1.5}
                     opacity={0.9}
@@ -383,7 +367,7 @@ export default function WireSVGOverlay({
                     cy={ny}
                     r={4}
                     fill="#fff"
-                    stroke={stroke}
+                    stroke={COLORS.wireSelected}
                     strokeWidth={1.5}
                     opacity={0.4}
                     style={{ pointerEvents: "none" }}
@@ -404,7 +388,7 @@ export default function WireSVGOverlay({
           return (
             <g>
               <path
-                d={buildRoundedOrthPath(routePoints)}
+                d={buildNaturalRoundedPath(routePoints)}
                 fill="none"
                 stroke={COLORS.wireActive}
                 strokeWidth={2}

@@ -13,8 +13,9 @@ interface CanvasProps {
     onSelect: (id: string | null) => void;
     onMove: (id: string, x: number, y: number) => void;
     onCombine: (sourceId: string, targetId: string) => void;
-    onDrop: (itemId: string, x: number, y: number) => void;
+    onDrop: (itemId: string, x: number, y: number, overrides?: Partial<PlacedInorganicItem>) => void;
     onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
+    onRemove: (id: string) => void;
   };
   organic: {
     atoms: OrganicNode[];
@@ -39,6 +40,7 @@ export default function Canvas({ module, inorganic, organic }: CanvasProps) {
         onCombine={inorganic.onCombine}
         onDrop={inorganic.onDrop}
         onUpdate={inorganic.onUpdate}
+        onRemove={inorganic.onRemove}
       />
     );
   }

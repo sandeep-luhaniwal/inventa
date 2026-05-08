@@ -57,76 +57,157 @@ export function GlassDefs() {
 
 export function BurnerAsset({ lit = false, isOpen = false }: { lit?: boolean; isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 140 140" className="h-44 w-44 drop-shadow-[0_15px_30px_rgba(0,0,0,0.15)]">
-      <GlassDefs />
-      
-      {/* Flame - Dynamic and centered */}
+    <svg viewBox="0 0 220 190" className="h-44 w-44 drop-shadow-[0_18px_34px_rgba(0,0,0,0.18)]">
+      <defs>
+        <radialGradient id="abGlassFill" cx="50%" cy="38%" r="82%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
+          <stop offset="42%" stopColor="#dbe4ef" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="#8d98a8" stopOpacity="0.18" />
+        </radialGradient>
+        <radialGradient id="abGlassShade" cx="50%" cy="56%" r="72%">
+          <stop offset="0%" stopColor="#64707f" stopOpacity="0.28" />
+          <stop offset="78%" stopColor="#434a56" stopOpacity="0.46" />
+          <stop offset="100%" stopColor="#343942" stopOpacity="0.54" />
+        </radialGradient>
+        <linearGradient id="abTubeFill" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#97aabd" stopOpacity="0.62" />
+          <stop offset="18%" stopColor="#eef6ff" stopOpacity="0.24" />
+          <stop offset="50%" stopColor="#dbe4ef" stopOpacity="0.06" />
+          <stop offset="82%" stopColor="#eef6ff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#97aabd" stopOpacity="0.56" />
+        </linearGradient>
+        <linearGradient id="abGlassEdge" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.56" />
+          <stop offset="25%" stopColor="#dbe4ef" stopOpacity="0.16" />
+          <stop offset="75%" stopColor="#dbe4ef" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.46" />
+        </linearGradient>
+        <filter id="abGlassFx" x="-18%" y="-18%" width="136%" height="136%">
+          <feGaussianBlur stdDeviation="0.85" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="6" specularConstant="1.1" specularExponent="34" lightingColor="#ffffff" result="spec">
+            <fePointLight x="-80" y="-80" z="270" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceGraphic" operator="in" result="specular" />
+          <feMerge>
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="specular" />
+          </feMerge>
+        </filter>
+        <filter id="abSoftBlur" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.8" />
+        </filter>
+      </defs>
+
+      {/* Flame */}
       {lit && isOpen && (
-        <g transform="translate(70, 32)">
-          <path d="M0 0 q-6 -10 0 -28 q6 18 0 28Z" fill="#3b82f6" opacity="0.9" filter="url(#softRim)">
-            <animate attributeName="d" values="M0 0 q-6 -10 0 -28 q6 18 0 28Z; M0 0 q-8 -12 0 -32 q8 -20 0 -32Z; M0 0 q-6 -10 0 -28 q6 18 0 28Z" dur="0.15s" repeatCount="indefinite" />
+        <g transform="translate(110, 26)">
+          <path d="M0 0 q-6 -10 0 -26 q6 16 0 26Z" fill="#3b82f6" opacity="0.9" filter="url(#abSoftBlur)">
+            <animate attributeName="d" values="M0 0 q-6 -10 0 -26 q6 16 0 26Z; M0 0 q-8 -12 0 -30 q8 18 0 30Z; M0 0 q-6 -10 0 -26 q6 16 0 26Z" dur="0.15s" repeatCount="indefinite" />
           </path>
-          <path d="M0 0 q-12 -15 0 -50 q12 35 0 50Z" fill="#f97316" opacity="0.7" filter="url(#ultraGlass)">
-            <animate attributeName="d" values="M0 0 q-12 -15 0 -50 q12 35 0 50Z; M0 0 q-16 -18 0 -55 q16 -37 0 -55Z; M0 0 q-12 -15 0 -50 q12 35 0 50Z" dur="0.25s" repeatCount="indefinite" />
+          <path d="M0 0 q-12 -15 0 -44 q12 29 0 44Z" fill="#f97316" opacity="0.75" filter="url(#abSoftBlur)">
+            <animate attributeName="d" values="M0 0 q-12 -15 0 -44 q12 29 0 44Z; M0 0 q-15 -17 0 -50 q15 33 0 50Z; M0 0 q-12 -15 0 -44 q12 29 0 44Z" dur="0.22s" repeatCount="indefinite" />
           </path>
         </g>
       )}
 
-      {/* Burner Body - Volumetric Glass */}
-      <g filter="url(#ultraGlass)">
-        {/* Defining the Squat Base and Neck */}
+      <g filter="url(#abGlassFx)">
+        {/* Burner body */}
         <path
-          d="M25 110 q0 15 45 15 t45 -15 q0 -25 -20 -50 t-20 -35 h-10 q0 10 -20 35 t-20 50Z"
-          fill="url(#glassBody)"
-          stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.4"
+          d="M34 108
+             C42 79 65 62 110 56
+             C155 62 178 79 186 108
+             C170 136 148 151 110 154
+             C72 151 50 136 34 108 Z"
+          fill="url(#abGlassShade)"
         />
-        
-        {/* Internal Alcohol Liquid with Surface Refraction */}
-        <g opacity="0.2">
-          <path d="M28 105 q0 12 42 12 t42 -12 q-10 -20 -42 -20 t-42 20Z" fill="#3b82f6" />
-          <path d="M30 100 q40 -5 80 0" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.5" />
-        </g>
+        <path
+          d="M34 108
+             C42 79 65 62 110 56
+             C155 62 178 79 186 108
+             C170 136 148 151 110 154
+             C72 151 50 136 34 108 Z"
+          fill="url(#abGlassFill)"
+          stroke="url(#abGlassEdge)"
+          strokeWidth="2.2"
+        />
 
-        {/* The Wick - Prominent and Curved */}
+        {/* Neck */}
         <path
-          d="M70 32 L70 45 q0 15 12 30 t0 40"
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeOpacity="0.8"
-          filter="url(#softRim)"
+          d="M93 30 H127
+             C130 30 132 32 132 36
+             V58
+             C132 65 127 70 121 72
+             H99
+             C93 70 88 65 88 58
+             V36
+             C88 32 90 30 93 30 Z"
+          fill="url(#abTubeFill)"
+          stroke="url(#abGlassEdge)"
+          strokeWidth="2"
         />
-        {/* Frayed Wick Tip */}
+
+        {/* Cap */}
+        <rect x="95" y="18" width="30" height="20" rx="3" fill="#d9e2ec" stroke="#c8d3e0" strokeWidth="1.2" />
+
+        {/* Liquid level */}
+        <path d="M45 93 C68 88 152 88 175 93" fill="none" stroke="#d9efff" strokeWidth="3.2" strokeOpacity="0.45" filter="url(#abSoftBlur)" />
+        <path d="M47 94 C70 91 150 91 173 94" fill="none" stroke="#c8e2ff" strokeWidth="1.4" strokeOpacity="0.42" />
+
+        {/* Wick */}
+        <path
+          d="M110 34
+             V78
+             C110 88 118 94 124 100
+             C132 108 133 118 128 126
+             C123 134 114 138 114 145
+             C114 150 118 153 123 154"
+          fill="none"
+          stroke="#f1f5f9"
+          strokeWidth="5.2"
+          strokeLinecap="round"
+          strokeOpacity="0.85"
+          filter="url(#abSoftBlur)"
+        />
+
+        {/* Wick tip */}
         {isOpen && (
-          <g transform="translate(70, 32)">
-            <path d="M-4 0 L0 -6 L4 0" fill="#ffffff" fillOpacity="0.9" />
-            <path d="M-2 -2 L0 -8 L2 -2" fill="#ffffff" fillOpacity="0.7" />
+          <g transform="translate(110, 16)">
+            <path d="M-4 0 L0 -9 L4 0" fill="#f8fafc" fillOpacity="0.95" />
+            <path d="M-2 -1 L0 -12 L2 -1" fill="#f8fafc" fillOpacity="0.7" />
           </g>
         )}
 
-        {/* Neck Stopper */}
-        <path d="M62 38 h16 v10 q0 4 -8 4 t-8 -4 Z" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="0.5" />
-
-        {/* Glass Cap - More visible/frosted when closed */}
+        {/* Outer snuffer cap */}
         {!isOpen && (
-          <path
-            d="M58 40 q0 -28 12 -28 t12 28 v28 q0 2 -12 2 t-12 -2 Z"
-            fill="rgba(255, 255, 255, 0.15)"
-            stroke="#ffffff"
-            strokeWidth="1"
-            strokeOpacity="0.6"
-            filter="url(#ultraGlass)"
-          />
+          <g>
+            <path
+              d="M88 4
+                 H132
+                 C139 4 145 10 145 18
+                 V58
+                 C145 66 139 72 132 72
+                 H88
+                 C81 72 75 66 75 58
+                 V18
+                 C75 10 81 4 88 4 Z"
+              fill="url(#abTubeFill)"
+              fillOpacity="0.72"
+              stroke="url(#abGlassEdge)"
+              strokeWidth="1.8"
+            />
+            <ellipse cx="110" cy="4" rx="22" ry="7" fill="#eef6ff" fillOpacity="0.18" />
+            <path d="M98 12 C96 18 100 24 106 27" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.16" filter="url(#abSoftBlur)" />
+            <ellipse cx="110" cy="71" rx="22" ry="5" fill="#dbe4ef" fillOpacity="0.08" />
+          </g>
         )}
-        
-        {/* Base Rim Detail */}
-        <ellipse cx="70" cy="125" rx="35" ry="3" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.3" />
-        
-        {/* Surface Highlights */}
-        <path d="M40 80 q-15 20 10 35" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.12" filter="url(#softRim)" />
+
+        {/* Base ring */}
+        <ellipse cx="110" cy="156" rx="42" ry="6" fill="none" stroke="#ffffff" strokeOpacity="0.22" strokeWidth="2.4" />
+        <ellipse cx="110" cy="160" rx="39" ry="5" fill="#2f343d" fillOpacity="0.4" />
+
+        {/* Highlights */}
+        <path d="M56 101 C63 118 73 132 83 140" fill="none" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" strokeOpacity="0.14" filter="url(#abSoftBlur)" />
+        <path d="M148 96 C159 104 165 116 166 126" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.12" filter="url(#abSoftBlur)" />
       </g>
     </svg>
   );
@@ -149,115 +230,208 @@ export function StandAsset() {
 
 export function RoundBottomFlaskAsset() {
   return (
-    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.15)]">
-      <GlassDefs />
-      {/* Volumetric Body */}
-      <g filter="url(#ultraGlass)">
-        {/* Outer Shell */}
-        <circle
-          cx="60"
-          cy="105"
-          r="42"
-          fill="url(#glassBody)"
-          stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.4"
-        />
-        {/* Inner Thickness Rim */}
-        <circle
-          cx="60"
-          cy="105"
-          r="41"
-          fill="none"
-          stroke="url(#glassRim)"
-          strokeWidth="1"
-          strokeOpacity="0.3"
-        />
-        {/* Neck */}
-        <rect
-          x="48"
-          y="15"
-          width="24"
-          height="65"
-          fill="url(#glassBody)"
-          stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.3"
-        />
-        {/* Neck highlights */}
-        <rect x="48" y="15" width="24" height="65" fill="url(#internalReflection)" />
-        {/* Top Rim */}
-        <ellipse
-          cx="60"
-          cy="15"
-          rx="13"
-          ry="3"
-          fill="none"
-          stroke="url(#glassRim)"
-          strokeWidth="1.5"
-          strokeOpacity="0.8"
-        />
-        
-        {/* Curved Surface Highlights */}
-        <path
-          d="M35 85 q-5 15 15 35"
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeOpacity="0.15"
-          filter="url(#softRim)"
-        />
-        <path
-          d="M85 85 q5 15 -15 35"
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeOpacity="0.08"
-        />
+    <svg viewBox="0 0 200 280" className="h-44 w-44 drop-shadow-[0_22px_40px_rgba(0,0,0,0.18)]">
+      <defs>
+        <radialGradient id="rbfBulbFill" cx="38%" cy="36%" r="72%">
+          <stop offset="0%" stopColor="#e8f4ff" stopOpacity="0.18" />
+          <stop offset="45%" stopColor="#c8d8e8" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#7a8fa8" stopOpacity="0.22" />
+        </radialGradient>
+        <linearGradient id="rbfNeck" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#8faabf" stopOpacity="0.7" />
+          <stop offset="18%" stopColor="#ddeeff" stopOpacity="0.25" />
+          <stop offset="50%" stopColor="#c8d8e8" stopOpacity="0.1" />
+          <stop offset="82%" stopColor="#ddeeff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#8faabf" stopOpacity="0.65" />
+        </linearGradient>
+        <linearGradient id="rbfShoulder" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#8faabf" stopOpacity="0.65" />
+          <stop offset="20%" stopColor="#ddeeff" stopOpacity="0.22" />
+          <stop offset="50%" stopColor="#c8d8e8" stopOpacity="0.08" />
+          <stop offset="80%" stopColor="#ddeeff" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="#8faabf" stopOpacity="0.6" />
+        </linearGradient>
+        <filter id="rbfGlow" x="-15%" y="-15%" width="130%" height="130%">
+          <feGaussianBlur stdDeviation="1.2" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="6" specularConstant="1.2" specularExponent="40" lightingColor="#ffffff" result="spec">
+            <fePointLight x="-60" y="-80" z="280" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceGraphic" operator="in" result="specular" />
+          <feMerge>
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="specular" />
+          </feMerge>
+        </filter>
+        <filter id="rbfBlur" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2" />
+        </filter>
+      </defs>
+
+      <g filter="url(#rbfGlow)">
+        {/* NECK */}
+        <rect x="84" y="18" width="32" height="112" rx="2" fill="url(#rbfNeck)" />
+        <line x1="84" y1="20" x2="84" y2="128" stroke="#8faabf" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="116" y1="20" x2="116" y2="128" stroke="#8faabf" strokeWidth="2.8" strokeLinecap="round" />
+        <line x1="90" y1="22" x2="90" y2="126" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" strokeOpacity="0.28" filter="url(#rbfBlur)" />
+        <line x1="110" y1="22" x2="110" y2="126" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeOpacity="0.12" />
+
+        {/* TOP LIP */}
+        <ellipse cx="100" cy="18" rx="17" ry="4.5" fill="none" stroke="#8faabf" strokeWidth="3" />
+        <ellipse cx="100" cy="18" rx="13" ry="2.5" fill="#ddeeff" fillOpacity="0.12" />
+        <path d="M87 16 Q100 13 113 16" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.55" />
+
+        {/* BULB */}
+        <circle cx="100" cy="196" r="76" fill="url(#rbfBulbFill)" />
+        <circle cx="100" cy="196" r="76" fill="none" stroke="#8faabf" strokeWidth="3" />
+        <circle cx="100" cy="196" r="73" fill="none" stroke="#ffffff" strokeWidth="1.2" strokeOpacity="0.08" />
+        <path d="M34 172 C22 192 24 224 42 248" fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeOpacity="0.18" filter="url(#rbfBlur)" />
+        <path d="M38 166 C28 184 30 214 46 236" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeOpacity="0.1" />
+        <path d="M162 168 C174 190 172 222 158 244" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeOpacity="0.07" />
+        <ellipse cx="100" cy="258" rx="48" ry="12" fill="#ffffff" fillOpacity="0.06" />
       </g>
-      
-      {/* Integrated Label */}
-      <text
-        x="60"
-        y="120"
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize="11"
-        fontWeight="500"
-        fontFamily="system-ui"
-        fillOpacity="0.5"
-        style={{ letterSpacing: "0.02em" }}
-      >
+
+      <text x="100" y="202" textAnchor="middle" fill="#c8d8e8" fontSize="18" fontWeight="300" fontFamily="system-ui" fillOpacity="0.55" letterSpacing="0.5">
         250 mL
       </text>
     </svg>
   );
 }
-
 export function SeparatoryFunnelAsset() {
   return (
-    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.15)]">
-      <GlassDefs />
-      <g filter="url(#ultraGlass)">
-        {/* Top Stopper Area */}
-        <rect x="53" y="10" width="14" height="20" rx="3" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+    <svg viewBox="0 0 220 660" className="h-56 w-44 drop-shadow-[0_22px_36px_rgba(0,0,0,0.18)]">
+      <defs>
+        <radialGradient id="sfBulbFill" cx="44%" cy="30%" r="78%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
+          <stop offset="38%" stopColor="#dbe4ef" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="#8d98a8" stopOpacity="0.16" />
+        </radialGradient>
+        <radialGradient id="sfBulbShade" cx="50%" cy="46%" r="66%">
+          <stop offset="0%" stopColor="#5f6774" stopOpacity="0.34" />
+          <stop offset="76%" stopColor="#444b57" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#343942" stopOpacity="0.56" />
+        </radialGradient>
+        <linearGradient id="sfTubeFill" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#97aabd" stopOpacity="0.62" />
+          <stop offset="18%" stopColor="#eef6ff" stopOpacity="0.24" />
+          <stop offset="50%" stopColor="#dbe4ef" stopOpacity="0.06" />
+          <stop offset="82%" stopColor="#eef6ff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#97aabd" stopOpacity="0.56" />
+        </linearGradient>
+        <linearGradient id="sfGlassEdge" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.54" />
+          <stop offset="25%" stopColor="#dbe4ef" stopOpacity="0.16" />
+          <stop offset="75%" stopColor="#dbe4ef" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.46" />
+        </linearGradient>
+        <linearGradient id="sfStopcockGlass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#c3ccd8" stopOpacity="0.8" />
+          <stop offset="50%" stopColor="#f8fbff" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#8c97a7" stopOpacity="0.7" />
+        </linearGradient>
+        <filter id="sfGlassFx" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="0.85" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="6" specularConstant="1.1" specularExponent="34" lightingColor="#ffffff" result="spec">
+            <fePointLight x="-90" y="-90" z="280" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceGraphic" operator="in" result="specular" />
+          <feMerge>
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="specular" />
+          </feMerge>
+        </filter>
+        <filter id="sfSoftBlur" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.8" />
+        </filter>
+      </defs>
+
+      <g filter="url(#sfGlassFx)">
+        {/* top stopper ball */}
+        <circle cx="110" cy="24" r="18" fill="url(#sfTubeFill)" stroke="url(#sfGlassEdge)" strokeWidth="2.2" />
+        <circle cx="110" cy="24" r="15" fill="none" stroke="#ffffff" strokeOpacity="0.08" strokeWidth="1.2" />
+        <path d="M96 18 C94 26 99 34 107 38" fill="none" stroke="#ffffff" strokeWidth="4.5" strokeLinecap="round" strokeOpacity="0.18" filter="url(#sfSoftBlur)" />
+
+        {/* stopper neck */}
+        <path
+          d="M98 45 H122 L128 66 C128 70 120 74 110 74 C100 74 92 70 92 66 Z"
+          fill="url(#sfTubeFill)"
+          stroke="url(#sfGlassEdge)"
+          strokeWidth="2"
+        />
+
+        {/* upper collar */}
+        <rect x="92" y="66" width="36" height="28" rx="4" fill="url(#sfTubeFill)" stroke="url(#sfGlassEdge)" strokeWidth="2" />
+        <ellipse cx="110" cy="66" rx="18" ry="4.5" fill="none" stroke="url(#sfGlassEdge)" strokeWidth="1.8" />
+
+        {/* globe body */}
+        <path
+          d="M110 94
+             C74 94 47 122 47 159
+             C47 200 69 230 92 257
+             C101 268 106 281 110 301
+             C114 281 119 268 128 257
+             C151 230 173 200 173 159
+             C173 122 146 94 110 94 Z"
+          fill="url(#sfBulbShade)"
+        />
+        <path
+          d="M110 94
+             C74 94 47 122 47 159
+             C47 200 69 230 92 257
+             C101 268 106 281 110 301
+             C114 281 119 268 128 257
+             C151 230 173 200 173 159
+             C173 122 146 94 110 94 Z"
+          fill="url(#sfBulbFill)"
+          stroke="url(#sfGlassEdge)"
+          strokeWidth="2.4"
+        />
+        <path d="M63 135 C49 161 51 198 69 223" fill="none" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.15" filter="url(#sfSoftBlur)" />
+        <path d="M70 128 C58 149 60 181 74 203" fill="none" stroke="#ffffff" strokeWidth="4.2" strokeLinecap="round" strokeOpacity="0.08" />
+
+        {/* lower neck joint */}
+        <path d="M101 298 C102 313 104 327 105 342 H115 C116 327 118 313 119 298 Z" fill="url(#sfTubeFill)" stroke="url(#sfGlassEdge)" strokeWidth="1.8" />
+
+        {/* stopcock body - Horizontal Cylinder */}
+        <rect x="75" y="338" width="70" height="26" rx="6" fill="url(#sfStopcockGlass)" stroke="url(#sfGlassEdge)" strokeWidth="1.8" />
         
-        {/* Globe Body */}
-        <circle cx="60" cy="55" r="32" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.4" />
-        <circle cx="60" cy="55" r="31" fill="none" stroke="url(#glassRim)" strokeWidth="1" strokeOpacity="0.2" />
+        {/* Yellow Clip/Band as seen in the reference image */}
+        <path 
+          d="M85 334 Q78 351 85 368 M85 334 L92 334 Q85 351 92 368 L85 368" 
+          fill="none" 
+          stroke="#eab308" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          opacity="0.9"
+        />
+        <path 
+          d="M135 334 Q142 351 135 368 M135 334 L128 334 Q135 351 128 368 L135 368" 
+          fill="none" 
+          stroke="#eab308" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          opacity="0.9"
+        />
+        {/* Connectors of the clip */}
+        <path d="M85 334 H135 M85 368 H135" fill="none" stroke="#eab308" strokeWidth="1.2" opacity="0.6" />
+
+        {/* stopcock knob / handle */}
+        <g transform="translate(145, 351)">
+           <circle cx="15" cy="0" r="10" fill="url(#sfStopcockGlass)" stroke="url(#sfGlassEdge)" strokeWidth="1.6" />
+           <path d="M10 -5 L20 5 M10 5 L20 -5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+        </g>
+
+        {/* very long stem */}
+        <rect x="106" y="364" width="8" height="260" rx="1" fill="url(#sfTubeFill)" stroke="url(#sfGlassEdge)" strokeWidth="1.5" />
+        <path d="M110 366 V620" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.12" />
         
-        {/* Stem */}
-        <rect x="57" y="87" width="6" height="45" rx="2" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-        <rect x="57" y="87" width="6" height="45" fill="url(#internalReflection)" />
-        
-        {/* Stopcock - More detailed */}
-        <rect x="50" y="75" width="20" height="8" rx="2" fill="#d4af37" stroke="#b8860b" strokeWidth="1" />
-        <circle cx="60" cy="79" r="3" fill="#ffffff" fillOpacity="0.5" />
-        
-        {/* Surface Highlights */}
-        <path d="M45 45 q-8 10 0 20" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeOpacity="0.1" filter="url(#softRim)" />
+        {/* beveled stem tip - angled cut */}
+        <path 
+          d="M106 624 L114 624 L114 645 L106 630 Z" 
+          fill="url(#sfTubeFill)" 
+          stroke="url(#sfGlassEdge)" 
+          strokeWidth="1.4" 
+        />
+        <path d="M107 625 L113 625 L113 643 L107 629 Z" fill="#ffffff" fillOpacity="0.08" />
       </g>
     </svg>
   );
@@ -300,36 +474,108 @@ export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
 
 export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
-      <GlassDefs />
-      <g filter="url(#ultraGlass)">
-        <rect
-          x="34"
-          y="22"
-          width="52"
-          height="112"
-          rx="15"
-          fill="url(#glassBody)"
-          stroke="#ffffff"
-          strokeWidth="0.6"
-          strokeOpacity="0.38"
+    <svg viewBox="0 0 220 300" className="h-52 w-44 drop-shadow-[0_22px_40px_rgba(0,0,0,0.15)]">
+      <defs>
+        <radialGradient id="gjBodyFill" cx="42%" cy="32%" r="80%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+          <stop offset="45%" stopColor="#dbe4ef" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="#8d98a8" stopOpacity="0.22" />
+        </radialGradient>
+        <radialGradient id="gjBodyShade" cx="50%" cy="48%" r="70%">
+          <stop offset="0%" stopColor="#606874" stopOpacity="0.3" />
+          <stop offset="78%" stopColor="#454c57" stopOpacity="0.48" />
+          <stop offset="100%" stopColor="#343942" stopOpacity="0.54" />
+        </radialGradient>
+        <linearGradient id="gjGlassEdge" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.58" />
+          <stop offset="25%" stopColor="#dbe4ef" stopOpacity="0.14" />
+          <stop offset="75%" stopColor="#dbe4ef" stopOpacity="0.14" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.48" />
+        </linearGradient>
+        <linearGradient id="gjNeckFill" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#a3b7c9" stopOpacity="0.65" />
+          <stop offset="20%" stopColor="#f0f7ff" stopOpacity="0.28" />
+          <stop offset="50%" stopColor="#dbe4ef" stopOpacity="0.1" />
+          <stop offset="80%" stopColor="#f0f7ff" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#a3b7c9" stopOpacity="0.6" />
+        </linearGradient>
+        <filter id="gjGlassFx" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="0.8" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="6" specularConstant="1.2" specularExponent="38" lightingColor="#ffffff" result="spec">
+            <fePointLight x="-90" y="-90" z="280" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceGraphic" operator="in" result="specular" />
+          <feMerge>
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="specular" />
+          </feMerge>
+        </filter>
+        <filter id="gjSoftBlur" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2" />
+        </filter>
+      </defs>
+
+      <g filter="url(#gjGlassFx)">
+        {/* THE BODY SILHOUETTE - Based on the reference image */}
+        {/* Main Body with rounded shoulders */}
+        <path
+          d="M84 72 
+             C60 72 48 90 48 120 
+             V250 
+             C48 262 58 272 72 272 
+             H148 
+             C162 272 172 262 172 250 
+             V120 
+             C172 90 160 72 136 72 
+             H84 Z"
+          fill="url(#gjBodyShade)"
         />
-        <rect x="34" y="22" width="52" height="112" rx="15" fill="url(#internalReflection)" />
-        <ellipse cx="60" cy="22" rx="26" ry="5" fill="none" stroke="url(#glassRim)" strokeWidth="1.7" strokeOpacity="0.75" />
-        <ellipse cx="60" cy="134" rx="20" ry="5" fill="#ffffff" fillOpacity="0.05" stroke="#ffffff" strokeOpacity="0.2" />
-        {[0, 1, 2, 3].map((i) => (
-          <line
-            key={i}
-            x1="39"
-            y1={111 - i * 20}
-            x2="51"
-            y2={111 - i * 20}
-            stroke="#ffffff"
-            strokeWidth="1"
-            strokeOpacity="0.24"
-          />
-        ))}
-        {!isOpen && <rect x="35" y="15" width="50" height="8" rx="4" fill="#d8e2ee" fillOpacity="0.65" />}
+        <path
+          d="M84 72 
+             C60 72 48 90 48 120 
+             V250 
+             C48 262 58 272 72 272 
+             H148 
+             C162 272 172 262 172 250 
+             V120 
+             C172 90 160 72 136 72 
+             H84 Z"
+          fill="url(#gjBodyFill)"
+          stroke="url(#gjGlassEdge)"
+          strokeWidth="2.5"
+        />
+
+        {/* Neck */}
+        <rect x="84" y="38" width="52" height="34" fill="url(#gjNeckFill)" stroke="url(#gjGlassEdge)" strokeWidth="2.2" />
+        
+        {/* Thick Lip / Rim */}
+        <path 
+          d="M80 18 
+             C80 15 85 12 110 12 
+             S140 15 140 18 
+             V38 
+             C140 42 135 44 110 44 
+             S80 42 80 38 
+             Z"
+          fill="url(#gjNeckFill)"
+          stroke="url(#gjGlassEdge)"
+          strokeWidth="2.4"
+        />
+        
+        {/* Lighting Details from Reference */}
+        {/* Highlight on shoulder */}
+        <ellipse cx="78" cy="110" rx="14" ry="7" fill="#ffffff" fillOpacity="0.45" filter="url(#gjSoftBlur)" />
+        
+        {/* Vertical side reflections */}
+        <path d="M60 130 V240" fill="none" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.12" filter="url(#gjSoftBlur)" />
+        <path d="M160 130 V240" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeOpacity="0.08" />
+
+        {/* Thick Base Effect */}
+        <path d="M52 255 H168" fill="none" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.15" />
+        <path d="M52 262 H168" fill="none" stroke="#2a3038" strokeWidth="6" strokeOpacity="0.4" />
+        
+        {/* Lid (when closed) */}
+        {!isOpen && <rect x="85" y="14" width="50" height="12" rx="4" fill="#d1dae5" fillOpacity="0.65" />}
       </g>
     </svg>
   );
@@ -337,51 +583,72 @@ export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
 
 export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "mini" }) {
   const dims = {
-    small: { x: 38, y: 15, w: 24, h: 105, rx: 12 },
-    large: { x: 35, y: 10, w: 30, h: 130, rx: 15 },
-    mini: { x: 42, y: 40, w: 16, h: 75, rx: 8 },
+    small: { x: 40, y: 15, w: 20, h: 140 },
+    large: { x: 36, y: 10, w: 28, h: 170 },
+    mini: { x: 44, y: 40, w: 12, h: 100 },
   }[size];
 
+  const midX = dims.x + dims.w / 2;
+  const radius = dims.w / 2;
+  const bodyHeight = dims.h - radius;
+
   return (
-    <svg viewBox="0 0 100 160" className="h-44 w-44 drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)]">
+    <svg viewBox="0 0 100 200" className="h-52 w-44 drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)]">
       <GlassDefs />
       <g filter="url(#ultraGlass)">
-        {/* Main Body */}
-        <rect
-          x={dims.x}
-          y={dims.y}
-          width={dims.w}
-          height={dims.h}
-          rx={dims.rx}
+        {/* Main Body - Path for U-shape */}
+        <path
+          d={`M${dims.x} ${dims.y} 
+             V${dims.y + bodyHeight} 
+             A${radius} ${radius} 0 0 0 ${dims.x + dims.w} ${dims.y + bodyHeight} 
+             V${dims.y} Z`}
           fill="url(#glassBody)"
           stroke="#ffffff"
-          strokeWidth="0.5"
-          strokeOpacity="0.3"
+          strokeWidth="0.6"
+          strokeOpacity="0.35"
         />
-        {/* Edge Reflection */}
-        <rect x={dims.x} y={dims.y} width={dims.w} height={dims.h} rx={dims.rx} fill="url(#internalReflection)" />
         
-        {/* Top Opening Rim */}
+        {/* Internal Reflection / Depth */}
+        <path
+          d={`M${dims.x + 1} ${dims.y} 
+             V${dims.y + bodyHeight} 
+             A${radius - 1} ${radius - 1} 0 0 0 ${dims.x + dims.w - 1} ${dims.y + bodyHeight} 
+             V${dims.y} Z`}
+          fill="url(#internalReflection)"
+        />
+
+        {/* Flared Rim / Lip */}
         <ellipse
-          cx={dims.x + dims.w / 2}
+          cx={midX}
           cy={dims.y}
-          rx={dims.w / 2 + 1}
+          rx={radius + 1.5}
           ry="3"
           fill="none"
           stroke="url(#glassRim)"
-          strokeWidth="1.5"
-          strokeOpacity="0.7"
+          strokeWidth="1.8"
+          strokeOpacity="0.8"
         />
-        
-        {/* Vertical Highlight */}
+
+        {/* Highlights */}
         <rect
           x={dims.x + dims.w * 0.15}
-          y={dims.y + 10}
-          width={dims.w * 0.2}
-          height={dims.h - 25}
+          y={dims.y + 15}
+          width={dims.w * 0.25}
+          height={dims.h - 40}
           rx="2"
           fill="#ffffff"
-          fillOpacity="0.12"
+          fillOpacity="0.14"
+          filter="url(#softRim)"
+        />
+        
+        {/* Bottom Curved Highlight */}
+        <path 
+          d={`M${dims.x + radius * 0.5} ${dims.y + bodyHeight + radius * 0.6} A${radius * 0.5} ${radius * 0.2} 0 0 0 ${dims.x + dims.w - radius * 0.5} ${dims.y + bodyHeight + radius * 0.6}`}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeOpacity="0.18"
           filter="url(#softRim)"
         />
       </g>
@@ -495,57 +762,187 @@ export function ChemicalContainerAsset({
 
 export function MatchAsset({ lit = false }: { lit?: boolean }) {
   return (
-    <svg viewBox="0 0 100 150" className="h-40 w-28 drop-shadow-[0_14px_22px_rgba(0,0,0,0.22)]">
-      <GlassDefs />
-      <g transform="translate(50 82)">
-        <rect x="-3" y="-6" width="6" height="58" rx="2" fill="#d8c7a4" stroke="#9d8356" strokeWidth="0.8" />
-        <path d="M-3 -2 h6 v52 q-3 4 -6 0z" fill="#efe0bd" opacity="0.4" />
-        <ellipse cx="0" cy="-11" rx="8" ry="13" fill={lit ? "#20120d" : "#c23b2a"} />
-        <ellipse cx="-2" cy="-14" rx="3" ry="5" fill="#ff6b4a" opacity={lit ? 0.25 : 0.65} />
+    <svg viewBox="0 0 160 160" className="h-40 w-40 drop-shadow-[0_10px_20px_rgba(0,0,0,0.18)]">
+      <defs>
+        <filter id="matchSoftGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="6" />
+        </filter>
+        <linearGradient id="perfectBurn" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#1a1a1a" />
+          <stop offset="35%" stopColor="#452a1e" />
+          <stop offset="55%" stopColor="#d97706" />
+          <stop offset="70%" stopColor="#fde68a" />
+        </linearGradient>
+      </defs>
+
+      <g transform="translate(30 80) rotate(22)">
+        {/* The Matchstick Body - Rounded and clean */}
+        <rect x="0" y="-3" width="85" height="6" fill={lit ? "url(#perfectBurn)" : "#f8eed3"} rx="2" />
+        
+        {/* Ash Head */}
+        <ellipse cx="6" cy="0" rx="10" ry="7" fill={lit ? "#e5e7eb" : "#e14a3b"} stroke={lit ? "#9ca3af" : "none"} strokeWidth="0.5" />
+        
+        {lit && (
+          <g transform="translate(10, 0)">
+            {/* Soft Atmospheric Outer Glow - Scoped to the flame */}
+            <circle cx="15" cy="-20" r="30" fill="#f59e0b" opacity="0.15" filter="url(#matchSoftGlow)" />
+            
+            {/* The Flame - High Fidelity and Clean */}
+            <g filter="url(#matchSoftGlow)">
+              <path d="M0 0 q-12 -16 0 -40 q12 24 0 40Z" fill="#3b82f6" opacity="0.4" />
+              <path d="M0 -5 q-18 -26 0 -65 q18 39 0 65Z" fill="#f59e0b" opacity="0.8">
+                <animate attributeName="opacity" values="0.7;0.9;0.7" dur="0.2s" repeatCount="indefinite" />
+              </path>
+              <path d="M0 -10 q-8 -15 0 -35 q8 20 0 35Z" fill="#ffffff" opacity="1" />
+            </g>
+          </g>
+        )}
       </g>
-      {lit && (
-        <g filter="url(#flameGlow)" transform="translate(50, 71)">
-          <path d="M0 0 q-12 -18 0 -52 q12 34 0 52Z" fill="#fb923c">
-            <animate attributeName="d" values="M0 0 q-12 -18 0 -52 q12 34 0 52Z; M0 0 q-15 -20 0 -58 q15 38 0 58Z; M0 0 q-12 -18 0 -52 q12 34 0 52Z" dur="0.18s" repeatCount="indefinite" />
-          </path>
-          <path d="M0 0 q-5 -14 0 -32 q5 18 0 32Z" fill="#ffedd5" opacity="0.92">
-            <animate attributeName="d" values="M0 0 q-5 -14 0 -32 q5 18 0 32Z; M0 0 q-7 -16 0 -36 q7 20 0 36Z; M0 0 q-5 -14 0 -32 q5 18 0 32Z" dur="0.11s" repeatCount="indefinite" />
-          </path>
-        </g>
-      )}
     </svg>
   );
 }
 
-export function MatchboxAsset() {
+export function MatchboxAsset({
+  lit = false,
+  showStick = true,
+  isStriking = false,
+}: {
+  lit?: boolean;
+  showStick?: boolean;
+  isStriking?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 140 120" className="h-44 w-44 drop-shadow-2xl">
-      {/* Perspective Box Base */}
-      <path d="M30 85 L100 85 L100 65 L30 65 Z" fill="#423126" /> {/* Front side (striking) */}
-      <path d="M30 65 L100 65 L115 45 L45 45 Z" fill="#e5d5c0" stroke="#cbb497" strokeWidth="1" /> {/* Top surface */}
-      <path d="M100 85 L115 65 L115 45 L100 65 Z" fill="#d4c3ab" /> {/* Right side */}
-      
-      {/* Striking Surface Pattern */}
-      <rect x="32" y="67" width="66" height="16" fill="#2d1f18" rx="1" />
-      
-      {/* Labels */}
-      <g transform="translate(48, 56) skewX(-20)">
-        <text fill="#8b1e1e" fontSize="6" fontWeight="bold" opacity="0.7">INVENTA</text>
-        <text y="8" fill="#8b1e1e" fontSize="10" fontWeight="bold">Matches</text>
+    <svg viewBox="0 0 240 160" className="h-44 w-52 drop-shadow-[0_12px_24px_rgba(0,0,0,0.2)]">
+      <defs>
+        <filter id="mbFlameGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        <filter id="mbSparkGlow" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="1.8" />
+        </filter>
+      </defs>
+
+      {/* Match stick - protruding from the side like in the image */}
+      {showStick && (
+        <g transform={`translate(${isStriking ? 148 : 138} ${isStriking ? 76 : 72}) rotate(${isStriking ? 18 : 22})`}>
+          <rect x="0" y="-3" width={isStriking ? 84 : 75} height="6" fill="#f8eed3" />
+          <ellipse cx="6" cy="0" rx="9" ry="6" fill={lit ? "#20120d" : "#e14a3b"} />
+
+          {isStriking && (
+            <g transform="translate(1, -1)">
+              {[0, 40, 80, 120, 160].map((angle) => (
+                <line
+                  key={angle}
+                  x1="8"
+                  y1="0"
+                  x2="18"
+                  y2="0"
+                  stroke="#ffd166"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  transform={`rotate(${angle} 8 0)`}
+                  filter="url(#mbSparkGlow)"
+                />
+              ))}
+            </g>
+          )}
+
+          {lit && (
+            <g transform="translate(10, 0)" filter="url(#mbFlameGlow)">
+              <path d="M0 0 q-8 -12 0 -34 q8 18 0 34Z" fill="#3b82f6" opacity="0.8">
+                <animate attributeName="d" values="M0 0 q-8 -12 0 -34 q8 18 0 34Z; M0 0 q-10 -15 0 -38 q10 20 0 38Z; M0 0 q-8 -12 0 -34 q8 18 0 30Z" dur="0.15s" repeatCount="indefinite" />
+              </path>
+              <path d="M0 0 q-14 -18 0 -50 q14 28 0 50Z" fill="#fb923c" opacity="0.9">
+                 <animate attributeName="d" values="M0 0 q-14 -18 0 -50 q14 28 0 50Z; M0 0 q-18 -22 0 -55 q18 32 0 55Z; M0 0 q-14 -18 0 -50 q14 28 0 50Z" dur="0.2s" repeatCount="indefinite" />
+              </path>
+            </g>
+          )}
+        </g>
+      )}
+
+      {/* Matchbox Body - Perspective Paths */}
+      <g transform="translate(40 30)">
+        {/* Front-Left Face */}
+        <path d="M0 45 L40 75 L40 100 L0 70 Z" fill="#b9a67e" stroke="#9d8a64" strokeWidth="0.5" />
+        
+        {/* Front-Right Face (Striking Surface) */}
+        <path d="M40 75 L145 35 L145 60 L40 100 Z" fill="#311c1d" stroke="#1f1213" strokeWidth="0.5" />
+        
+        {/* Top Face */}
+        <path d="M0 45 L105 5 L145 35 L40 75 Z" fill="#dfd1b3" stroke="#cbb994" strokeWidth="0.5" />
+
+        {/* Red Border Design on Top */}
+        <path 
+          d="M12 47 L102 12 L133 35 L43 70 Z" 
+          fill="none" 
+          stroke="#b44f50" 
+          strokeWidth="1.8" 
+        />
+        <path 
+          d="M18 48 L100 16 L128 36 L46 67 Z" 
+          fill="none" 
+          stroke="#b44f50" 
+          strokeWidth="0.8" 
+          opacity="0.6"
+        />
+
+        {/* Text - Perfectly centered within borders */}
+        <g transform="translate(75 38) rotate(-21)">
+           <text textAnchor="middle" fill="#b44f50" fontSize="9" fontWeight="700" fontFamily="serif" letterSpacing="1.2">INVENTA</text>
+           <text x="0" y="18" textAnchor="middle" fill="#b44f50" fontSize="20" fontWeight="500" fontFamily="serif">Matches</text>
+        </g>
       </g>
-      
-      {/* Subtle details */}
-      <line x1="30" y1="65" x2="100" y2="65" stroke="#cbb497" strokeWidth="0.5" />
     </svg>
   );
 }
 
 export function DropperAsset() {
   return (
-    <svg viewBox="0 0 100 100" className="h-32 w-32 drop-shadow-lg">
-      <rect x="44" y="15" width="12" height="25" rx="6" fill="#d24b2d" stroke="#b33d23" strokeWidth="1.5" />
-      <rect x="48" y="40" width="4" height="45" fill="#dfe6ef" opacity="0.6" />
-      <path d="M48 85 L52 85 L51 95 L49 95 Z" fill="#9ca7b5" />
+    <svg viewBox="0 0 80 220" className="h-56 w-20 drop-shadow-[0_12px_20px_rgba(0,0,0,0.18)]">
+      <defs>
+        <radialGradient id="dropperBulb" cx="45%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#ff5f3f" />
+          <stop offset="60%" stopColor="#e12d0a" />
+          <stop offset="100%" stopColor="#8b1c06" />
+        </radialGradient>
+        <linearGradient id="dropperGlass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#e2e8f0" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#94a3b8" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+
+      {/* Glass Body - Slender and Tapered */}
+      <path 
+        d="M34 80 
+           L46 80 
+           L45 160 
+           Q44 210 42 215 
+           L38 215 
+           Q36 210 35 160 
+           Z" 
+        fill="url(#dropperGlass)" 
+        stroke="rgba(255,255,255,0.2)" 
+        strokeWidth="0.5" 
+      />
+      
+      {/* Glossy Red Bulb */}
+      <path 
+        d="M32 80 
+           C32 75 30 70 28 60 
+           C24 45 24 25 40 10 
+           C56 25 56 45 52 60 
+           C50 70 48 75 48 80 
+           Z" 
+        fill="url(#dropperBulb)" 
+      />
+      
+      {/* Bulb Highlights */}
+      <path d="M33 25 Q38 18 45 22" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
+      <path d="M31 35 Q32 30 35 28" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+
+      {/* Glass Internal Reflection */}
+      <path d="M37 90 V150" fill="none" stroke="white" strokeWidth="1" opacity="0.15" strokeLinecap="round" />
     </svg>
   );
 }
@@ -561,7 +958,7 @@ export function ForcepsAsset() {
           <stop offset="78%" stopColor="#8e99a4" />
           <stop offset="100%" stopColor="#e5ebf1" />
         </linearGradient>
-        <linearGradient id="forcepsShadow" x1="30" y1="136" x2="126" y2="28" gradientUnits="userSpaceOnUse">
+        <linearGradient id="forceShadow" x1="30" y1="136" x2="126" y2="28" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#5f6b75" />
           <stop offset="55%" stopColor="#cbd3db" />
           <stop offset="100%" stopColor="#f8fafc" />
@@ -574,7 +971,7 @@ export function ForcepsAsset() {
       <g transform="rotate(-43 80 80)">
         <path
           d="M72 18 q8 -8 16 0 q4 4 3 10 q-2 10 -7 24 l-19 70 q-4 14 -13 23 q-3 3 -6 1 q-3 -2 -1 -6 q6 -13 9 -26 l14 -67 q3 -17 4 -29Z"
-          fill="url(#forcepsShadow)"
+          fill="url(#forceShadow)"
           opacity="0.9"
         />
         <path
@@ -746,20 +1143,20 @@ export function SparkEffect() {
   return (
     <svg viewBox="0 0 100 100" className="h-20 w-20 pointer-events-none">
       <g>
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+        {[0, 60, 120, 180, 240, 300].map((angle) => (
           <line
             key={angle}
             x1="50"
             y1="50"
             x2="50"
-            y2="30"
+            y2="35"
             stroke="#ffcc00"
-            strokeWidth="3"
+            strokeWidth="2.5"
             strokeLinecap="round"
             transform={`rotate(${angle} 50 50)`}
           >
-            <animate attributeName="y2" values="50;20;50" dur="0.3s" repeatCount="1" />
-            <animate attributeName="opacity" values="1;0" dur="0.3s" repeatCount="1" />
+            <animate attributeName="y2" values="50;35;50" dur="0.25s" repeatCount="1" />
+            <animate attributeName="opacity" values="1;0" dur="0.25s" repeatCount="1" />
           </line>
         ))}
       </g>

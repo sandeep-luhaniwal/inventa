@@ -12,7 +12,7 @@ import { getMicrobitDataUrls } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
-const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit"]);
+const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
 
 function resolveFullImageLayout(
   img: HTMLImageElement,
@@ -33,6 +33,7 @@ interface ComponentNodeProps {
   imageSrc?: string;
   litImageSrc?: string;
   connectingFrom: ConnectingFrom | null;
+  isSimulating?: boolean;
   simulationState?: SimulatedComponentState;
   blinkToggle?: boolean;
   onDragMove?: (id: string, x: number, y: number) => void;
@@ -48,6 +49,7 @@ const ComponentNode = ({
   imageSrc,
   litImageSrc,
   connectingFrom,
+  isSimulating,
   simulationState,
   blinkToggle,
   onDragMove,
@@ -132,7 +134,7 @@ const ComponentNode = ({
       <Group
         x={comp.x}
         y={comp.y}
-        draggable={!isConnecting}
+        draggable={!isConnecting && !isSimulating}
         onDragMove={(e) => {
           const x = e.target.x();
           const y = e.target.y();
@@ -189,10 +191,9 @@ const ComponentNode = ({
               return <SmokeAnimation x={w / 2} y={h * 0.3} />;
             }
 
-            // If it's a motor (CW/CCW rotation)
-            const isMotor = comp.componentId.toLowerCase().includes('motor');
-            if (isMotor) {
-               return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} />;
+            // If it's a standard DC motor (CW/CCW rotation with gear)
+            if (comp.componentId === 'dc_motor') {
+               return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} speed={brightness} />;
             }
 
             // Default glow for LEDs and bulbs
@@ -245,86 +246,93 @@ const ComponentNode = ({
     );
   };
 
-  const SmokeAnimation = ({ x, y }: { x: number; y: number }) => {
-    const [offset, setOffset] = useState(0);
-    useEffect(() => {
-      const interval = setInterval(() => setOffset(o => (o + 1) % 40), 50);
-      return () => clearInterval(interval);
-    }, []);
+const SmokeAnimation = ({ x, y }: { x: number; y: number }) => {
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; s: number; o: number }[]>([]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setParticles(prev => [
+        ...prev.map(p => ({ ...p, y: p.y - 1.5, o: p.o - 0.02, s: p.s + 0.1 })).filter(p => p.o > 0),
+        { id: Math.random(), x: (Math.random() - 0.5) * 15, y: 0, s: 2, o: 0.8 }
+      ]);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
-    return (
-      <Group x={x} y={y}>
-        {[1, 2, 3].map(i => (
-          <Circle
-            key={i}
-            x={(i - 2) * 5}
-            y={-((offset + i * 15) % 40)}
-            radius={2 + ((offset + i * 15) % 40) / 10}
-            fill="#555555"
-            opacity={1 - ((offset + i * 15) % 40) / 40}
-          />
-        ))}
-      </Group>
-    );
-  };
+  return (
+    <Group x={x} y={y}>
+      {particles.map(p => (
+        <Circle
+          key={p.id}
+          x={p.x}
+          y={p.y}
+          radius={p.s}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={p.s}
+          fillRadialGradientColorStops={[0, '#555', 1, 'rgba(0,0,0,0)']}
+          opacity={p.o}
+        />
+      ))}
+    </Group>
+  );
+};
 
-  const SparkEffect = ({ x, y }: { x: number; y: number }) => {
-    const [visible, setVisible] = useState(true);
-    useEffect(() => {
-      const interval = setInterval(() => setVisible(v => !v), 100);
-      return () => clearInterval(interval);
-    }, []);
+const SparkEffect = ({ x, y }: { x: number; y: number }) => {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const interval = setInterval(() => setVisible(v => !v), 100);
+    return () => clearInterval(interval);
+  }, []);
 
-    if (!visible) return null;
+  if (!visible) return null;
 
-    return (
-      <Group x={x} y={y}>
-        {[0, 72, 144, 216, 288].map(angle => (
-          <Circle
-            key={angle}
-            x={Math.cos(angle) * 15}
-            y={Math.sin(angle) * 15}
-            radius={2}
-            fill="#ffff00"
-            shadowColor="#ffaa00"
-            shadowBlur={5}
-          />
-        ))}
-      </Group>
-    );
-  };
+  return (
+    <Group x={x} y={y}>
+      {[0, 72, 144, 216, 288].map(angle => (
+        <Circle
+          key={angle}
+          x={Math.cos(angle) * 15}
+          y={Math.sin(angle) * 15}
+          radius={2}
+          fill="#ffff00"
+          shadowColor="#ffaa00"
+          shadowBlur={5}
+        />
+      ))}
+    </Group>
+  );
+};
 
-
-const RotatingGear = ({ x, y, direction }: { x: number; y: number; direction: number }) => {
+const RotatingGear = ({ x, y, direction, speed = 1 }: { x: number; y: number; direction: number; speed?: number }) => {
   const groupRef = useMemo(() => ({ current: null as any }), []);
 
   useEffect(() => {
+    let currentRotation = groupRef.current?.rotation() || 0;
     const anim = new Konva.Animation((frame) => {
       if (groupRef.current && frame) {
-        groupRef.current.rotation((frame.time * 0.2 * direction) % 360);
+        // Accumulate rotation using timeDiff for smooth transitions
+        currentRotation += frame.timeDiff * 0.3 * speed * direction;
+        groupRef.current.rotation(currentRotation % 360);
       }
     }, groupRef.current?.getLayer());
     
     anim.start();
     return () => { anim.stop(); };
-  }, [direction]);
+  }, [direction, speed]);
 
   return (
     <Group x={x} y={y} ref={groupRef} shadowColor="#000" shadowBlur={4} shadowOpacity={0.2} shadowOffset={{ x: 1, y: 1 }}>
-      {/* 12 Tapered Teeth */}
+      {/* 12 Sharp, Shorter Teeth */}
       {Array.from({ length: 12 }).map((_, i) => (
         <Group key={i} rotation={i * 30}>
           <Path 
-            data="M -4 -18 L 4 -18 L 3 -10 L -3 -10 Z"
+            data="M 0 -15 L 3 -10 L -3 -10 Z"
             fill="#f1c40f"
             stroke="#d4ac0d"
             strokeWidth={0.5}
-            y={-2} // Slight outward shift
           />
         </Group>
       ))}
-      
-      {/* Main Gear Body with Gradient */}
       <Circle 
         radius={11} 
         fillRadialGradientStartPoint={{ x: -2, y: -2 }}
@@ -335,8 +343,11 @@ const RotatingGear = ({ x, y, direction }: { x: number; y: number; direction: nu
         stroke="#b7950b"
         strokeWidth={0.5}
       />
-      
-      {/* Center Detail */}
+      {/* Asymmetric Direction Indicators */}
+      <Circle x={0} y={-6} radius={2.5} fill="#d35400" opacity={0.8} />
+      <Circle x={5} y={3} radius={1.5} fill="#d35400" opacity={0.6} />
+      <Circle x={-5} y={3} radius={1.5} fill="#d35400" opacity={0.6} />
+
       <Circle radius={6} fill="#b7950b" opacity={0.6} />
       <Circle radius={3} fill="#7d6608" />
     </Group>

@@ -62,6 +62,7 @@ export interface Wire {
   from: WireEndpoint;
   to: WireEndpoint;
   midPoints?: WirePoint[];
+  color?: string;
 }
 
 

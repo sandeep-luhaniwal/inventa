@@ -192,7 +192,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <path d="M 22 90 L 78 90 A 28 10 0 0 1 78 100 L 22 100 A 28 10 0 0 1 22 90 Z" fill="${dark}" opacity="0.6"/>
 
       <!-- Dome -->
-      <path d="M 25 90 L 75 90 L 75 45 A 25 25 0 0 0 25 45 Z" fill="url(#${uid}_glow)" filter="url(#${uid}_shadow)" ${litMode ? `filter="url(#${uid}_outerGlow)"` : ""}/>
+      <path d="M 25 90 L 75 90 L 75 45 A 25 25 0 0 0 25 45 Z" fill="url(#${uid}_glow)" filter="url(#${uid}_${litMode ? 'outerGlow' : 'shadow'})"/>
       
       <!-- Highlight -->
       <ellipse cx="40" cy="40" rx="10" ry="15" fill="url(#${uid}_domeTop)"/>`;
@@ -574,10 +574,10 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       const angle = (i * 9) - 90;
       const r1 = 42;
       const r2 = 50;
-      const x1 = 60 + r1 * Math.cos(angle * Math.PI / 180);
-      const y1 = 65 + r1 * Math.sin(angle * Math.PI / 180);
-      const x2 = 60 + r2 * Math.cos(angle * Math.PI / 180);
-      const y2 = 65 + r2 * Math.sin(angle * Math.PI / 180);
+      const x1 = (60 + r1 * Math.cos(angle * Math.PI / 180)).toFixed(2);
+      const y1 = (65 + r1 * Math.sin(angle * Math.PI / 180)).toFixed(2);
+      const x2 = (60 + r2 * Math.cos(angle * Math.PI / 180)).toFixed(2);
+      const y2 = (65 + r2 * Math.sin(angle * Math.PI / 180)).toFixed(2);
       return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#17202A" stroke-width="1.5" />`;
     }).join("")}
 
@@ -921,11 +921,17 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
 
       <!-- Gear (Static) -->
       <g id="gear_group" transform="translate(70, 70)">
-        <circle r="12" fill="#F4D03F"/>
         ${Array.from({ length: 12 }).map((_, i) => `
-          <rect x="-3" y="-18" width="6" height="8" rx="1.5" fill="#F4D03F" transform="rotate(${i * 30})"/>
+          <path d="M 0 -15 L 3 -10 L -3 -10 Z" fill="#F4D03F" transform="rotate(${i * 30})"/>
         `).join("")}
-        <circle r="7" fill="#D4AC0D"/>
+        <circle r="11" fill="#F4D03F"/>
+        <!-- Direction Dots -->
+        <circle cx="0" cy="-6" r="2.5" fill="#d35400" opacity="0.8"/>
+        <circle cx="5" cy="3" r="1.5" fill="#d35400" opacity="0.6"/>
+        <circle cx="-5" cy="3" r="1.5" fill="#d35400" opacity="0.6"/>
+        
+        <circle r="6" fill="#D4AC0D" opacity="0.6"/>
+        <circle r="3" fill="#7d6608"/>
       </g>
 
       <!-- Terminals -->
@@ -1192,6 +1198,145 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       { name: "GND", relX: 109 / 240, relY: 155 / 160, type: "ground" },
       { name: "5V", relX: 121 / 240, relY: 155 / 160, type: "vcc" },
       { name: "SIG", relX: 133 / 240, relY: 155 / 160 },
+    ],
+  },
+  {
+    id: "bldc_motor",
+    name: "BLDC Motor",
+    category: "Output",
+    viewBoxW: 140,
+    viewBoxH: 140,
+    svgBody: `
+      <!-- Motor Body -->
+      <circle cx="70" cy="70" r="60" fill="#2C3E50" stroke="#1B2631" stroke-width="2"/>
+      <circle cx="70" cy="70" r="50" fill="#34495E"/>
+      
+      <!-- Internal Magnets/Coils -->
+      ${Array.from({ length: 8 }).map((_, i) => `
+        <rect x="65" y="25" width="10" height="20" rx="2" fill="#E74C3C" transform="rotate(${i * 45}, 70, 70)" opacity="0.8"/>
+      `).join("")}
+
+      <!-- Center Shaft -->
+      <circle cx="70" cy="70" r="10" fill="#BDC3C7"/>
+      <rect x="68" y="55" width="4" height="30" fill="#D5D8DC"/>
+
+      <!-- Terminals (3 Phase) -->
+      <rect x="40" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="66" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="92" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+    `,
+    litSvgBody: `
+      <circle cx="70" cy="70" r="60" fill="#2C3E50" stroke="#1B2631" stroke-width="2"/>
+      <circle cx="70" cy="70" r="50" fill="#34495E"/>
+      <!-- Internal Coils Glowing -->
+      ${Array.from({ length: 8 }).map((_, i) => `
+        <rect x="65" y="25" width="10" height="20" rx="2" fill="#FF5252" transform="rotate(${i * 45}, 70, 70)">
+          <animate attributeName="opacity" values="0.4;1;0.4" dur="0.2s" repeatCount="indefinite" begin="${i * 0.05}s"/>
+        </rect>
+      `).join("")}
+      <circle cx="70" cy="70" r="10" fill="#BDC3C7"/>
+      <rect x="40" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="66" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="92" y="120" width="8" height="15" rx="1" fill="#BDC3C7"/>
+    `,
+    relativePins: [
+      { name: "Phase A", relX: 44 / 140, relY: 130 / 140, type: "phase_a" },
+      { name: "Phase B", relX: 70 / 140, relY: 130 / 140, type: "phase_b" },
+      { name: "Phase C", relX: 96 / 140, relY: 130 / 140, type: "phase_c" },
+    ],
+  },
+  {
+    id: "esc",
+    name: "Electronic Speed Controller (ESC)",
+    category: "Controllers",
+    viewBoxW: 120,
+    viewBoxH: 100,
+    svgBody: `
+      <rect x="10" y="10" width="100" height="80" rx="4" fill="#1C2833" stroke="#2C3E50" stroke-width="2"/>
+      <rect x="20" y="20" width="80" height="15" rx="2" fill="#C0392B" opacity="0.8"/>
+      <text x="60" y="31" font-size="10" font-weight="bold" fill="#FFF" text-anchor="middle">30A ESC</text>
+      
+      <!-- Input Pins -->
+      <rect x="20" y="0" width="6" height="15" rx="1" fill="#C0392B"/> <!-- + -->
+      <rect x="35" y="0" width="6" height="15" rx="1" fill="#212121"/> <!-- - -->
+      <rect x="50" y="0" width="6" height="15" rx="1" fill="#F1C40F"/> <!-- SIG -->
+      
+      <!-- Output Pins -->
+      <rect x="30" y="85" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="56" y="85" width="8" height="15" rx="1" fill="#BDC3C7"/>
+      <rect x="82" y="85" width="8" height="15" rx="1" fill="#BDC3C7"/>
+    `,
+    relativePins: [
+      { name: "Battery +", relX: 23 / 120, relY: 5 / 100, type: "positive" },
+      { name: "Battery -", relX: 38 / 120, relY: 5 / 100, type: "negative" },
+      { name: "Signal (PWM)", relX: 53 / 120, relY: 5 / 100, type: "signal" },
+      { name: "Motor Phase A", relX: 34 / 120, relY: 95 / 100, type: "phase_a" },
+      { name: "Motor Phase B", relX: 60 / 120, relY: 95 / 100, type: "phase_b" },
+      { name: "Motor Phase C", relX: 86 / 120, relY: 95 / 100, type: "phase_c" },
+    ],
+  },
+  {
+    id: "ac_motor",
+    name: "AC Motor",
+    category: "Output",
+    viewBoxW: 160,
+    viewBoxH: 160,
+    svgBody: `
+      <!-- Fins -->
+      ${Array.from({ length: 12 }).map((_, i) => `
+        <rect x="20" y="${30 + i * 8}" width="120" height="4" fill="#7F8C8D" rx="1"/>
+      `).join("")}
+      
+      <!-- Main Body -->
+      <rect x="40" y="20" width="80" height="120" rx="10" fill="#BDC3C7" stroke="#95A5A6" stroke-width="2"/>
+      
+      <!-- Junction Box -->
+      <rect x="60" y="10" width="40" height="25" rx="2" fill="#2C3E50"/>
+      
+      <!-- Terminals -->
+      <rect x="68" y="0" width="6" height="10" rx="1" fill="#BDC3C7"/>
+      <rect x="86" y="0" width="6" height="10" rx="1" fill="#BDC3C7"/>
+      
+      <!-- Shaft -->
+      <circle cx="80" cy="145" r="12" fill="#D5D8DC" stroke="#BDC3C7"/>
+      <rect x="78" y="145" width="4" height="15" fill="#7F8C8D"/>
+    `,
+    relativePins: [
+      { name: "Line (L)", relX: 71 / 160, relY: 5 / 160, type: "line" },
+      { name: "Neutral (N)", relX: 89 / 160, relY: 5 / 160, type: "neutral" },
+    ],
+  },
+  {
+    id: "stepper_motor",
+    name: "Stepper Motor",
+    category: "Output",
+    viewBoxW: 140,
+    viewBoxH: 140,
+    svgBody: `
+      <rect x="10" y="10" width="120" height="120" rx="8" fill="#34495E" stroke="#2C3E50" stroke-width="2"/>
+      <rect x="25" y="25" width="90" height="90" rx="4" fill="#2C3E50"/>
+      
+      <!-- Face Screws -->
+      <circle cx="25" cy="25" r="4" fill="#7F8C8D"/>
+      <circle cx="115" cy="25" r="4" fill="#7F8C8D"/>
+      <circle cx="25" cy="115" r="4" fill="#7F8C8D"/>
+      <circle cx="115" cy="115" r="4" fill="#7F8C8D"/>
+      
+      <!-- Center Shaft -->
+      <circle cx="70" cy="70" r="15" fill="#BDC3C7" stroke="#95A5A6"/>
+      <rect x="67" y="55" width="6" height="30" fill="#7F8C8D"/>
+      
+      <!-- Connector -->
+      <rect x="40" y="125" width="60" height="15" rx="2" fill="#1B2631"/>
+      ${Array.from({ length: 4 }).map((_, i) => `
+        <rect x="${48 + i * 12}" y="132" width="4" height="8" rx="1" fill="#BDC3C7"/>
+      `).join("")}
+    `,
+    relativePins: [
+      { name: "A1", relX: 50 / 140, relY: 136 / 140 },
+      { name: "A2", relX: 62 / 140, relY: 136 / 140 },
+      { name: "B1", relX: 74 / 140, relY: 136 / 140 },
+      { name: "B2", relX: 86 / 140, relY: 136 / 140 },
     ],
   },
 ];

@@ -15,7 +15,7 @@ export interface SimulationResult {
   litComponents: string[];
   poweredComponents: string[];
   poweredWires: string[];
-  componentStates?: Record<string, { brightness: number; isBurned: boolean; direction?: number }>;
+  componentStates?: Record<string, { brightness: number; isBurned: boolean; direction?: number; lit?: boolean }>;
   summary: string;
   // Ohm's Law stats
   voltage?: number;
@@ -328,14 +328,14 @@ export function simulateCircuit(
           litComponents.add(comp.id);
           totalResistance += getBaseResistance(comp);
           hasPath = true;
-          // Terminal 1 is Pos, Terminal 2 is Neg -> Direction 1
-          (comp as any)._simDirection = 1;
+          // Terminal 1 is Pos, Terminal 2 is Neg -> Direction -1 (Reverse)
+          (comp as any)._simDirection = -1;
         } else if (posReach.has(terminals.secondNode) && negReach.has(terminals.firstNode)) {
           litComponents.add(comp.id);
           totalResistance += getBaseResistance(comp);
           hasPath = true;
-          // Terminal 2 is Pos, Terminal 1 is Neg -> Direction -1
-          (comp as any)._simDirection = -1;
+          // Terminal 2 is Pos, Terminal 1 is Neg -> Direction 1 (Forward / Clockwise)
+          (comp as any)._simDirection = 1;
         }
       }
     }
@@ -356,7 +356,7 @@ export function simulateCircuit(
   const currentMA = currentAmps * 1000;
   const powerWatts = totalVoltage * currentAmps;
 
-  const componentStates: Record<string, { brightness: number; isBurned: boolean; direction?: number }> = {};
+  const componentStates: Record<string, { brightness: number; isBurned: boolean; direction?: number; lit?: boolean }> = {};
 
   // Calculate output states based on current
   components.forEach(comp => {
@@ -364,24 +364,60 @@ export function simulateCircuit(
     const isBulb = comp.componentId === "ac_bulb";
     const isMotor = comp.componentId.toLowerCase().includes("motor");
     const isMicrobit = comp.componentId === "microbit";
+    const isEsc = comp.componentId === "esc";
 
-    if (isLed || isBulb || isMotor || isMicrobit) {
+    if (isLed || isBulb || isMotor || isMicrobit || isEsc) {
       if (litComponents.has(comp.id)) {
-        if (isLed && (currentMA > 100 || isShortCircuit)) {
+        // Failure States: Over-voltage (e.g. > 12V for small components)
+        const voltageRating = (comp as any).voltageValue || 12;
+        const isOverVoltage = totalVoltage > voltageRating * 2.0;
+
+        if ((isLed && (currentMA > 100 || isShortCircuit)) || isOverVoltage) {
           componentStates[comp.id] = { isBurned: true, brightness: 0 };
         } else {
-          const direction = (comp as any)._simDirection ?? 1;
-          const brightness = (isLed || isBulb) ? (currentMA >= 10 ? 0.6 : 0.3) : 0;
-          componentStates[comp.id] = { isBurned: false, brightness, direction };
+          let direction = (comp as any)._simDirection ?? 1;
+
+          // BLDC Logic: Direct Battery Check & Phase swapping
+          if (comp.componentId === "bldc_motor") {
+            const escWires = wires.filter(w => 
+              (w.from.compId === comp.id || w.to.compId === comp.id) &&
+              (components.find(c => c.id === (w.from.compId === comp.id ? w.to.compId : w.from.compId))?.componentId === "esc")
+            );
+
+            if (escWires.length < 3) {
+              componentStates[comp.id] = { isBurned: true, brightness: 0 };
+              // We'll update summary later
+            } else {
+              // Direction reversal logic: Swap Phase A and B
+              const swapped = escWires.some(w => {
+                const motorPin = comp.relativePins?.[w.from.compId === comp.id ? w.from.portIndex : w.to.portIndex];
+                const escComp = components.find(c => c.id === (w.from.compId === comp.id ? w.to.compId : w.from.compId))!;
+                const escPin = escComp.relativePins?.[w.from.compId === comp.id ? w.to.portIndex : w.from.portIndex];
+                return (motorPin?.name === "Phase A" && escPin?.name === "Motor Phase B") || (motorPin?.name === "Phase B" && escPin?.name === "Motor Phase A");
+              });
+              direction = swapped ? -1 : 1;
+            }
+          }
+
+          // AC Motor: Fixed direction
+          if (comp.componentId === "ac_motor") direction = 1;
+
+          const brightness = (isLed || isBulb) ? (currentMA >= 10 ? 0.6 : 0.3) : (isMotor ? Math.min(totalVoltage / 9, 1.5) : 0);
+          componentStates[comp.id] = { isBurned: componentStates[comp.id]?.isBurned || false, brightness, direction, lit: true };
         }
       } else {
-        componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1 };
+        componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
       }
     }
   });
 
   let summary = "Simulation running.";
   if (isShortCircuit) summary = "CRITICAL: Short Circuit detected!";
+  else if (Object.values(componentStates).some(s => s.isBurned)) {
+    const burnedBLDC = components.find(c => c.componentId === "bldc_motor" && componentStates[c.id]?.isBurned);
+    if (burnedBLDC) summary = "ERROR: BLDC Motor must be connected to an ESC!";
+    else summary = "Simulation Warning: Component burned out due to over-voltage!";
+  }
   else if (litComponents.size > 0) summary = `Simulation running: ${currentMA.toFixed(1)}mA current.`;
 
   return {
@@ -389,7 +425,7 @@ export function simulateCircuit(
     litComponents: [...litComponents],
     poweredComponents: [...poweredComponents],
     poweredWires: [...poweredWires],
-    componentStates, // New field
+    componentStates,
     summary,
     voltage: totalVoltage,
     totalResistance,

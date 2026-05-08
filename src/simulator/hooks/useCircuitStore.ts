@@ -55,16 +55,16 @@ function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; note
 }
 
 export function useCircuitStore() {
-  const initial = loadFromStorage();
-  const [components, setComponents] = useState<PlacedComponent[]>(initial.components);
-  const [wires, setWires] = useState<Wire[]>(initial.wires);
-  const [notes, setNotes] = useState<Note[]>(initial.notes);
-  const [drawings, setDrawings] = useState<Drawing[]>(initial.drawings);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [components, setComponents] = useState<PlacedComponent[]>([]);
+  const [wires, setWires] = useState<Wire[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [connectingFrom, setConnectingFrom] = useState<ConnectingFrom | null>(null);
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const [selectedWire, setSelectedWire] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
-  const [wireColor, setWireColor] = useState("#3b82f6");
+  const [wireColor, setWireColorState] = useState("#3b82f6");
   const [wireType, setWireType] = useState("normal");
   const [isSimulating, setIsSimulating] = useState(false);
   const [activeTool, setActiveTool] = useState<"select" | "pencil" | "eraser">("select");
@@ -73,21 +73,38 @@ export function useCircuitStore() {
   // Use a ref for history so saveToHistory never goes stale
   const historyRef = useRef<HistoryEntry[]>([
     {
-      components: initial.components,
-      wires: initial.wires,
-      notes: initial.notes,
-      drawings: initial.drawings,
+      components: [],
+      wires: [],
+      notes: [],
+      drawings: [],
     },
   ]);
   const historyIndexRef = useRef(0);
   // Trigger re-render when undo/redo availability changes
   const [, forceUpdate] = useState(0);
 
+  // Hydrate from localStorage on client-side only
   useEffect(() => {
+    const initial = loadFromStorage();
+    setComponents(initial.components);
+    setWires(initial.wires);
+    setNotes(initial.notes);
+    setDrawings(initial.drawings);
+    historyRef.current = [{
+      components: initial.components,
+      wires: initial.wires,
+      notes: initial.notes,
+      drawings: initial.drawings,
+    }];
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ components, wires, notes, drawings }));
     } catch {}
-  }, [components, wires, notes, drawings]);
+  }, [components, wires, notes, drawings, isHydrated]);
 
   const saveToHistory = useCallback((comps: PlacedComponent[], ws: Wire[], ns: Note[], ds: Drawing[]) => {
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
@@ -177,6 +194,7 @@ export function useCircuitStore() {
         },
         to: { compId, portIndex },
         midPoints: connectingFrom.draftMidPoints ?? [],
+        color: wireColor,
       };
 
       setWires((prevWires) => {
@@ -190,7 +208,7 @@ export function useCircuitStore() {
 
       return true;
     },
-    [connectingFrom, saveToHistory, wires, notes, drawings]
+    [connectingFrom, saveToHistory, wires, notes, drawings, wireColor]
   );
 
   const addConnectingMidPoint = useCallback((point: WirePoint) => {
@@ -306,6 +324,17 @@ export function useCircuitStore() {
   const updateWireMidPoints = useCallback((wireId: string, midPoints: { x: number; y: number }[]) => {
     setWires((prev) => prev.map((w) => (w.id === wireId ? { ...w, midPoints } : w)));
   }, []);
+
+  const setWireColor = useCallback((color: string) => {
+    setWireColorState(color);
+    if (selectedWire) {
+      setWires((prev) => {
+        const next = prev.map((w) => (w.id === selectedWire ? { ...w, color } : w));
+        saveToHistory(components, next, notes, drawings);
+        return next;
+      });
+    }
+  }, [selectedWire, components, notes, drawings, saveToHistory]);
 
   /**
    * Called by ComponentNode once the image has loaded and ink-bounds have been

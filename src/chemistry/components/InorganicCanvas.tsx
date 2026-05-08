@@ -31,8 +31,9 @@ interface InorganicCanvasProps {
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
   onCombine: (sourceId: string, targetId: string) => void;
-  onDrop: (itemId: string, x: number, y: number) => void;
+  onDrop: (itemId: string, x: number, y: number, overrides?: Partial<PlacedInorganicItem>) => void;
   onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
+  onRemove: (id: string) => void;
 }
 
 interface DragState {
@@ -55,11 +56,104 @@ export default function InorganicCanvas({
   onCombine,
   onDrop,
   onUpdate,
+  onRemove,
 }: InorganicCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [sparkPos, setSparkPos] = useState<{ x: number; y: number } | null>(null);
   const [dispensing, setDispensing] = useState<Record<string, DispenseMode>>({});
+  const removalTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const actionTimers = useRef<Record<string, NodeJS.Timeout[]>>({});
+
+  const queueItemTimer = (id: string, callback: () => void, delay: number) => {
+    const timer = setTimeout(() => {
+      callback();
+      actionTimers.current[id] = (actionTimers.current[id] ?? []).filter((entry) => entry !== timer);
+    }, delay);
+
+    actionTimers.current[id] = [...(actionTimers.current[id] ?? []), timer];
+  };
+
+  const flashSpark = (x: number, y: number, duration = 420) => {
+    setSparkPos({ x, y });
+    setTimeout(() => setSparkPos(null), duration);
+  };
+
+  const igniteBurner = (burnerId: string, x: number, y: number) => {
+    onUpdate(burnerId, { isOpen: true, isLit: true });
+    flashSpark(x, y, 500);
+  };
+
+  const strikeMatchbox = (item: PlacedInorganicItem) => {
+    if (item.isStriking) return;
+
+    onUpdate(item.instanceId, {
+      isStriking: true,
+      isLit: false,
+      showStick: true,
+    });
+    flashSpark(item.x + 138, item.y + 102, 360);
+
+    queueItemTimer(item.instanceId, () => {
+      onUpdate(item.instanceId, { isLit: true });
+    }, 90);
+
+    queueItemTimer(item.instanceId, () => {
+      onUpdate(item.instanceId, {
+        showStick: false,
+        isLit: false,
+      });
+      onDrop("match", item.x + 126, item.y + 56, {
+        rotation: 10,
+      });
+    }, 180);
+
+    queueItemTimer(item.instanceId, () => {
+      onUpdate(item.instanceId, {
+        showStick: true,
+        isStriking: false,
+        isLit: false,
+      });
+    }, 1150);
+  };
+
+  // Watch for lit matches and start their burn-out timer
+  React.useEffect(() => {
+    items.forEach((item) => {
+      if (item.id === "match" && item.isLit && !removalTimers.current[item.instanceId]) {
+        removalTimers.current[item.instanceId] = setTimeout(() => {
+          onRemove(item.instanceId);
+          delete removalTimers.current[item.instanceId];
+        }, 12000);
+      }
+    });
+
+    // Cleanup: handle items being manually deleted
+    const itemIds = new Set(items.map(i => i.instanceId));
+    Object.keys(removalTimers.current).forEach(id => {
+      if (!itemIds.has(id)) {
+        clearTimeout(removalTimers.current[id]);
+        delete removalTimers.current[id];
+      }
+    });
+
+    Object.keys(actionTimers.current).forEach((id) => {
+      if (!itemIds.has(id)) {
+        actionTimers.current[id].forEach(clearTimeout);
+        delete actionTimers.current[id];
+      }
+    });
+  }, [items, onRemove]);
+
+  React.useEffect(() => {
+    const removalTimerEntries = removalTimers.current;
+    const actionTimerEntries = actionTimers.current;
+
+    return () => {
+      Object.values(removalTimerEntries).forEach(clearTimeout);
+      Object.values(actionTimerEntries).flat().forEach(clearTimeout);
+    };
+  }, []);
 
   const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!dragState || !surfaceRef.current) return;
@@ -82,12 +176,14 @@ export default function InorganicCanvas({
       const burner = items.find(
         (i) => i.id === "burner" && !i.isLit && Math.abs(i.x - nextX) < 92 && Math.abs(i.y - nextY) < 82
       );
-      if (burner) {
-        onUpdate(draggedItem.instanceId, { isLit: true });
-        onUpdate(burner.instanceId, { isOpen: true, isLit: true });
-        setSparkPos({ x: burner.x + 70, y: burner.y + 34 });
-        setTimeout(() => setSparkPos(null), 500);
-        setTimeout(() => onUpdate(draggedItem.instanceId, { isLit: false }), 12000);
+
+      const canIgnite =
+        draggedItem.id === "match"
+          ? draggedItem.isLit
+          : draggedItem.isStriking || draggedItem.isLit;
+
+      if (burner && canIgnite) {
+        igniteBurner(burner.instanceId, burner.x + 70, burner.y + 34);
       }
     }
 
@@ -252,14 +348,13 @@ export default function InorganicCanvas({
                   onUpdate(item.instanceId, { isLit: false, isOpen: false });
                 }
               } else if (item.id === "matchbox") {
-                onUpdate(item.instanceId, { isLit: true });
-                setSparkPos({ x: item.x + 95, y: item.y + 70 });
-                setTimeout(() => setSparkPos(null), 450);
-                setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 900);
+                if (item.showStick !== false && !item.isStriking) {
+                  strikeMatchbox(item);
+                }
               } else if (item.id === "match") {
-                onUpdate(item.instanceId, { isLit: !item.isLit });
                 if (!item.isLit) {
-                  setTimeout(() => onUpdate(item.instanceId, { isLit: false }), 12000);
+                  onUpdate(item.instanceId, { isLit: true });
+                  flashSpark(item.x + 58, item.y + 42, 280);
                 }
               } else if (item.id.includes("bottle") || item.id.includes("jar") || item.id === "rubber-stopper") {
                 onUpdate(item.instanceId, { isOpen: !item.isOpen });
@@ -292,7 +387,11 @@ export default function InorganicCanvas({
               ) : item.id === "match" ? (
                 <MatchAsset lit={item.isLit} />
               ) : item.id === "matchbox" ? (
-                <MatchboxAsset />
+                <MatchboxAsset
+                  lit={item.isLit}
+                  showStick={item.showStick !== false}
+                  isStriking={item.isStriking === true}
+                />
               ) : item.id === "dropper" ? (
                 <DropperAsset />
               ) : item.id === "forceps" ? (

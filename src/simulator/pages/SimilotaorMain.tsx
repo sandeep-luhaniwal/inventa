@@ -11,30 +11,14 @@ import PropertyPanel from "../components/circuit/PropertyPanel";
 import { relativePinsToPorts } from "../utils/circuitUtils";
 import { simulateCircuit } from "../utils/simulation";
 import LiveStatsPanel from "../components/circuit/LiveStatsPanel";
-import AiAnalysisPanel from "../components/circuit/AiAnalysisPanel";
-import { analyzeCircuit } from "../actions/analyzeCircuit";
 import { STATIC_COMPONENTS } from "../constants/staticComponents";
+import CoulombLab from "../components/circuit/CoulombLab";
 
 const SimilotaorMain = () => {
   const store = useCircuitStore();
-  const [viewMode, setViewMode] = useState<"canvas" | "schematic" | "bom">("canvas");
+  const [viewMode, setViewMode] = useState<"canvas" | "schematic" | "bom" | "coulomb">("canvas");
   const [draggedComponent, setDraggedComponent] = useState<ComponentItem | null>(null);
   const [blinkToggle, setBlinkToggle] = useState(true);
-
-  // AI Analysis state
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiResult, setAiResult] = useState<{ 
-    status: "Correct" | "Wrong"; 
-    reason: string;
-    visualStates?: Record<string, { 
-      lit: boolean; 
-      powered: boolean; 
-      direction?: number; 
-      brightness?: number; 
-      isBurned?: boolean; 
-    }>;
-  } | null>(null);
-  const [aiError, setAiError] = useState<string | undefined>();
 
   useEffect(() => {
     if (!store.isSimulating) return;
@@ -48,22 +32,6 @@ const SimilotaorMain = () => {
     
     if (!next) {
       setBlinkToggle(true);
-      setAiResult(null);
-      setAiError(undefined);
-    } else {
-      // Start AI Analysis
-      setIsAnalyzing(true);
-      setAiResult(null);
-      setAiError(undefined);
-      
-      try {
-        const result = await analyzeCircuit(store.components, store.wires, STATIC_COMPONENTS);
-        setAiResult(result);
-      } catch (err: any) {
-        setAiError(err.message || "Failed to connect to AI service.");
-      } finally {
-        setIsAnalyzing(false);
-      }
     }
   };
 
@@ -72,22 +40,41 @@ const SimilotaorMain = () => {
   const undoRef = useRef(store.undo);
   const redoRef = useRef(store.redo);
 
+  const simResult = useMemo(
+    () => simulateCircuit(store.components, store.wires),
+    [store.components, store.wires]
+  );
+
+  // No-op for AI Sim Result as we use the local one directly
+  const aiSimResult = simResult;
+
   const simulatedComponents = useMemo(
     () =>
       store.components.reduce<Record<string, { lit?: boolean; powered?: boolean; brightness?: number; isBurned?: boolean; isShortCircuit?: boolean; direction?: number }>>((acc, component) => {
-        const aiState = aiResult?.visualStates?.[component.id];
+        if (!store.isSimulating) {
+          acc[component.id] = {
+            lit: false,
+            powered: false,
+            brightness: 0,
+            isBurned: false,
+            isShortCircuit: false,
+            direction: 1
+          };
+          return acc;
+        }
 
+        const state = simResult?.componentStates?.[component.id];
         acc[component.id] = {
-          lit: store.isSimulating && !!aiState?.lit,
-          powered: store.isSimulating && !!aiState?.powered,
-          brightness: store.isSimulating ? aiState?.brightness || 0 : 0,
-          isBurned: store.isSimulating ? !!aiState?.isBurned : false,
-          isShortCircuit: store.isSimulating && aiResult?.status === "Wrong" && (aiResult.reason.toLowerCase().includes("short") || aiResult.reason.toLowerCase().includes("critical")),
-          direction: store.isSimulating ? aiState?.direction || 1 : 1
+          lit: simResult?.litComponents.includes(component.id),
+          powered: simResult?.poweredComponents.includes(component.id),
+          brightness: state?.brightness ?? 0,
+          isBurned: state?.isBurned ?? false,
+          isShortCircuit: simResult?.isShortCircuit,
+          direction: state?.direction ?? 1
         };
         return acc;
       }, {}),
-    [store.components, store.isSimulating, aiResult]
+    [store.components, simResult, store.isSimulating]
   );
 
   useEffect(() => {
@@ -204,8 +191,10 @@ const SimilotaorMain = () => {
   }, [store.components]);
 
   const simulationSummary = store.isSimulating
-    ? (isAnalyzing ? "AI is analyzing..." : (aiResult?.status || "Simulation running."))
+    ? (simResult?.summary || "Simulation running...")
     : "Click Run Simulation to test the circuit.";
+
+  const shortSummary = simulationSummary;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -213,9 +202,11 @@ const SimilotaorMain = () => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         isSimulating={store.isSimulating}
-        simulationSummary={store.isSimulating ? simulationSummary : "Simulation stopped."}
+        simulationSummary={shortSummary}
         onToggleSimulation={handleToggleSimulation}
       />
+
+      {viewMode !== "coulomb" && (
       <Toolbar
         canUndo={store.canUndo}
         canRedo={store.canRedo}
@@ -223,88 +214,103 @@ const SimilotaorMain = () => {
         wireColor={store.wireColor}
         wireType={store.wireType}
         isSimulating={store.isSimulating}
-        simulationSummary={simulationSummary}
+        simulationSummary={shortSummary}
         onDelete={store.deleteSelected}
         onToggleGrid={store.toggleGrid}
-        onCopy={() => {}}
-        onPaste={() => {}}
+        onCopy={() => { }}
+        onPaste={() => { }}
         onUndo={store.undo}
         onRedo={store.redo}
         onRotate={store.rotateSelected}
         onMirror={store.mirrorSelected}
         onFlip={store.flipSelected}
         onWireTypeChange={store.setWireType}
+        onWireColorChange={store.setWireColor}
         onAddNote={store.addNote}
         activeTool={store.activeTool}
         onActiveToolChange={store.setActiveTool}
         pencilColor={store.pencilColor}
         onPencilColorChange={store.setPencilColor}
       />
+      )}
 
-      {viewMode === "canvas" && (
-        <div className="flex flex-1 overflow-hidden">
-          {/* Canvas with floating PropertyPanel overlay */}
-          <div className="relative flex-1 overflow-hidden">
-            <Canvas
-              placedComponents={store.components}
-              wires={store.wires}
-              connectingFrom={store.connectingFrom}
-              selectedComponents={store.selectedComponents}
-              selectedWire={store.selectedWire}
-              isSimulating={store.isSimulating}
-              showGrid={store.showGrid}
-              wireColor={store.wireColor}
-              wireType={store.wireType}
-              notes={store.notes}
-              drawings={store.drawings}
-              activeTool={store.activeTool}
-              pencilColor={store.pencilColor}
-              onAddDrawing={store.addDrawing}
-              onDeleteDrawing={store.deleteDrawing}
-              onNoteUpdate={store.updateNote}
-              onNoteDelete={store.deleteNote}
-              simulatedComponents={simulatedComponents}
-              blinkToggle={blinkToggle}
-              poweredWireIds={[]} // Static wire powering removed for now
-              simulationSummary={simulationSummary}
-              onDrop={handleCanvasDrop}
-              onDragOver={handleCanvasDragOver}
-              onComponentMove={store.moveComponent}
-              onComponentMoveEnd={store.commitComponentMove}
-              onPinClick={store.handlePinClick}
-              onComponentSelect={store.selectComponent}
-              onWireSelect={store.setSelectedWire}
-              onWireDelete={store.deleteWire}
-              onWireMidPointsChange={store.updateWireMidPoints}
-              onCanvasWirePointAdd={store.addConnectingMidPoint}
-              onPortsResolved={store.updateComponentPorts}
+      <div className="flex-1 relative flex overflow-hidden">
+        {viewMode === "canvas" && (
+          <>
+            <div className="flex-1 relative bg-[#f8fafc] overflow-hidden">
+              <div className="absolute inset-0">
+                <Canvas
+                  placedComponents={store.components}
+                  wires={store.wires}
+                  connectingFrom={store.connectingFrom}
+                  selectedComponents={store.selectedComponents}
+                  selectedWire={store.selectedWire}
+                  isSimulating={store.isSimulating}
+                  showGrid={store.showGrid}
+                  wireColor={store.wireColor}
+                  wireType={store.wireType}
+                  notes={store.notes}
+                  drawings={store.drawings}
+                  activeTool={store.activeTool}
+                  pencilColor={store.pencilColor}
+                  onAddDrawing={store.addDrawing}
+                  onDeleteDrawing={store.deleteDrawing}
+                  onNoteUpdate={store.updateNote}
+                  onNoteDelete={store.deleteNote}
+                  simulatedComponents={simulatedComponents}
+                  blinkToggle={blinkToggle}
+                  poweredWireIds={[]}
+                  simulationSummary={simulationSummary}
+                  onDrop={handleCanvasDrop}
+                  onDragOver={handleCanvasDragOver}
+                  onComponentMove={store.moveComponent}
+                  onComponentMoveEnd={store.commitComponentMove}
+                  onPinClick={store.handlePinClick}
+                  onComponentSelect={store.selectComponent}
+                  onWireSelect={store.setSelectedWire}
+                  onWireDelete={store.deleteWire}
+                  onWireMidPointsChange={store.updateWireMidPoints}
+                  onCanvasWirePointAdd={store.addConnectingMidPoint}
+                  onPortsResolved={store.updateComponentPorts}
+                />
+
+                {store.isSimulating && simResult && (
+                  <LiveStatsPanel simulation={simResult as any} />
+                )}
+
+                {store.selectedComponents.length === 1 && (
+                  <PropertyPanel
+                    component={store.components.find((c) => c.id === store.selectedComponents[0])!}
+                    onUpdate={store.updateComponent}
+                    onClose={() => store.selectComponent("", false)}
+                  />
+                )}
+              </div>
+            </div>
+            <ComponentPalette
+              onDragStart={setDraggedComponent}
+              onCoulombClick={() => setViewMode("coulomb")}
+              isCoulombActive={false}
             />
+          </>
+        )}
 
-            {/* Property Panel — floats over the canvas when a component is selected */}
-            {store.selectedComponents.length === 1 && (
-              <PropertyPanel
-                component={store.components.find((c) => c.id === store.selectedComponents[0])!}
-                onUpdate={store.updateComponent}
-                onClose={() => store.selectComponent("", false)}
-              />
-            )}
-          </div>
+        {viewMode === "coulomb" && (
+          <CoulombLab />
+        )}
 
-          <ComponentPalette onDragStart={handlePaletteDragStart} />
-        </div>
-      )}
+        {viewMode === "schematic" && (
+          <SchematicView
+            components={store.components}
+            wires={store.wires}
+            projectName="My LED Circuit"
+          />
+        )}
 
-      {viewMode === "schematic" && (
-        <SchematicView
-          components={store.components}
-          wires={store.wires}
-          projectName="My LED Circuit"
-        />
-      )}
-
-      {viewMode === "bom" && (
-        <BomView components={store.components} onExportCsv={handleExportBom} />
-      )}
+        {viewMode === "bom" && (
+          <BomView components={store.components} onExportCsv={handleExportBom} />
+        )}
+      </div>
     </div>
   );
 };
