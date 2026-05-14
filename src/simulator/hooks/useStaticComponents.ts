@@ -19,6 +19,7 @@ export interface PaletteComponentItem {
   category: string;
   relativePins: RelativePin[];
   ledColor?: string;
+  physicsTopic?: string;
   viewBoxW: number;
   viewBoxH: number;
 }

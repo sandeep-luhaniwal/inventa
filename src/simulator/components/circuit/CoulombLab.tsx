@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import CalculationPopup from "@/physics/components/coulombs-law/CalculationPopup";
 
 // ─── Types ──────────────────────────────────────────────────────────
 type ChargeUnit = "C" | "µC" | "nC" | "mC";
@@ -251,61 +252,18 @@ export default function CoulombLab() {
         </svg>
 
         {/* Floating Draggable Calculation Card */}
-        <div 
-          className="absolute z-10" 
-          style={{ left: cardPos.x, top: cardPos.y }}
-        >
-          <div className={`bg-[#0f172acc] backdrop-blur-md border border-[#1e293b] rounded-2xl p-4 shadow-2xl overflow-hidden relative group transition-shadow ${isDraggingCard ? "shadow-indigo-500/20 scale-[1.02]" : "hover:shadow-indigo-500/10"}`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" />
-            
-            <div 
-              onMouseDown={handleCardMouseDown}
-              className="flex items-center justify-between mb-3 border-b border-[#1e293b] pb-2 cursor-move group/header"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex gap-0.5"><div className="w-0.5 h-0.5 rounded-full bg-indigo-500/50"/><div className="w-0.5 h-0.5 rounded-full bg-indigo-500/50"/></div>
-                  <div className="flex gap-0.5"><div className="w-0.5 h-0.5 rounded-full bg-indigo-500/50"/><div className="w-0.5 h-0.5 rounded-full bg-indigo-500/50"/></div>
-                </div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 select-none">Calculation (गणना)</h3>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-semibold" style={{ color: forceType === "attraction" ? "#22d3ee" : forceType === "repulsion" ? "#f87171" : "#94a3b8" }}>
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: forceType === "attraction" ? "#22d3ee" : forceType === "repulsion" ? "#f87171" : "#94a3b8" }}></div>
-                {forceType === "attraction" ? "Attraction" : forceType === "repulsion" ? "Repulsion" : "None"}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center gap-2 text-lg font-mono py-1">
-              <span className="font-bold text-[#f1f5f9]">F</span>
-              <span className="text-[#64748b]">=</span>
-              <span className="font-bold text-indigo-400">k</span>
-              <span className="text-[#475569] text-xs">×</span>
-              <div className="flex flex-col items-center">
-                <span className="flex items-center gap-1 pb-0.5 text-sm"><span className="text-[#f472b6] font-bold">q₁</span><span className="text-[#475569] text-[10px]">×</span><span className="text-[#38bdf8] font-bold">q₂</span></span>
-                <span className="w-full h-[1px] bg-[#475569] rounded"></span>
-                <span className="text-[#34d399] font-bold pt-0.5 text-xs">r²</span>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-baseline justify-between bg-[#02061766] rounded-lg px-3 py-2 border border-indigo-500/20">
-                <span className="text-[10px] text-[#94a3b8] font-semibold uppercase">Force</span>
-                <span className="text-sm text-[#e2e8f0] font-bold font-mono">{forceStr}</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-1.5 text-[9px] font-mono text-[#64748b]">
-                <div className="bg-[#02061744] p-1.5 rounded border border-[#1e293b] flex flex-col gap-0.5">
-                  <span className="text-[#f472b6] font-bold uppercase text-[7px]">Charge A</span>
-                  <span className="text-slate-300">{pol1 === "positive" ? "+" : "−"}{q1} {q1Unit}</span>
-                </div>
-                <div className="bg-[#02061744] p-1.5 rounded border border-[#1e293b] flex flex-col gap-0.5">
-                  <span className="text-[#38bdf8] font-bold uppercase text-[7px]">Charge B</span>
-                  <span className="text-slate-300">{pol2 === "positive" ? "+" : "−"}{q2} {q2Unit}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CalculationPopup
+          force={force}
+          forceFormatted={forceStr}
+          forceType={forceType}
+          q1={q1}
+          q1Unit={q1Unit}
+          pol1={pol1}
+          q2={q2}
+          q2Unit={q2Unit}
+          pol2={pol2}
+          initialPos={cardPos}
+        />
       </div>
 
       {/* Right panel */}

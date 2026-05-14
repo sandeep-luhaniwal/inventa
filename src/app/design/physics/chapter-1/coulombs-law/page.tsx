@@ -52,6 +52,7 @@ export default function CoulombsLawPage() {
         fieldLineCount={sim.fieldLineCount}
         onBodyDrag={sim.setBodyPosition}
         onDistanceChange={sim.setDistance}
+        forceFormatted={sim.forceFormatted}
       />
     </PhysicsLabShell>
   );

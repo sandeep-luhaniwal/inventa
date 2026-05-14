@@ -1,15 +1,17 @@
 "use client"
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { Stage, Layer, Rect, Line, Circle } from "react-konva";
 import Konva from "konva";
 import WireSVGOverlay from "./canvas/WireLayer";
 import ComponentNode from "./canvas/ComponentNode";
 import BreadboardNode from "./canvas/BreadboardNode";
+import PhysicsLayer from "./canvas/PhysicsLayer";
+import CalculationPopup from "./CalculationPopup";
 import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulator/types/circuit";
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
-import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/constants/staticComponents";
+import { getLedDataUrls, getSphereDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/constants/staticComponents";
 import { ZoomIn, ZoomOut, Maximize, RefreshCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
@@ -20,6 +22,41 @@ const ERASER_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaW
 const ZOOM_SCALE = 1.08;
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 4;
+const COULOMB_K = 8.9875517923e9;
+const CHARGE_UNIT_MULTIPLIER: Record<string, number> = {
+  C: 1,
+  mC: 1e-3,
+  uC: 1e-6,
+  nC: 1e-9,
+};
+
+function normalizeChargeUnit(unit = "uC") {
+  return unit.replace("Âµ", "u").replace("µ", "u");
+}
+
+function toCoulombs(value = 0, unit = "uC") {
+  return value * (CHARGE_UNIT_MULTIPLIER[normalizeChargeUnit(unit)] ?? 1e-6);
+}
+
+function toMicroCoulombs(value = 0, unit = "uC") {
+  return toCoulombs(value, unit) / 1e-6;
+}
+
+function getPairDielectric(a: PlacedComponent, b: PlacedComponent) {
+  const value = a.physicsDielectric ?? b.physicsDielectric ?? 1;
+  return value > 0 ? value : 1;
+}
+
+function getPairMediumName(a: PlacedComponent, b: PlacedComponent) {
+  return a.physicsMedium || b.physicsMedium || "Vacuum";
+}
+
+function getSphereCenter(component: PlacedComponent) {
+  return {
+    x: component.x + (component.width || 100) / 2,
+    y: component.y + (component.height || 100) / 2,
+  };
+}
 
 export interface CanvasProps {
   placedComponents: PlacedComponent[];
@@ -99,6 +136,117 @@ const Canvas = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
   const [currentLine, setCurrentLine] = useState<number[] | null>(null);
+  const coulombCalculation = useMemo(() => {
+    const spheres = placedComponents.filter((component) =>
+      component.componentId.startsWith("sphere_") &&
+      component.physicsTopic === "Coulomb's Law"
+    );
+
+    if (spheres.length < 2) return null;
+
+    const [sphereA, sphereB] = spheres;
+    if (spheres.length > 2) {
+      const selectedSphere = spheres.find((sphere) => selectedComponents.includes(sphere.id)) || sphereA;
+      const targetCharge = toCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit);
+      const targetCenter = getSphereCenter(selectedSphere);
+      let fx = 0;
+      let fy = 0;
+      const forceVectors: { fx: number; fy: number; magnitude: number }[] = [];
+
+      if (targetCharge !== 0) {
+        for (const source of spheres) {
+          if (source.id === selectedSphere.id) continue;
+
+          const sourceCharge = toCoulombs(source.chargeValue || 0, source.chargeUnit);
+          if (sourceCharge === 0) continue;
+
+          const sourceCenter = getSphereCenter(source);
+          const dx = targetCenter.x - sourceCenter.x;
+          const dy = targetCenter.y - sourceCenter.y;
+          const distancePx = Math.hypot(dx, dy);
+          const distanceM = distancePx / 100;
+          if (distanceM < 0.01) continue;
+
+          const dielectric = getPairDielectric(selectedSphere, source);
+          const baseMagnitude = (COULOMB_K * Math.abs(targetCharge * sourceCharge)) / (distanceM * distanceM);
+          const magnitude = Number.isFinite(dielectric) ? baseMagnitude / dielectric : 0;
+          const direction = targetCharge * sourceCharge > 0 ? 1 : -1;
+          const vectorX = (dx / distancePx) * magnitude * direction;
+          const vectorY = (dy / distancePx) * magnitude * direction;
+          fx += vectorX;
+          fy += vectorY;
+          forceVectors.push({ fx: vectorX, fy: vectorY, magnitude });
+        }
+      }
+
+      const [firstForce, secondForce] = forceVectors;
+      const dotProduct = firstForce && secondForce
+        ? firstForce.fx * secondForce.fx + firstForce.fy * secondForce.fy
+        : 0;
+      const thetaRadians = firstForce && secondForce && firstForce.magnitude > 0 && secondForce.magnitude > 0
+        ? Math.acos(Math.min(1, Math.max(-1, dotProduct / (firstForce.magnitude * secondForce.magnitude))))
+        : 0;
+
+      return {
+        q1: toMicroCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit),
+        q2: spheres
+          .filter((sphere) => sphere.id !== selectedSphere.id)
+          .reduce((sum, sphere) => sum + toMicroCoulombs(sphere.chargeValue || 0, sphere.chargeUnit), 0),
+        distance: 0,
+        sphereCount: spheres.length,
+        force: Math.hypot(fx, fy),
+        isRepulsive: true,
+        isSuperposition: true,
+        mediumName: selectedSphere.physicsMedium || "Vacuum",
+        dielectric: selectedSphere.physicsDielectric ?? 1,
+        superpositionWorking: firstForce && secondForce ? {
+          f1: firstForce.magnitude,
+          f2: secondForce.magnitude,
+          thetaDeg: thetaRadians * (180 / Math.PI),
+        } : undefined,
+      };
+    }
+
+    const q1 = toCoulombs(sphereA.chargeValue || 0, sphereA.chargeUnit);
+    const q2 = toCoulombs(sphereB.chargeValue || 0, sphereB.chargeUnit);
+    const dielectric = getPairDielectric(sphereA, sphereB);
+    const mediumName = getPairMediumName(sphereA, sphereB);
+    const centerA = {
+      x: sphereA.x + (sphereA.width || 100) / 2,
+      y: sphereA.y + (sphereA.height || 100) / 2,
+    };
+    const centerB = {
+      x: sphereB.x + (sphereB.width || 100) / 2,
+      y: sphereB.y + (sphereB.height || 100) / 2,
+    };
+    const distancePx = Math.hypot(centerB.x - centerA.x, centerB.y - centerA.y);
+    const distanceM = distancePx / 100;
+    const baseValues = {
+      q1: toMicroCoulombs(sphereA.chargeValue || 0, sphereA.chargeUnit),
+      q2: toMicroCoulombs(sphereB.chargeValue || 0, sphereB.chargeUnit),
+      distance: distancePx / 10,
+      sphereCount: spheres.length,
+      mediumName,
+      dielectric,
+      baseForce: distanceM > 0 ? (COULOMB_K * Math.abs(q1 * q2)) / (distanceM * distanceM) : 0,
+    };
+
+    if (distanceM < 0.01 || q1 === 0 || q2 === 0) {
+      return {
+        ...baseValues,
+        force: 0,
+        isRepulsive: false,
+      };
+    }
+
+    return {
+      ...baseValues,
+      force: Number.isFinite(dielectric)
+        ? ((COULOMB_K * Math.abs(q1 * q2)) / (distanceM * distanceM)) / dielectric
+        : 0,
+      isRepulsive: q1 * q2 > 0,
+    };
+  }, [placedComponents, selectedComponents]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -394,9 +542,11 @@ const Canvas = ({
             ) : (() => {
                 const isSelected = selectedComponents.includes(comp.id);
                 const staticDef = STATIC_COMPONENTS.find((d) => d.id === comp.componentId);
-                const resolvedBaseImageSrc = staticDef
+                const isSphere = comp.componentId.startsWith('sphere_');
+                const sphereUrls = isSphere ? getSphereDataUrls(comp.physicsMetal || "Copper", isSelected && !isSphere) : null;
+                const resolvedBaseImageSrc = sphereUrls ? sphereUrls.imageSrc : (staticDef
                   ? svgToDataUrl(staticDef, false, isSelected)
-                  : comp.imageSrc;
+                  : comp.imageSrc);
                 // For LEDs, resolve the live image URLs from the current ledColor
                 const isLed = comp.componentId.startsWith('led_');
                 const resolvedColor = isLed ? (comp.ledColor ?? comp.componentId.replace('led_', '')) : null;
@@ -421,6 +571,9 @@ const Canvas = ({
                 );
               })()
           )}
+        </Layer>
+        <Layer listening={false}>
+          <PhysicsLayer components={placedComponents} />
         </Layer>
       </Stage>
 
@@ -457,6 +610,22 @@ const Canvas = ({
 
       {isSimulating && placedComponents.some(c => c.componentId === 'microbit') && (
         <MicrobitSimulatorPanel />
+      )}
+
+      {coulombCalculation && (
+        <CalculationPopup
+          q1={coulombCalculation.q1}
+          q2={coulombCalculation.q2}
+          distance={coulombCalculation.distance}
+          force={coulombCalculation.force}
+          isRepulsive={coulombCalculation.isRepulsive}
+          sphereCount={coulombCalculation.sphereCount}
+          isSuperposition={coulombCalculation.isSuperposition}
+          superpositionWorking={coulombCalculation.superpositionWorking}
+          mediumName={coulombCalculation.mediumName}
+          dielectric={coulombCalculation.dielectric}
+          baseForce={coulombCalculation.baseForce}
+        />
       )}
 
       {/* ZOOM CONTROLS */}

@@ -1,18 +1,20 @@
 "use client"
 import Konva from "konva";
-import { COLORS, PIN_RADIUS, LED_COLOR_OPTIONS } from "@/simulator/constants/circuit";
+import { PIN_RADIUS, LED_COLOR_OPTIONS } from "@/simulator/constants/circuit";
 import { useImage } from "@/simulator/hooks/useImage";
 import { ConnectingFrom, PlacedComponent } from "@/simulator/types/circuit";
 import { computeSmartLayout, getInkBounds } from "@/simulator/utils/imageUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
 import { getComponentSnapOffset } from "@/simulator/utils/snapUtils";
-import { useEffect, useMemo, useState } from "react";
-import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path } from "react-konva";
+import { METAL_PHYSICS } from "@/simulator/constants/physics";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path, Arrow } from "react-konva";
 import { getMicrobitDataUrls } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
 const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
+const SPHERE_CHARGE_WAVE_COLOR = "#ef4444";
 
 function resolveFullImageLayout(
   img: HTMLImageElement,
@@ -42,6 +44,45 @@ interface ComponentNodeProps {
   onSelect: (compId: string, multi: boolean) => void;
   onSizeResolved?: (id: string, resolvedPorts: { x: number; y: number }[], width: number, height: number) => void;
   allComponents: PlacedComponent[];
+}
+
+function hasFrictionMethod(a: PlacedComponent, b: PlacedComponent) {
+  return a.physicsChargeMethod === "Friction" || b.physicsChargeMethod === "Friction";
+}
+
+function findInductionSource(comp: PlacedComponent, allComponents: PlacedComponent[]) {
+  if (
+    !comp.componentId.startsWith("sphere_") ||
+    comp.physicsChargeMethod !== "Induction" ||
+    comp.physicsEarthing === "Earthed" ||
+    Math.abs(comp.chargeValue ?? 0) > 0
+  ) {
+    return null;
+  }
+
+  const radiusA = (comp.width || 100) / 2;
+  const centerA = { x: comp.x + radiusA, y: comp.y + radiusA };
+  const inductionRange = radiusA + 180;
+
+  return allComponents.reduce<{
+    component: PlacedComponent;
+    dx: number;
+    dy: number;
+    distance: number;
+  } | null>((nearest, candidate) => {
+    if (candidate.id === comp.id || !candidate.componentId.startsWith("sphere_")) return nearest;
+    if (Math.abs(candidate.chargeValue ?? 0) === 0) return nearest;
+
+    const radiusB = (candidate.width || 100) / 2;
+    const centerB = { x: candidate.x + radiusB, y: candidate.y + radiusB };
+    const dx = centerB.x - centerA.x;
+    const dy = centerB.y - centerA.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance > inductionRange) return nearest;
+    if (nearest && nearest.distance <= distance) return nearest;
+
+    return { component: candidate, dx, dy, distance };
+  }, null);
 }
 
 const ComponentNode = ({
@@ -125,15 +166,66 @@ const ComponentNode = ({
 
   const isConnecting = connectingFrom !== null;
   const isThisComponentConnecting = isConnecting && connectingFrom?.compId === comp.id;
+  const isSphere = comp.componentId.startsWith("sphere_");
+  const sphereMetal = METAL_PHYSICS[comp.physicsMetal || "Copper"] || METAL_PHYSICS.Copper;
+  const sphereTextColor = getContrastTextColor(sphereMetal.colors.main);
+  const isFrictionSphere = isSphere && comp.physicsChargeMethod === "Friction";
+  const isEarthedSphere = isSphere && comp.physicsEarthing === "Earthed";
+  const inductionSource = findInductionSource(comp, allComponents);
+  const visibleChargeValue = (!isEarthedSphere && !inductionSource && comp.physicsInductionPendingCharge)
+    ? comp.physicsInductionPendingCharge
+    : (comp.chargeValue ?? 0);
+  const sphereChargeMagnitude = Math.abs(visibleChargeValue);
+  const isRubbing = isFrictionSphere && allComponents.some(c => {
+    if (c.id === comp.id || !c.componentId.startsWith('sphere_')) return false;
+    if (!hasFrictionMethod(comp, c)) return false;
+    const rA = (comp.width || 100) / 2, rB = (c.width || 100) / 2;
+    return Math.hypot((comp.x + rA) - (c.x + rB), (comp.y + rA) - (c.y + rB)) < rA + rB + 12;
+  });
+  const [shakeOffset, setShakeOffset] = useState({ x: 0, y: 0 });
+  const shakeRef = useRef<Konva.Animation | null>(null);
+  useEffect(() => {
+    if (!isRubbing) {
+      shakeRef.current?.stop();
+      shakeRef.current = null;
+      requestAnimationFrame(() => setShakeOffset({ x: 0, y: 0 }));
+      return;
+    }
+    const layer = groupRef.current?.getLayer();
+    if (!layer) return;
+    const anim = new Konva.Animation((frame) => {
+      if (!frame) return;
+      const t = frame.time;
+      setShakeOffset({
+        x: Math.sin(t * 0.08) * 3,
+        y: Math.cos(t * 0.11) * 2,
+      });
+    }, layer);
+    shakeRef.current = anim;
+    anim.start();
+    return () => {
+      anim.stop();
+      shakeRef.current = null;
+      requestAnimationFrame(() => setShakeOffset({ x: 0, y: 0 }));
+    };
+  }, [isRubbing]);
+  const chargeWaveDirection = isSphere
+    ? (isFrictionSphere
+        ? (visibleChargeValue >= 0 ? "outward" : "inward")
+        : comp.physicsWaveDirection ?? null)
+    : null;
+  const chargeWaveTick = isSphere ? (isFrictionSphere ? 1 : comp.physicsWaveTick ?? 0) : 0;
 
-    const isBurned = simulationState?.isBurned;
+    const groupRef = useRef<Konva.Group>(null);
+  const isBurned = simulationState?.isBurned;
     const brightness = simulationState?.brightness ?? 0;
     const isShortCircuit = simulationState?.isShortCircuit;
 
     return (
       <Group
-        x={comp.x}
-        y={comp.y}
+        ref={groupRef}
+        x={comp.x + shakeOffset.x}
+        y={comp.y + shakeOffset.y}
         draggable={!isConnecting && !isSimulating}
         onDragMove={(e) => {
           const x = e.target.x();
@@ -174,6 +266,19 @@ const ComponentNode = ({
           scaleX={comp.mirrored ? -1 : 1}
           scaleY={comp.flipped ? -1 : 1}
         >
+          {isSphere && !isEarthedSphere && sphereChargeMagnitude > 0 && (
+            <SphereChargeWave
+              key={`sphere-wave-${comp.id}-${chargeWaveTick}-${chargeWaveDirection ?? "idle"}`}
+              x={w / 2}
+              y={h / 2}
+              radius={Math.max(w, h) * 0.38}
+              color={SPHERE_CHARGE_WAVE_COLOR}
+              chargeMagnitude={sphereChargeMagnitude}
+              direction={chargeWaveDirection}
+              waveTick={chargeWaveTick}
+            />
+          )}
+
           {img && (
             <KonvaImage 
               image={img} 
@@ -181,6 +286,41 @@ const ComponentNode = ({
               height={h} 
               {...(crop ? { crop } : {})}
               opacity={isBurned ? 0.4 : 1}
+            />
+          )}
+          {isSphere && (
+            <SphereMetalBadge
+              x={w / 2}
+              y={h / 2}
+              symbol={sphereMetal.symbol}
+              workFunctionEv={sphereMetal.workFunctionEv}
+              chargeValue={visibleChargeValue}
+              chargeUnit={comp.chargeUnit}
+              showChargeValue={
+                comp.physicsChargeMethod === "Conduction" ||
+                comp.physicsTopic === "Coulomb's Law"
+              }
+              textColor={sphereTextColor}
+            />
+          )}
+          {isSphere && !isEarthedSphere && sphereChargeMagnitude > 0 && (
+            <SphereChargeSigns
+              x={w / 2}
+              y={h / 2}
+              radius={Math.max(w, h) * 0.51}
+              sign={visibleChargeValue >= 0 ? "+" : "-"}
+              color={SPHERE_CHARGE_WAVE_COLOR}
+            />
+          )}
+          {!isEarthedSphere && inductionSource && (
+            <SphereInductionSigns
+              x={w / 2}
+              y={h / 2}
+              radius={Math.max(w, h) * 0.51}
+              sourceDx={inductionSource.dx}
+              sourceDy={inductionSource.dy}
+              sourceCharge={inductionSource.component.chargeValue ?? 0}
+              color={SPHERE_CHARGE_WAVE_COLOR}
             />
           )}
 
@@ -227,7 +367,47 @@ const ComponentNode = ({
           })()}
 
           {/* Short Circuit Spark */}
+          {/* Friction Rubbing Glow */}
+          {(() => {
+            if (isFrictionSphere) {
+              const radiusA = (comp.width || 100) / 2;
+              const centerA = { x: comp.x + radiusA, y: comp.y + radiusA };
+
+              const otherTouching = allComponents.find(c => {
+                if (c.id === comp.id || !c.componentId.startsWith('sphere_') || c.physicsChargeMethod !== 'Friction') return false;
+                const radiusB = (c.width || 100) / 2;
+                const centerB = { x: c.x + radiusB, y: c.y + radiusB };
+                return Math.hypot(centerA.x - centerB.x, centerA.y - centerB.y) < (radiusA + radiusB);
+              });
+
+              if (otherTouching) {
+                const radiusB = (otherTouching.width || 100) / 2;
+                const centerB = { x: otherTouching.x + radiusB, y: otherTouching.y + radiusB };
+                const dx = centerB.x - centerA.x;
+                const dy = centerB.y - centerA.y;
+                const angle = Math.atan2(dy, dx);
+
+                return (
+                  <Circle
+                    x={(w / 2) + Math.cos(angle) * (radiusA - 5)}
+                    y={(h / 2) + Math.sin(angle) * (radiusA - 5)}
+                    radius={20}
+                    fillRadialGradientStartRadius={0}
+                    fillRadialGradientEndRadius={20}
+                    fillRadialGradientColorStops={[0, 'rgba(255, 255, 150, 0.9)', 0.5, 'rgba(255, 220, 100, 0.4)', 1, 'transparent']}
+                    shadowColor="#fbbf24"
+                    shadowBlur={15}
+                    opacity={0.8}
+                    listening={false}
+                  />
+                );
+              }
+            }
+            return null;
+          })()}
+
           {isShortCircuit && <SparkEffect x={w / 2} y={h / 2} />}
+
 
           {visualPins.map((pin, i) => (
             <PinDot
@@ -243,8 +423,258 @@ const ComponentNode = ({
           ))}
         </Group>
       </Group>
-    );
-  };
+  );
+};
+
+const SphereMetalBadge = ({
+  x,
+  y,
+  symbol,
+  workFunctionEv,
+  chargeValue,
+  chargeUnit,
+  showChargeValue,
+  textColor,
+}: {
+  x: number;
+  y: number;
+  symbol: string;
+  workFunctionEv: number;
+  chargeValue: number;
+  chargeUnit?: string;
+  showChargeValue: boolean;
+  textColor: string;
+}) => {
+  const displayValue = showChargeValue
+    ? formatChargeValue(chargeValue, chargeUnit)
+    : `${workFunctionEv.toFixed(2)} eV`;
+
+  return (
+    <Group x={x} y={y} listening={false}>
+      <Text
+        y={-10}
+        width={40}
+        x={-20}
+        align="center"
+        text={symbol}
+        fontSize={16}
+        fontStyle="bold"
+        fill={textColor}
+        shadowColor="rgba(15,23,42,0.55)"
+        shadowBlur={4}
+      />
+      <Text
+        y={6}
+        width={54}
+        x={-27}
+        align="center"
+        text={displayValue}
+        fontSize={showChargeValue ? 10 : 8}
+        fontStyle="bold"
+        fill={textColor}
+        shadowColor="rgba(15,23,42,0.55)"
+        shadowBlur={4}
+      />
+    </Group>
+  );
+};
+
+const formatChargeValue = (value: number, unit = "uC") => {
+  const normalizedUnit = unit.replace("Âµ", "u").replace("µ", "u");
+  const rounded = Number.isInteger(value) ? value.toString() : value.toFixed(2);
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${rounded} ${normalizedUnit}`;
+};
+
+const SphereChargeSigns = ({
+  x,
+  y,
+  radius,
+  sign,
+  color,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  sign: "+" | "-";
+  color: string;
+}) => {
+  const angles = [-96, -64, -32, 0, 32, 64, 96, 128, 160, 192, 224, 256];
+
+  return (
+    <Group x={x} y={y} listening={false}>
+      {angles.map((angle) => {
+        const theta = (angle * Math.PI) / 180;
+        return (
+          <Text
+            key={`${sign}-${angle}`}
+            x={Math.cos(theta) * radius - 6}
+            y={Math.sin(theta) * radius - 7}
+            text={sign}
+            fontSize={17}
+            fontStyle="bold"
+            fill={color}
+            opacity={0.92}
+          />
+        );
+      })}
+    </Group>
+  );
+};
+
+const SphereInductionSigns = ({
+  x,
+  y,
+  radius,
+  sourceDx,
+  sourceDy,
+  sourceCharge,
+  color,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  sourceDx: number;
+  sourceDy: number;
+  sourceCharge: number;
+  color: string;
+}) => {
+  const sourceAngle = Math.atan2(sourceDy, sourceDx);
+  const nearSign = sourceCharge > 0 ? "-" : "+";
+  const farSign = sourceCharge > 0 ? "+" : "-";
+  const offsets = [-62, -44, -26, -8, 10, 28, 46, 64];
+
+  const renderSide = (baseAngle: number, sign: string) =>
+    offsets.map((offset) => {
+      const theta = baseAngle + (offset * Math.PI) / 180;
+      return (
+        <Text
+          key={`${sign}-${baseAngle}-${offset}`}
+          x={Math.cos(theta) * radius - 7}
+          y={Math.sin(theta) * radius - 8}
+          text={sign}
+          fontSize={17}
+          fontStyle="bold"
+          fill={color}
+          opacity={0.92}
+          listening={false}
+        />
+      );
+    });
+
+  return (
+    <Group x={x} y={y} listening={false}>
+      {renderSide(sourceAngle, nearSign)}
+      {renderSide(sourceAngle + Math.PI, farSign)}
+    </Group>
+  );
+};
+
+const getContrastTextColor = (hex: string) => {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map((ch) => ch + ch).join("")
+    : normalized;
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.68 ? "#0f172a" : "#ffffff";
+};
+
+const SphereChargeWave = ({
+  x,
+  y,
+  radius,
+  color,
+  chargeMagnitude,
+  direction,
+  waveTick,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  chargeMagnitude: number;
+  direction: "outward" | "inward" | null;
+  waveTick: number;
+}) => {
+  const groupRef = useRef<Konva.Group>(null);
+  const [tick, setTick] = useState(0);
+  const loopDuration = Math.max(360, 1400 - Math.min(chargeMagnitude, 100) * 9);
+
+  useEffect(() => {
+    if (!direction || !waveTick || !groupRef.current) return;
+
+    const layer = groupRef.current.getLayer();
+    if (!layer) return;
+
+    const anim = new Konva.Animation((frame) => {
+      if (!frame) return;
+      const nextTick = (frame.time % loopDuration) / loopDuration;
+      setTick(nextTick);
+    }, layer);
+
+    anim.start();
+    return () => anim.stop();
+  }, [direction, loopDuration, waveTick]);
+
+  if (!direction || !waveTick) return null;
+
+  const arrowAngles = [-90, -54, -18, 18, 54, 90, 126, 162, 198, 234];
+  const dashedRadius = radius + 12;
+  const animatedTravel = 34 + Math.min(chargeMagnitude, 80) * 0.18;
+  const shaftLength = 22 + Math.min(chargeMagnitude, 80) * 0.12;
+
+  return (
+    <Group ref={groupRef} x={x} y={y} listening={false}>
+      <Circle
+        radius={dashedRadius}
+        stroke={color}
+        strokeWidth={1.6}
+        dash={[8, 7]}
+        opacity={0.35}
+      />
+      {arrowAngles.map((angle, index) => {
+        const phase = (tick + index * 0.085) % 1;
+        const waveOffset = phase * animatedTravel;
+        const theta = (angle * Math.PI) / 180;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        const startBase = dashedRadius + 4;
+        const endBase = startBase + shaftLength;
+
+        const outwardStart = startBase + waveOffset;
+        const outwardEnd = endBase + waveOffset;
+        const inwardStart = startBase + (1 - phase) * animatedTravel;
+        const inwardEnd = endBase + (1 - phase) * animatedTravel;
+        const startRadius = direction === "outward" ? outwardStart : inwardStart;
+        const endRadius = direction === "outward" ? outwardEnd : inwardEnd;
+        const opacity = 0.25 + (1 - phase) * 0.55;
+
+        return (
+          <Arrow
+            key={`${waveTick}-${direction}-${angle}`}
+            points={[
+              cos * startRadius,
+              sin * startRadius,
+              cos * endRadius,
+              sin * endRadius,
+            ]}
+            stroke={color}
+            fill={color}
+            strokeWidth={2.2}
+            pointerLength={7}
+            pointerWidth={7}
+            pointerAtBeginning={direction === "inward"}
+            pointerAtEnding={direction === "outward"}
+            opacity={opacity}
+          />
+        );
+      })}
+    </Group>
+  );
+};
 
 const SmokeAnimation = ({ x, y }: { x: number; y: number }) => {
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; s: number; o: number }[]>([]);
@@ -304,7 +734,7 @@ const SparkEffect = ({ x, y }: { x: number; y: number }) => {
 };
 
 const RotatingGear = ({ x, y, direction, speed = 1 }: { x: number; y: number; direction: number; speed?: number }) => {
-  const groupRef = useMemo(() => ({ current: null as any }), []);
+  const groupRef = useRef<Konva.Group>(null);
 
   useEffect(() => {
     let currentRotation = groupRef.current?.rotation() || 0;

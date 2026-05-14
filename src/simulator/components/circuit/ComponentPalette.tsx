@@ -12,9 +12,22 @@ interface Props {
   isCoulombActive?: boolean;
 }
 
+const CHARGED_SPHERE_TOPICS = [
+  "Methods of Charging",
+  "Coulomb's Law",
+  "Electric Field Intensity",
+  "Electric Flux",
+  "Gauss's Theorem",
+  "Electrostatic Potential",
+  "Electric Potential Difference",
+  "Electrical Capacitance",
+  "Capacitance of a Spherical Conductor",
+];
+
 const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Props) => {
   const [search, setSearch] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [chargedSphereTopic, setChargedSphereTopic] = useState(CHARGED_SPHERE_TOPICS[0]);
   const { grouped, loading, error } = useStaticComponents();
 
   const searchText = search.toLowerCase();
@@ -80,10 +93,16 @@ const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Prop
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {items.map((comp) => (
+                      (() => {
+                        const paletteComp = comp.name === "Charged Sphere"
+                          ? { ...comp, physicsTopic: chargedSphereTopic }
+                          : comp;
+
+                        return (
                       <div
                         key={comp.id}
                         draggable
-                        onDragStart={(e) => onDragStart(comp, e)}
+                        onDragStart={(e) => onDragStart(paletteComp, e)}
                         className="flex flex-col items-center p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all bg-card"
                       >
                         {comp.imageSrc ? (
@@ -94,7 +113,34 @@ const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Prop
                           </div>
                         )}
                         <span className="text-center text-xs text-foreground font-medium">{comp.name}</span>
+                        {comp.name === "Charged Sphere" && (
+                          <div
+                            className="mt-3 w-full rounded-lg border border-border bg-background/60"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onDragStart={(e) => e.preventDefault()}
+                          >
+                            <label className="block px-2.5 pt-2 text-[11px] font-semibold text-muted-foreground">
+                              Topics
+                            </label>
+                            <div className="p-2.5 pt-1.5">
+                              <select
+                                value={chargedSphereTopic}
+                                onChange={(e) => setChargedSphereTopic(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[11px] font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              >
+                                {CHARGED_SPHERE_TOPICS.map((topic) => (
+                                  <option key={topic} value={topic}>
+                                    {topic}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
                       </div>
+                        );
+                      })()
                     ))}
                   </div>
                 </div>

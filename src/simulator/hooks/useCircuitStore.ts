@@ -2,14 +2,32 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint, Drawing } from "../types/circuit";
 import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "../constants/staticComponents";
+import { METAL_PHYSICS } from "../constants/physics";
 
 export type { PlacedComponent, Wire, ConnectingFrom };
 
 const STORAGE_KEY = "circuit_project";
+const FRICTION_CHARGE_DELAY_MS = 5000;
+const INDUCTION_RANGE = 300;
+const INDUCTION_FINALIZE_DISTANCE = 220;
+type FrictionContact = {
+  startedAt: number;
+  charged: boolean;
+};
 
 function resolveStaticComponentImages(comp: PlacedComponent): PlacedComponent {
+  const normalizedComp = comp.componentId.startsWith("sphere_") &&
+    (!comp.physicsChargeMethod || comp.physicsChargeMethod === "Methods of Charging")
+    ? {
+      ...comp,
+      chargeValue: 0,
+      physicsWaveDirection: undefined,
+      physicsWaveTick: undefined,
+    }
+    : comp;
+
   if (comp.componentId === "breadboard") {
-    return comp;
+    return normalizedComp;
   }
 
   if (comp.componentId.startsWith("led_") || comp.componentId === "led") {
@@ -20,7 +38,7 @@ function resolveStaticComponentImages(comp: PlacedComponent): PlacedComponent {
         : "red");
     const { imageSrc, litImageSrc } = getLedDataUrls(resolvedColor);
     return {
-      ...comp,
+      ...normalizedComp,
       ledColor: resolvedColor,
       imageSrc,
       litImageSrc,
@@ -29,14 +47,394 @@ function resolveStaticComponentImages(comp: PlacedComponent): PlacedComponent {
 
   const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
   if (!def) {
-    return comp;
+    return normalizedComp;
   }
 
   return {
-    ...comp,
+    ...normalizedComp,
     imageSrc: svgToDataUrl(def, false),
     litImageSrc: def.litSvgBody ? svgToDataUrl(def, true) : comp.litImageSrc,
   };
+}
+
+const METAL_WORK_FUNCTIONS = Object.fromEntries(
+  Object.entries(METAL_PHYSICS).map(([metal, meta]) => [metal, meta.workFunctionEv])
+) as Record<string, number>;
+
+function applyChargeChange(
+  component: PlacedComponent,
+  nextChargeValue: number,
+  forcedWaveDirection?: "outward" | "inward"
+): PlacedComponent {
+  const currentMagnitude = Math.abs(component.chargeValue || 0);
+  const nextMagnitude = Math.abs(nextChargeValue);
+  const direction = forcedWaveDirection ??
+    (nextMagnitude > currentMagnitude
+      ? "outward"
+      : nextMagnitude < currentMagnitude
+        ? "inward"
+        : component.physicsWaveDirection);
+  const nextColor = nextChargeValue >= 0 ? "#ef4444" : "#3b82f6";
+
+  if (
+    component.chargeValue === nextChargeValue &&
+    component.physicsColor === nextColor &&
+    component.physicsWaveDirection === direction
+  ) {
+    return component;
+  }
+
+  return {
+    ...component,
+    chargeValue: nextChargeValue,
+    physicsColor: nextColor,
+    physicsWaveDirection: direction,
+    physicsWaveTick: direction ? Date.now() : component.physicsWaveTick,
+  };
+}
+
+function getFrictionContactKey(idA: string, idB: string) {
+  return [idA, idB].sort().join(":");
+}
+
+function clearFrictionContactsFor(
+  id: string,
+  frictionContacts: Map<string, FrictionContact>,
+  exceptKey?: string
+) {
+  for (const key of frictionContacts.keys()) {
+    if (key !== exceptKey && key.split(":").includes(id)) {
+      frictionContacts.delete(key);
+    }
+  }
+}
+
+function clearAllFrictionContacts(frictionContacts: Map<string, FrictionContact>) {
+  frictionContacts.clear();
+}
+
+function areSpheresTouching(a: PlacedComponent, b: PlacedComponent) {
+  const radiusA = (a.width || 100) / 2;
+  const radiusB = (b.width || 100) / 2;
+  const centerA = { x: a.x + radiusA, y: a.y + radiusA };
+  const centerB = { x: b.x + radiusB, y: b.y + radiusB };
+  return Math.hypot(centerA.x - centerB.x, centerA.y - centerB.y) < radiusA + radiusB + 12;
+}
+
+function getSphereDistance(a: PlacedComponent, b: PlacedComponent) {
+  const radiusA = (a.width || 100) / 2;
+  const radiusB = (b.width || 100) / 2;
+  const centerA = { x: a.x + radiusA, y: a.y + radiusA };
+  const centerB = { x: b.x + radiusB, y: b.y + radiusB };
+  return Math.hypot(centerA.x - centerB.x, centerA.y - centerB.y);
+}
+
+function findNearestChargedSphere(
+  component: PlacedComponent,
+  components: PlacedComponent[],
+  range: number
+) {
+  let nearest: PlacedComponent | undefined;
+  let minDistance = Infinity;
+
+  for (const candidate of components) {
+    if (
+      candidate.id === component.id ||
+      !candidate.componentId.startsWith("sphere_") ||
+      !candidate.chargeValue
+    ) {
+      continue;
+    }
+
+    const distance = getSphereDistance(component, candidate);
+    if (distance < range && distance < minDistance) {
+      nearest = candidate;
+      minDistance = distance;
+    }
+  }
+
+  return nearest;
+}
+
+function hasFrictionMethod(a: PlacedComponent, b: PlacedComponent) {
+  return a.physicsChargeMethod === "Friction" || b.physicsChargeMethod === "Friction";
+}
+
+function hasConductionMethod(a: PlacedComponent, b: PlacedComponent) {
+  return a.physicsChargeMethod === "Conduction" || b.physicsChargeMethod === "Conduction";
+}
+
+function applyFrictionChargePair(
+  components: PlacedComponent[],
+  sphereA: PlacedComponent,
+  sphereB: PlacedComponent
+) {
+  const wfA = METAL_WORK_FUNCTIONS[sphereA.physicsMetal || "Copper"] || 4.65;
+  const wfB = METAL_WORK_FUNCTIONS[sphereB.physicsMetal || "Copper"] || 4.65;
+
+  return components.map((component) => {
+    if (component.id !== sphereA.id && component.id !== sphereB.id) return component;
+
+    if (wfA === wfB) {
+      return applyChargeChange(component, 0);
+    }
+
+    const transferAmount = 5;
+    const nextChargeValue = component.id === sphereA.id
+      ? (wfA < wfB ? transferAmount : -transferAmount)
+      : (wfB < wfA ? transferAmount : -transferAmount);
+    const waveDirection = nextChargeValue >= 0 ? "outward" : "inward";
+
+    return applyChargeChange(component, nextChargeValue, waveDirection);
+  });
+}
+
+function applyConductionChargePair(
+  components: PlacedComponent[],
+  sphereA: PlacedComponent,
+  sphereB: PlacedComponent
+) {
+  const sharedCharge = ((sphereA.chargeValue || 0) + (sphereB.chargeValue || 0)) / 2;
+  let changed = false;
+
+  const nextComponents = components.map((component) => {
+    if (component.id !== sphereA.id && component.id !== sphereB.id) {
+      return component;
+    }
+
+    const nextComponent = applyChargeChange(
+      component,
+      sharedCharge,
+      sharedCharge === 0 ? undefined : sharedCharge > 0 ? "outward" : "inward"
+    );
+    if (nextComponent !== component) {
+      changed = true;
+    }
+
+    return nextComponent;
+  });
+
+  return changed ? nextComponents : components;
+}
+
+function applyConductionForWire(components: PlacedComponent[], wire: Wire) {
+  const sphereA = components.find((component) => component.id === wire.from.compId);
+  const sphereB = components.find((component) => component.id === wire.to.compId);
+
+  if (
+    !sphereA ||
+    !sphereB ||
+    sphereA.id === sphereB.id ||
+    !sphereA.componentId.startsWith("sphere_") ||
+    !sphereB.componentId.startsWith("sphere_") ||
+    !hasConductionMethod(sphereA, sphereB)
+  ) {
+    return components;
+  }
+
+  return applyConductionChargePair(components, sphereA, sphereB);
+}
+
+function applyConductionForWires(components: PlacedComponent[], wires: Wire[]) {
+  return wires.reduce(
+    (nextComponents, wire) => applyConductionForWire(nextComponents, wire),
+    components
+  );
+}
+
+function applyReadyFrictionCharges(
+  components: PlacedComponent[],
+  frictionContacts: Map<string, FrictionContact>
+) {
+  const spheres = components.filter((component) => component.componentId.startsWith("sphere_"));
+  const activeKeys = new Set<string>();
+  let nextComponents = components;
+
+  for (let i = 0; i < spheres.length; i += 1) {
+    for (let j = i + 1; j < spheres.length; j += 1) {
+      const sphereA = spheres[i];
+      const sphereB = spheres[j];
+      if (!hasFrictionMethod(sphereA, sphereB) || !areSpheresTouching(sphereA, sphereB)) {
+        continue;
+      }
+
+      const contactKey = getFrictionContactKey(sphereA.id, sphereB.id);
+      activeKeys.add(contactKey);
+
+      if (!frictionContacts.has(contactKey)) {
+        frictionContacts.set(contactKey, { startedAt: Date.now(), charged: false });
+      }
+      const contact = frictionContacts.get(contactKey)!;
+
+      if (!contact.charged && Date.now() - contact.startedAt >= FRICTION_CHARGE_DELAY_MS) {
+        contact.charged = true;
+        nextComponents = applyFrictionChargePair(nextComponents, sphereA, sphereB);
+      }
+    }
+  }
+
+  for (const key of frictionContacts.keys()) {
+    if (!activeKeys.has(key)) {
+      frictionContacts.delete(key);
+    }
+  }
+
+  return nextComponents;
+}
+
+function applySphereInteractions(
+  components: PlacedComponent[],
+  movedId: string,
+  frictionContacts: Map<string, FrictionContact>
+): PlacedComponent[] {
+  const movedIdx = components.findIndex((c) => c.id === movedId);
+  if (movedIdx === -1) return components;
+
+  const movedComp = components[movedIdx];
+  if (!movedComp.componentId.startsWith("sphere_")) {
+    clearFrictionContactsFor(movedId, frictionContacts);
+    return components;
+  }
+
+  const touchedSphere = components.find((c) => (
+    c.id !== movedComp.id &&
+    c.componentId.startsWith("sphere_") &&
+    areSpheresTouching(movedComp, c)
+  ));
+  const frictionTouchedSphere = touchedSphere && hasFrictionMethod(movedComp, touchedSphere)
+    ? touchedSphere
+    : undefined;
+
+  if (movedComp.physicsChargeMethod === "Friction" || frictionTouchedSphere) {
+    if (!frictionTouchedSphere) {
+      clearFrictionContactsFor(movedId, frictionContacts);
+      return components;
+    }
+
+    const contactKey = getFrictionContactKey(movedComp.id, frictionTouchedSphere.id);
+    clearFrictionContactsFor(movedComp.id, frictionContacts, contactKey);
+    if (!frictionContacts.has(contactKey)) {
+      frictionContacts.set(contactKey, { startedAt: Date.now(), charged: false });
+    }
+
+    return components;
+  }
+
+  clearFrictionContactsFor(movedId, frictionContacts);
+
+  const method = movedComp.physicsChargeMethod;
+
+  if (touchedSphere && hasConductionMethod(movedComp, touchedSphere)) {
+    return applyConductionChargePair(components, movedComp, touchedSphere);
+  }
+
+  let didFinalizeInduction = false;
+  const finalizedByInduction = components.map((component) => {
+    if (
+      !component.componentId.startsWith("sphere_") ||
+      component.physicsChargeMethod !== "Induction" ||
+      component.physicsEarthing === "Earthed" ||
+      !component.physicsInductionSourceId ||
+      !component.physicsInductionPendingCharge
+    ) {
+      return component;
+    }
+
+    const source = components.find((candidate) => candidate.id === component.physicsInductionSourceId);
+    if (!source || getSphereDistance(component, source) <= INDUCTION_FINALIZE_DISTANCE) {
+      return component;
+    }
+
+    const finalCharge = component.physicsInductionPendingCharge;
+    didFinalizeInduction = true;
+    return applyChargeChange(
+      {
+        ...component,
+        physicsInductionSourceId: undefined,
+        physicsInductionPendingCharge: undefined,
+      },
+      finalCharge,
+      finalCharge >= 0 ? "outward" : "inward"
+    );
+  });
+
+  if (didFinalizeInduction) {
+    return finalizedByInduction;
+  }
+
+  if (method === "Earthing" && movedComp.physicsEarthing === "Earthed") {
+    return components.map((c) => (c.id === movedComp.id ? applyChargeChange(c, 0) : c));
+  }
+
+  return components;
+}
+
+function applyReadyInductionCharges(components: PlacedComponent[]) {
+  let nextComponents = components;
+
+  for (const component of components) {
+    if (
+      component.componentId.startsWith("sphere_") &&
+      component.physicsChargeMethod === "Induction" &&
+      component.physicsEarthing === "Earthed"
+    ) {
+      const inductor = findNearestChargedSphere(component, components, INDUCTION_RANGE);
+      const pendingCharge = inductor ? -(inductor.chargeValue || 0) : undefined;
+
+      if (
+        component.chargeValue !== 0 ||
+        component.physicsInductionSourceId !== inductor?.id ||
+        component.physicsInductionPendingCharge !== pendingCharge
+      ) {
+        nextComponents = nextComponents.map((candidate) =>
+          candidate.id === component.id
+            ? {
+              ...candidate,
+              chargeValue: 0,
+              physicsWaveDirection: undefined,
+              physicsWaveTick: undefined,
+              physicsInductionSourceId: inductor?.id,
+              physicsInductionPendingCharge: pendingCharge,
+            }
+            : candidate
+        );
+      }
+
+      continue;
+    }
+
+    if (
+      !component.componentId.startsWith("sphere_") ||
+      component.physicsChargeMethod !== "Induction" ||
+      component.physicsEarthing === "Earthed" ||
+      !component.physicsInductionSourceId ||
+      !component.physicsInductionPendingCharge
+    ) {
+      continue;
+    }
+
+    const source = components.find((candidate) => candidate.id === component.physicsInductionSourceId);
+    if (!source || getSphereDistance(component, source) <= INDUCTION_FINALIZE_DISTANCE) {
+      continue;
+    }
+
+    const finalCharge = component.physicsInductionPendingCharge;
+    nextComponents = nextComponents.map((candidate) =>
+      candidate.id === component.id
+        ? applyChargeChange(
+          {
+            ...candidate,
+            physicsInductionSourceId: undefined,
+            physicsInductionPendingCharge: undefined,
+          },
+          finalCharge,
+          finalCharge >= 0 ? "outward" : "inward"
+        )
+        : candidate
+    );
+  }
+
+  return nextComponents;
 }
 
 function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; notes: Note[]; drawings: Drawing[] } {
@@ -50,7 +448,7 @@ function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; note
       const drawings = parsed.drawings ?? [];
       return { components, wires, notes, drawings };
     }
-  } catch {}
+  } catch { }
   return { components: [], wires: [], notes: [], drawings: [] };
 }
 
@@ -69,6 +467,7 @@ export function useCircuitStore() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [activeTool, setActiveTool] = useState<"select" | "pencil" | "eraser">("select");
   const [pencilColor, setPencilColor] = useState("#ef4444");
+  const frictionContactsRef = useRef<Map<string, FrictionContact>>(new Map());
 
   // Use a ref for history so saveToHistory never goes stale
   const historyRef = useRef<HistoryEntry[]>([
@@ -103,8 +502,13 @@ export function useCircuitStore() {
     if (!isHydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ components, wires, notes, drawings }));
-    } catch {}
+    } catch { }
   }, [components, wires, notes, drawings, isHydrated]);
+
+  useEffect(() => {
+    const frictionContacts = frictionContactsRef.current;
+    return () => clearAllFrictionContacts(frictionContacts);
+  }, []);
 
   const saveToHistory = useCallback((comps: PlacedComponent[], ws: Wire[], ns: Note[], ds: Drawing[]) => {
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
@@ -112,6 +516,24 @@ export function useCircuitStore() {
     historyIndexRef.current = historyRef.current.length - 1;
     forceUpdate((n) => n + 1);
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const timer = setInterval(() => {
+      setComponents((prev) => {
+        const afterFriction = applyReadyFrictionCharges(prev, frictionContactsRef.current);
+        const afterConduction = applyConductionForWires(afterFriction, wires);
+        const next = applyReadyInductionCharges(afterConduction);
+        if (next !== prev) {
+          saveToHistory(next, wires, notes, drawings);
+        }
+        return next;
+      });
+    }, 250);
+
+    return () => clearInterval(timer);
+  }, [drawings, isHydrated, notes, saveToHistory, wires]);
 
   const addComponent = useCallback(
     (comp: PlacedComponent) => {
@@ -125,34 +547,81 @@ export function useCircuitStore() {
   );
 
   const moveComponent = useCallback((id: string, x: number, y: number) => {
-    setComponents((prev) => prev.map((c) => (c.id === id ? { ...c, x, y } : c)));
+    setComponents((prev) => {
+      const positioned = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      return applySphereInteractions(
+        positioned,
+        id,
+        frictionContactsRef.current
+      );
+    });
   }, []);
 
   const commitComponentMove = useCallback((id: string, x: number, y: number) => {
     setComponents((prev) => {
-      let changed = false;
-      const next = prev.map((c) => {
-        if (c.id !== id) return c;
-        if (c.x === x && c.y === y) return c;
-        changed = true;
-        return { ...c, x, y };
-      });
-      if (changed) {
-        saveToHistory(next, wires, notes, drawings);
-      }
-      return next;
+      const movedIdx = prev.findIndex(c => c.id === id);
+      if (movedIdx === -1) return prev;
+
+      const oldComp = prev[movedIdx];
+      if (oldComp.x === x && oldComp.y === y) return prev;
+
+      let nextComps = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      nextComps = applySphereInteractions(
+        nextComps,
+        id,
+        frictionContactsRef.current
+      );
+
+      saveToHistory(nextComps, wires, notes, drawings);
+      return nextComps;
     });
   }, [notes, saveToHistory, wires, drawings]);
 
   const updateComponent = useCallback((id: string, updates: Partial<PlacedComponent>) => {
     setComponents((prev) => {
-      // When ledColor changes, auto-refresh the SVG data URLs so the canvas shows the right icon
       let resolvedUpdates = updates;
       if (updates.ledColor !== undefined) {
         const { imageSrc, litImageSrc } = getLedDataUrls(updates.ledColor);
         resolvedUpdates = { ...updates, imageSrc, litImageSrc };
       }
-      const next = prev.map((c) => (c.id === id ? { ...c, ...resolvedUpdates } : c));
+
+      const comp = prev.find(c => c.id === id);
+      if (comp && comp.componentId.startsWith('sphere_') && updates.physicsEarthing !== undefined) {
+        // Induction / Earthing Logic
+        if (updates.physicsEarthing === "Earthed" && comp.physicsChargeMethod === "Induction") {
+          const inductor = findNearestChargedSphere(comp, prev, INDUCTION_RANGE);
+
+          if (inductor) {
+            // Earth supplies charge; it becomes permanent after ungrounding and moving the charged sphere away.
+            resolvedUpdates = {
+              ...resolvedUpdates,
+              chargeValue: 0,
+              physicsWaveDirection: undefined,
+              physicsWaveTick: undefined,
+              physicsInductionSourceId: inductor.id,
+              physicsInductionPendingCharge: -(inductor.chargeValue || 0),
+            };
+          } else {
+            // Earth neutralizes if no inductor
+            resolvedUpdates = {
+              ...resolvedUpdates,
+              chargeValue: 0,
+              physicsInductionSourceId: undefined,
+              physicsInductionPendingCharge: undefined,
+            };
+          }
+        } else if (updates.physicsEarthing === "Earthed") {
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            chargeValue: 0,
+            physicsInductionSourceId: undefined,
+            physicsInductionPendingCharge: undefined,
+          };
+        }
+      }
+
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...resolvedUpdates } : c));
+      const next = applyConductionForWires(updated, wires);
       saveToHistory(next, wires, notes, drawings);
       return next;
     });
@@ -200,8 +669,9 @@ export function useCircuitStore() {
       setWires((prevWires) => {
         const next = [...prevWires, nextWire];
         setComponents((prevComps) => {
-          saveToHistory(prevComps, next, notes, drawings);
-          return prevComps;
+          const nextComps = applyConductionForWire(prevComps, nextWire);
+          saveToHistory(nextComps, next, notes, drawings);
+          return nextComps;
         });
         return next;
       });
@@ -383,6 +853,7 @@ export function useCircuitStore() {
   }, [components, wires, drawings, saveToHistory]);
 
   const reset = useCallback(() => {
+    clearAllFrictionContacts(frictionContactsRef.current);
     setComponents([]);
     setWires([]);
     setNotes([]);

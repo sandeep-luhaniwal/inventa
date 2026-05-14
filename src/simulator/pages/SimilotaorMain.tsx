@@ -11,8 +11,6 @@ import PropertyPanel from "../components/circuit/PropertyPanel";
 import { relativePinsToPorts } from "../utils/circuitUtils";
 import { simulateCircuit } from "../utils/simulation";
 import LiveStatsPanel from "../components/circuit/LiveStatsPanel";
-import { STATIC_COMPONENTS } from "../constants/staticComponents";
-import CoulombLab from "../components/circuit/CoulombLab";
 
 const SimilotaorMain = () => {
   const store = useCircuitStore();
@@ -44,9 +42,6 @@ const SimilotaorMain = () => {
     () => simulateCircuit(store.components, store.wires),
     [store.components, store.wires]
   );
-
-  // No-op for AI Sim Result as we use the local one directly
-  const aiSimResult = simResult;
 
   const simulatedComponents = useMemo(
     () =>
@@ -136,6 +131,25 @@ const SimilotaorMain = () => {
 
       const { viewBoxW: width, viewBoxH: height } = draggedComponent;
 
+      const isSphere = draggedComponent.id.startsWith("sphere_");
+      const physicsTopic = isSphere ? draggedComponent.physicsTopic || "Methods of Charging" : undefined;
+      if (
+        physicsTopic === "Coulomb's Law" &&
+        store.components.filter((component) =>
+          component.componentId.startsWith("sphere_") &&
+          component.physicsTopic === "Coulomb's Law"
+        ).length >= 3
+      ) {
+        alert("You can add a maximum of 3 spheres for Coulomb's Law.");
+        setDraggedComponent(null);
+        return;
+      }
+
+      const initialCharge = isSphere ? 0 : undefined;
+      const initialUnit = isSphere ? "µC" : undefined;
+      const initialRadius = isSphere ? 55 : undefined;
+      const initialColor = isSphere ? (draggedComponent.id === "sphere_blue" ? "#3b82f6" : "#ef4444") : undefined;
+
       const newComp: PlacedComponent = {
         id: `${draggedComponent.id}-${Date.now()}`,
         componentId: draggedComponent.id,
@@ -152,6 +166,16 @@ const SimilotaorMain = () => {
         flipped: false,
         ports: relativePinsToPorts(draggedComponent.relativePins, width, height),
         relativePins: draggedComponent.relativePins,
+        chargeValue: initialCharge,
+        chargeUnit: initialUnit,
+        physicsRadius: initialRadius,
+        physicsColor: initialColor,
+        physicsTopic,
+        physicsMetal: isSphere ? "Copper" : undefined,
+        physicsMedium: isSphere ? "Vacuum" : undefined,
+        physicsDielectric: isSphere ? 1 : undefined,
+        physicsChargeMethod: isSphere ? "Methods of Charging" : undefined,
+        physicsEarthing: isSphere ? "Not Earthed" : undefined,
       };
       store.addComponent(newComp);
       setDraggedComponent(null);
@@ -205,8 +229,6 @@ const SimilotaorMain = () => {
         simulationSummary={shortSummary}
         onToggleSimulation={handleToggleSimulation}
       />
-
-      {viewMode !== "coulomb" && (
       <Toolbar
         canUndo={store.canUndo}
         canRedo={store.canRedo}
@@ -232,8 +254,6 @@ const SimilotaorMain = () => {
         pencilColor={store.pencilColor}
         onPencilColorChange={store.setPencilColor}
       />
-      )}
-
       <div className="flex-1 relative flex overflow-hidden">
         {viewMode === "canvas" && (
           <>
@@ -275,7 +295,7 @@ const SimilotaorMain = () => {
                 />
 
                 {store.isSimulating && simResult && (
-                  <LiveStatsPanel simulation={simResult as any} />
+                  <LiveStatsPanel simulation={simResult} />
                 )}
 
                 {store.selectedComponents.length === 1 && (
@@ -288,16 +308,11 @@ const SimilotaorMain = () => {
               </div>
             </div>
             <ComponentPalette
-              onDragStart={setDraggedComponent}
-              onCoulombClick={() => setViewMode("coulomb")}
-              isCoulombActive={false}
+              onDragStart={handlePaletteDragStart}
             />
           </>
         )}
 
-        {viewMode === "coulomb" && (
-          <CoulombLab />
-        )}
 
         {viewMode === "schematic" && (
           <SchematicView

@@ -5,6 +5,7 @@ import ChargedSphere from "./ChargedSphere";
 import ElectricFieldLines from "./ElectricFieldLines";
 import DistanceScale from "./DistanceScale";
 import ForceIndicator from "./ForceIndicator";
+import CalculationPopup from "./CalculationPopup";
 import { ChargedBody } from "../../types/physics";
 
 interface CoulombCanvasProps {
@@ -22,6 +23,7 @@ interface CoulombCanvasProps {
   fieldLineCount: number;
   onBodyDrag: (bodyId: "A" | "B", x: number, y: number) => void;
   onDistanceChange: (value: number) => void;
+  forceFormatted: string;
 }
 
 export default function CoulombCanvas({
@@ -39,6 +41,7 @@ export default function CoulombCanvas({
   fieldLineCount,
   onBodyDrag,
   onDistanceChange,
+  forceFormatted,
 }: CoulombCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ width: 900, height: 600 });
@@ -236,6 +239,20 @@ export default function CoulombCanvas({
           Drag the spheres to change distance • Use the panel to set charge values
         </text>
       </svg>
+
+      {/* Calculation Popup */}
+      <CalculationPopup
+        force={force}
+        forceFormatted={forceFormatted}
+        forceType={forceType}
+        q1={bodyA.charge}
+        q1Unit={bodyA.chargeUnit}
+        pol1={bodyA.polarity}
+        q2={bodyB.charge}
+        q2Unit={bodyB.chargeUnit}
+        pol2={bodyB.polarity}
+        initialPos={{ x: 24, y: 24 }}
+      />
 
       {/* Drag hint overlay */}
       {dragging && (

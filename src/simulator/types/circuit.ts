@@ -36,6 +36,22 @@ export interface PlacedComponent {
   capacitanceUnit?: string;
   isBurned?: boolean;
   brightness?: number; // 0 to 1
+
+  // Physics fields (Coulomb's Law)
+  chargeValue?: number;
+  chargeUnit?: string;
+  physicsRadius?: number;
+  physicsColor?: string;
+  physicsTopic?: string;
+  physicsMetal?: string;
+  physicsMedium?: string;
+  physicsDielectric?: number;
+  physicsChargeMethod?: string;
+  physicsEarthing?: string;
+  physicsWaveDirection?: "outward" | "inward";
+  physicsWaveTick?: number;
+  physicsInductionSourceId?: string;
+  physicsInductionPendingCharge?: number;
 }
 
 export interface Note {

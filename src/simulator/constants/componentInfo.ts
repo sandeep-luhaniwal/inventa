@@ -321,6 +321,40 @@ const BREADBOARD_INFO: ComponentInfo = {
   ],
 };
 
+const CHARGED_SPHERE_INFO: ComponentInfo = {
+  displayName: "Charged Sphere",
+  tagline: "Electrostatics conductor model",
+  description:
+    "A charged metal sphere is used to study electrostatics. It stores excess positive or negative charge on its outer surface and helps demonstrate charging, induction, grounding, electric field, and potential.",
+  sections: [
+    {
+      title: "How it works",
+      content:
+        "Charge exists in two forms: positive and negative. Like charges repel and unlike charges attract. In a conducting sphere, free electrons move easily, so excess charge redistributes itself over the outer surface until electrostatic equilibrium is reached.",
+    },
+    {
+      title: "Methods of Charging",
+      content:
+        "A body can be charged mainly by friction, conduction, and induction. Friction transfers electrons during rubbing, conduction transfers charge by direct contact, and induction redistributes charges without direct contact. Earthing is used with induction to leave a net charge on the conductor.",
+    },
+    {
+      title: "Metal conductor",
+      content:
+        "Metals are good conductors because they contain free electrons. When a metal sphere is charged, these electrons move quickly across the surface, making the charge spread out uniformly on the outer boundary of the sphere.",
+    },
+    {
+      title: "Earthing",
+      content:
+        "Earthing means connecting the conductor to the ground so excess electrons can flow to earth or electrons can flow in from earth. It is used to neutralize charge or to complete charging by induction in a controlled way.",
+    },
+    {
+      title: "Electrostatic ideas",
+      content:
+        "The electric field around a charged sphere acts radially. Electric flux depends on the net enclosed charge, and Gauss's theorem helps explain the field symmetry. Potential is highest near positive charge and lower near negative charge. Capacitance describes how much charge the sphere can store for a given potential.",
+    },
+  ],
+};
+
 export const COMPONENT_INFO_MAP: Record<string, ComponentInfo> = {
   led: LED_INFO,
   resistor: RESISTOR_INFO,
@@ -331,6 +365,8 @@ export const COMPONENT_INFO_MAP: Record<string, ComponentInfo> = {
   pushbutton: PUSHBUTTON_INFO,
   slideswitch: SLIDESWITCH_INFO,
   breadboard: BREADBOARD_INFO,
+  sphere: CHARGED_SPHERE_INFO,
+  sphere_red: CHARGED_SPHERE_INFO,
 };
 
 export function getComponentInfo(componentId: string): ComponentInfo | null {

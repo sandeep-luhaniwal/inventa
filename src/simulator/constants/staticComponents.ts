@@ -8,6 +8,8 @@
  *  - relativePins           -> pin positions as fractions of the viewBox (0-1)
  */
 
+import { METAL_PHYSICS } from "./physics";
+
 export interface StaticPin {
   name: string;
   relX: number;
@@ -1339,6 +1341,26 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       { name: "B2", relX: 86 / 140, relY: 136 / 140 },
     ],
   },
+  {
+    id: "sphere_red",
+    name: "Charged Sphere",
+    category: "Physics",
+    viewBoxW: 100,
+    viewBoxH: 100,
+    svgBody: `
+      <defs>
+        <radialGradient id="sphere_grad" cx="40%" cy="35%">
+          <stop offset="0%" stop-color="VAR_LIGHT" stop-opacity="0.9" />
+          <stop offset="50%" stop-color="VAR_MAIN" stop-opacity="0.7" />
+          <stop offset="100%" stop-color="VAR_DARK" stop-opacity="0.95" />
+        </radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="40" fill="url(#sphere_grad)" stroke="VAR_MAIN" stroke-width="2" />
+    `,
+    relativePins: [
+      { name: "Ground (⏚)", relX: 0.5, relY: 0.9, type: "ground" }
+    ],
+  },
 ];
 
 /**
@@ -1394,5 +1416,27 @@ export function getMicrobitDataUrls(
   return {
     imageSrc: svgToDataUrl(modifiedDef, false, outlined),
     litImageSrc: modifiedDef.litSvgBody ? svgToDataUrl(modifiedDef, true, outlined) : undefined,
+  };
+}
+
+export function getSphereDataUrls(
+  metal: string,
+  outlined = false
+): { imageSrc: string } {
+  const def = STATIC_COMPONENTS.find((d) => d.id === "sphere_red");
+  if (!def) return { imageSrc: "" };
+
+  const colors = (METAL_PHYSICS[metal] || METAL_PHYSICS.Copper).colors;
+
+  const modifiedDef = {
+    ...def,
+    svgBody: def.svgBody
+      .replace(/VAR_MAIN/g, colors.main)
+      .replace(/VAR_LIGHT/g, colors.light)
+      .replace(/VAR_DARK/g, colors.dark)
+  };
+
+  return {
+    imageSrc: svgToDataUrl(modifiedDef, false, outlined),
   };
 }
