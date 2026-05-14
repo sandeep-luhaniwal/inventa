@@ -199,6 +199,7 @@ const Canvas = ({
         isSuperposition: true,
         mediumName: selectedSphere.physicsMedium || "Vacuum",
         dielectric: selectedSphere.physicsDielectric ?? 1,
+        baseForce: 0,
         superpositionWorking: firstForce && secondForce ? {
           f1: firstForce.magnitude,
           f2: secondForce.magnitude,

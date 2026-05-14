@@ -616,7 +616,9 @@ const SphereChargeWave = ({
     }, layer);
 
     anim.start();
-    return () => anim.stop();
+    return () => {
+      anim.stop();
+    };
   }, [direction, loopDuration, waveTick]);
 
   if (!direction || !waveTick) return null;
