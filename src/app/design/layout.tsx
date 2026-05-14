@@ -5,6 +5,7 @@ export const metadata: Metadata = {
     description: "Dashboard page",
 };
 
+
 export default function DesignLayout({
     children,
 }: {
