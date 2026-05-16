@@ -10,6 +10,9 @@ const STORAGE_KEY = "circuit_project";
 const FRICTION_CHARGE_DELAY_MS = 5000;
 const INDUCTION_RANGE = 300;
 const INDUCTION_FINALIZE_DISTANCE = 220;
+const POTENTIAL_RING_RADIUS_FACTOR = 4;
+const POTENTIAL_DIFFERENCE_VISUAL_RADIUS_SCALE = 0.78;
+const POTENTIAL_DIFFERENCE_OUTER_RING_FACTOR = 3.85;
 type FrictionContact = {
   startedAt: number;
   charged: boolean;
@@ -127,6 +130,117 @@ function getSphereDistance(a: PlacedComponent, b: PlacedComponent) {
   const centerA = { x: a.x + radiusA, y: a.y + radiusA };
   const centerB = { x: b.x + radiusB, y: b.y + radiusB };
   return Math.hypot(centerA.x - centerB.x, centerA.y - centerB.y);
+}
+
+function getSphereCenter(component: PlacedComponent) {
+  const radius = (component.width || 100) / 2;
+  return {
+    x: component.x + radius,
+    y: component.y + radius,
+  };
+}
+
+function clampPotentialDifferenceProbes(components: PlacedComponent[]) {
+  const potentialDifferenceSpheres = components.filter((component) =>
+    component.componentId.startsWith("sphere_") &&
+    component.physicsTopic === "Electric Potential Difference"
+  );
+  const sourceSphere = potentialDifferenceSpheres.find((component) => Math.abs(component.chargeValue || 0) > 0);
+
+  if (!sourceSphere) return components;
+
+  const sourceCenter = getSphereCenter(sourceSphere);
+  const sourceRadius = (sourceSphere.width || 100) / 2;
+  const outerRingRadius = sourceRadius * POTENTIAL_DIFFERENCE_VISUAL_RADIUS_SCALE * POTENTIAL_DIFFERENCE_OUTER_RING_FACTOR;
+  let changed = false;
+
+  const nextComponents = components.map((component) => {
+    if (
+      component.id === sourceSphere.id ||
+      !potentialDifferenceSpheres.some((sphere) => sphere.id === component.id)
+    ) {
+      return component;
+    }
+
+    const probeCenter = getSphereCenter(component);
+    const dx = probeCenter.x - sourceCenter.x;
+    const dy = probeCenter.y - sourceCenter.y;
+    const distance = Math.hypot(dx, dy);
+
+    const probeRadius = ((component.width || 100) / 2) * POTENTIAL_DIFFERENCE_VISUAL_RADIUS_SCALE;
+    const maxProbeCenterDistance = Math.max(sourceRadius, outerRingRadius - probeRadius);
+
+    if (distance <= maxProbeCenterDistance || distance === 0) return component;
+
+    const scale = maxProbeCenterDistance / distance;
+    const nextCenterX = sourceCenter.x + dx * scale;
+    const nextCenterY = sourceCenter.y + dy * scale;
+    const width = component.width || 100;
+    const height = component.height || width;
+    changed = true;
+
+    return {
+      ...component,
+      x: nextCenterX - width / 2,
+      y: nextCenterY - height / 2,
+    };
+  });
+
+  return changed ? nextComponents : components;
+}
+
+function applyElectricPotentialDistances(components: PlacedComponent[]) {
+  const potentialSpheres = components.filter((component) =>
+    component.componentId.startsWith("sphere_") &&
+    component.physicsTopic === "Electric Potential"
+  );
+
+  if (potentialSpheres.length < 2) return components;
+
+  let changed = false;
+  const nextComponents = components.map((component) => {
+    if (!potentialSpheres.some((sphere) => sphere.id === component.id)) return component;
+
+    const isSourceSphere = Math.abs(component.chargeValue || 0) > 0;
+    const candidates = potentialSpheres.filter((sphere) => {
+      if (sphere.id === component.id) return false;
+      return isSourceSphere || Math.abs(sphere.chargeValue || 0) > 0;
+    });
+    if (!candidates.length) return component;
+
+    const nearest = candidates.reduce(
+      (best, candidate) => {
+        const distance = getSphereDistance(component, candidate);
+        return !best || distance < best.distance ? { component: candidate, distance } : best;
+      },
+      null as { component: PlacedComponent; distance: number } | null
+    );
+    if (!nearest) return component;
+
+    const sourceSphere = isSourceSphere ? component : nearest.component;
+    const testSphere = isSourceSphere ? nearest.component : component;
+    const sourceRadiusPx = (sourceSphere.width || 100) / 2;
+    const testRadiusPx = (testSphere.width || 100) / 2;
+    const outerRingTouchDistancePx = sourceRadiusPx * POTENTIAL_RING_RADIUS_FACTOR + testRadiusPx;
+    const distanceM = nearest.distance <= outerRingTouchDistancePx
+      ? Number((nearest.distance / 100).toFixed(3))
+      : Infinity;
+    const currentDistance = component.physicsObservationDistance ?? -1;
+    const distanceUnchanged = Number.isFinite(distanceM) && Number.isFinite(currentDistance)
+      ? Math.abs(currentDistance - distanceM) < 0.001
+      : currentDistance === distanceM;
+    if (distanceUnchanged) {
+      return component;
+    }
+
+    changed = true;
+    return {
+      ...component,
+      physicsObservationDistance: distanceM,
+    };
+  });
+
+  return changed ? nextComponents : components;
 }
 
 function findNearestChargedSphere(
@@ -538,7 +652,7 @@ export function useCircuitStore() {
   const addComponent = useCallback(
     (comp: PlacedComponent) => {
       setComponents((prev) => {
-        const next = [...prev, comp];
+        const next = applyElectricPotentialDistances(clampPotentialDifferenceProbes([...prev, comp]));
         saveToHistory(next, wires, notes, drawings);
         return next;
       });
@@ -549,11 +663,13 @@ export function useCircuitStore() {
   const moveComponent = useCallback((id: string, x: number, y: number) => {
     setComponents((prev) => {
       const positioned = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
-      return applySphereInteractions(
-        positioned,
+      const constrained = clampPotentialDifferenceProbes(positioned);
+      const interacted = applySphereInteractions(
+        constrained,
         id,
         frictionContactsRef.current
       );
+      return applyElectricPotentialDistances(interacted);
     });
   }, []);
 
@@ -566,11 +682,13 @@ export function useCircuitStore() {
       if (oldComp.x === x && oldComp.y === y) return prev;
 
       let nextComps = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      nextComps = clampPotentialDifferenceProbes(nextComps);
       nextComps = applySphereInteractions(
         nextComps,
         id,
         frictionContactsRef.current
       );
+      nextComps = applyElectricPotentialDistances(nextComps);
 
       saveToHistory(nextComps, wires, notes, drawings);
       return nextComps;
@@ -620,8 +738,8 @@ export function useCircuitStore() {
         }
       }
 
-      const updated = prev.map((c) => (c.id === id ? { ...c, ...resolvedUpdates } : c));
-      const next = applyConductionForWires(updated, wires);
+      const updated = clampPotentialDifferenceProbes(prev.map((c) => (c.id === id ? { ...c, ...resolvedUpdates } : c)));
+      const next = applyElectricPotentialDistances(applyConductionForWires(updated, wires));
       saveToHistory(next, wires, notes, drawings);
       return next;
     });

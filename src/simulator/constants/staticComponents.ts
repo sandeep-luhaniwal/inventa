@@ -1361,6 +1361,21 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       { name: "Ground (⏚)", relX: 0.5, relY: 0.9, type: "ground" }
     ],
   },
+  {
+    id: "earthing_icon",
+    name: "Earthing",
+    category: "Physics",
+    viewBoxW: 100,
+    viewBoxH: 100,
+    svgBody: `
+      <rect x="0" y="0" width="100" height="100" rx="10" fill="#F0FDF4"/>
+      <rect x="46" y="16" width="8" height="36" rx="1" fill="#22C55E"/>
+      <rect x="20" y="48" width="60" height="8" rx="1" fill="#22C55E"/>
+      <rect x="28" y="62" width="44" height="8" rx="1" fill="#22C55E"/>
+      <rect x="36" y="76" width="28" height="8" rx="1" fill="#22C55E"/>
+    `,
+    relativePins: [],
+  },
 ];
 
 /**

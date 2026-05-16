@@ -46,6 +46,12 @@ export interface PlacedComponent {
   physicsMetal?: string;
   physicsMedium?: string;
   physicsDielectric?: number;
+  physicsSphereType?: "Conducting" | "Non-Conducting";
+  physicsObservationDistance?: number;
+  physicsFluxSurfaceType?: "Triangular" | "Disc" | "Cylindrical" | "Spherical";
+  physicsFluxArea?: number;
+  physicsFluxAngle?: number;
+  physicsFluxSurfaceSize?: number;
   physicsChargeMethod?: string;
   physicsEarthing?: string;
   physicsWaveDirection?: "outward" | "inward";

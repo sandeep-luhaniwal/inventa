@@ -174,6 +174,12 @@ const SimilotaorMain = () => {
         physicsMetal: isSphere ? "Copper" : undefined,
         physicsMedium: isSphere ? "Vacuum" : undefined,
         physicsDielectric: isSphere ? 1 : undefined,
+        physicsSphereType: isSphere ? "Conducting" : undefined,
+        physicsObservationDistance: isSphere ? 1 : undefined,
+        physicsFluxSurfaceType: isSphere ? "Disc" : undefined,
+        physicsFluxArea: isSphere ? 1 : undefined,
+        physicsFluxAngle: isSphere ? 0 : undefined,
+        physicsFluxSurfaceSize: isSphere ? 100 : undefined,
         physicsChargeMethod: isSphere ? "Methods of Charging" : undefined,
         physicsEarthing: isSphere ? "Not Earthed" : undefined,
       };
@@ -285,6 +291,7 @@ const SimilotaorMain = () => {
                   onDragOver={handleCanvasDragOver}
                   onComponentMove={store.moveComponent}
                   onComponentMoveEnd={store.commitComponentMove}
+                  onComponentUpdate={store.updateComponent}
                   onPinClick={store.handlePinClick}
                   onComponentSelect={store.selectComponent}
                   onWireSelect={store.setSelectedWire}

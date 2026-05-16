@@ -7,6 +7,10 @@ import ComponentNode from "./canvas/ComponentNode";
 import BreadboardNode from "./canvas/BreadboardNode";
 import PhysicsLayer from "./canvas/PhysicsLayer";
 import CalculationPopup from "./CalculationPopup";
+import ElectricFieldCalculationPopup from "./ElectricFieldCalculationPopup";
+import ElectricFluxCalculationPopup from "./ElectricFluxCalculationPopup";
+import ElectricPotentialCalculationPopup from "./ElectricPotentialCalculationPopup";
+import ElectricPotentialDifferenceCalculationPopup from "./ElectricPotentialDifferenceCalculationPopup";
 import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulator/types/circuit";
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
@@ -23,6 +27,9 @@ const ZOOM_SCALE = 1.08;
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 4;
 const COULOMB_K = 8.9875517923e9;
+const ELECTRIC_FIELD_K = 9e9;
+const EPSILON_0 = 8.854e-12;
+const POTENTIAL_RING_RADIUS_FACTOR = 4;
 const CHARGE_UNIT_MULTIPLIER: Record<string, number> = {
   C: 1,
   mC: 1e-3,
@@ -79,6 +86,7 @@ export interface CanvasProps {
   onDragOver: (e: React.DragEvent) => void; 
   onComponentMove: (id: string, x: number, y: number) => void;
   onComponentMoveEnd: (id: string, x: number, y: number) => void;
+  onComponentUpdate?: (id: string, updates: Partial<PlacedComponent>) => void;
   onPinClick: (compId: string, portIndex: number) => void;
   onComponentSelect: (compId: string, multi: boolean) => void;
   onWireSelect: (wireId: string) => void;
@@ -114,6 +122,7 @@ const Canvas = ({
   onDragOver,
   onComponentMove,
   onComponentMoveEnd,
+  onComponentUpdate,
   onPinClick,
   onComponentSelect,
   onWireSelect,
@@ -199,6 +208,7 @@ const Canvas = ({
         isSuperposition: true,
         mediumName: selectedSphere.physicsMedium || "Vacuum",
         dielectric: selectedSphere.physicsDielectric ?? 1,
+        baseForce: undefined,
         superpositionWorking: firstForce && secondForce ? {
           f1: firstForce.magnitude,
           f2: secondForce.magnitude,
@@ -245,6 +255,194 @@ const Canvas = ({
         ? ((COULOMB_K * Math.abs(q1 * q2)) / (distanceM * distanceM)) / dielectric
         : 0,
       isRepulsive: q1 * q2 > 0,
+    };
+  }, [placedComponents, selectedComponents]);
+
+  const electricFieldCalculation = useMemo(() => {
+    const spheres = placedComponents.filter((component) =>
+      component.componentId.startsWith("sphere_") &&
+      component.physicsTopic === "Electric Field Intensity"
+    );
+
+    const selectedSphere = spheres.find((sphere) => selectedComponents.includes(sphere.id)) || spheres[0];
+    if (!selectedSphere) return null;
+
+    const q = toCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit);
+    if (q === 0) return null;
+
+    const radiusM = ((selectedSphere.width || 100) / 2) / 100;
+    const distanceM = selectedSphere.physicsObservationDistance ?? Math.max(1, radiusM);
+    const sphereType = selectedSphere.physicsSphereType || "Conducting";
+    const region: "inside" | "surface/outside" = distanceM < radiusM ? "inside" : "surface/outside";
+    const electricField =
+      sphereType === "Conducting" && distanceM < radiusM
+        ? 0
+        : sphereType === "Non-Conducting" && distanceM < radiusM
+          ? (ELECTRIC_FIELD_K * Math.abs(q) * distanceM) / Math.pow(radiusM || 1, 3)
+          : (ELECTRIC_FIELD_K * Math.abs(q)) / Math.pow(distanceM || 1, 2);
+
+    return {
+      chargeMicroC: toMicroCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit),
+      radiusM,
+      distanceM,
+      electricField,
+      sphereType,
+      region,
+    };
+  }, [placedComponents, selectedComponents]);
+
+  const electricFluxCalculation = useMemo(() => {
+    const spheres = placedComponents.filter((component) =>
+      component.componentId.startsWith("sphere_") &&
+      component.physicsTopic === "Electric Flux"
+    );
+    const selectedSphere = spheres.find((sphere) => selectedComponents.includes(sphere.id)) || spheres[0];
+    if (!selectedSphere) return null;
+
+    const q = toCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit);
+    if (q === 0) return null;
+
+    const distanceM = selectedSphere.physicsObservationDistance ?? 1;
+    const electricField = distanceM > 0 ? (ELECTRIC_FIELD_K * Math.abs(q)) / (distanceM * distanceM) : 0;
+    const area = selectedSphere.physicsFluxArea ?? 1;
+    const angle = selectedSphere.physicsFluxAngle ?? 0;
+    const surfaceType = selectedSphere.physicsFluxSurfaceType || "Disc";
+    const closedSurface = surfaceType === "Cylindrical" || surfaceType === "Spherical";
+    const flux = closedSurface
+      ? Math.abs(q) / EPSILON_0
+      : electricField * area * Math.cos((angle * Math.PI) / 180);
+
+    return {
+      chargeMicroC: toMicroCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit),
+      electricField,
+      area,
+      angle,
+      surfaceType,
+      closedSurface,
+      flux,
+    };
+  }, [placedComponents, selectedComponents]);
+
+  const electricPotentialCalculation = useMemo(() => {
+    const spheres = placedComponents.filter((component) =>
+      component.componentId.startsWith("sphere_") &&
+      component.physicsTopic === "Electric Potential"
+    );
+    const selectedSphere = spheres.find((sphere) => selectedComponents.includes(sphere.id)) || spheres[0];
+    if (!selectedSphere) return null;
+
+    const selectedCharge = toCoulombs(selectedSphere.chargeValue || 0, selectedSphere.chargeUnit);
+    const selectedCenter = getSphereCenter(selectedSphere);
+    const sourceSphere = selectedCharge !== 0
+      ? selectedSphere
+      : spheres
+        .filter((sphere) => toCoulombs(sphere.chargeValue || 0, sphere.chargeUnit) !== 0)
+        .map((sphere) => ({
+          sphere,
+          distance: Math.hypot(
+            getSphereCenter(sphere).x - selectedCenter.x,
+            getSphereCenter(sphere).y - selectedCenter.y
+          ),
+        }))
+        .sort((a, b) => a.distance - b.distance)[0]?.sphere;
+    if (!sourceSphere) return null;
+
+    const sourceCenter = getSphereCenter(sourceSphere);
+    const nearestTest = spheres.length > 1
+      ? spheres
+        .filter((sphere) => sphere.id !== sourceSphere.id)
+        .map((sphere) => ({
+          sphere,
+          distancePx: Math.hypot(
+            getSphereCenter(sphere).x - sourceCenter.x,
+            getSphereCenter(sphere).y - sourceCenter.y
+          ),
+        }))
+        .sort((a, b) => a.distancePx - b.distancePx)[0]
+      : undefined;
+    const q = toCoulombs(sourceSphere.chargeValue || 0, sourceSphere.chargeUnit);
+    if (q === 0) return null;
+
+    const radiusM = ((sourceSphere.width || 100) / 2) / 100;
+    const nearestTestDistanceM = nearestTest
+      ? nearestTest.distancePx <= ((sourceSphere.width || 100) / 2) * POTENTIAL_RING_RADIUS_FACTOR + ((nearestTest.sphere.width || 100) / 2)
+        ? nearestTest.distancePx / 100
+        : Infinity
+      : undefined;
+    const distanceM = nearestTestDistanceM ?? sourceSphere.physicsObservationDistance ?? Math.max(1, radiusM);
+    const region: "inside" | "surface" | "outside" = distanceM < radiusM
+      ? "inside"
+      : Math.abs(distanceM - radiusM) < 0.001
+        ? "surface"
+        : "outside";
+    const electricField = region === "inside" || !Number.isFinite(distanceM)
+      ? 0
+      : (ELECTRIC_FIELD_K * Math.abs(q)) / Math.pow(distanceM || 1, 2);
+    const electricPotential = !Number.isFinite(distanceM)
+      ? 0
+      : region === "inside"
+      ? (ELECTRIC_FIELD_K * q) / (radiusM || 1)
+      : (ELECTRIC_FIELD_K * q) / (distanceM || 1);
+
+    return {
+      chargeMicroC: toMicroCoulombs(sourceSphere.chargeValue || 0, sourceSphere.chargeUnit),
+      radiusM,
+      distanceM,
+      electricField,
+      electricPotential,
+      region,
+    };
+  }, [placedComponents, selectedComponents]);
+
+  const electricPotentialDifferenceCalculation = useMemo(() => {
+    const spheres = placedComponents.filter((component) =>
+      component.componentId.startsWith("sphere_") &&
+      component.physicsTopic === "Electric Potential Difference"
+    );
+    const selectedSource = spheres.find((sphere) =>
+      selectedComponents.includes(sphere.id) &&
+      toCoulombs(sphere.chargeValue || 0, sphere.chargeUnit) !== 0
+    );
+    const sourceSphere = selectedSource || spheres.find((sphere) =>
+      toCoulombs(sphere.chargeValue || 0, sphere.chargeUnit) !== 0
+    );
+    if (!sourceSphere) return null;
+
+    const sourceCenter = getSphereCenter(sourceSphere);
+    const probes = spheres
+      .filter((sphere) => sphere.id !== sourceSphere.id)
+      .map((sphere) => ({
+        sphere,
+        distanceM: Math.max(
+          0.001,
+          Math.hypot(
+            getSphereCenter(sphere).x - sourceCenter.x,
+            getSphereCenter(sphere).y - sourceCenter.y
+          ) / 100
+        ),
+      }))
+      .sort((a, b) => a.distanceM - b.distanceM)
+      .slice(0, 2);
+
+    if (probes.length < 2) return null;
+
+    const q = toCoulombs(sourceSphere.chargeValue || 0, sourceSphere.chargeUnit);
+    const dielectric = sourceSphere.physicsDielectric ?? 1;
+    const mediumName = sourceSphere.physicsMedium || "Vacuum";
+    const potentialAt = (distanceM: number) =>
+      Number.isFinite(dielectric) ? (ELECTRIC_FIELD_K * q) / (dielectric * distanceM) : 0;
+    const potentialA = potentialAt(probes[0].distanceM);
+    const potentialB = potentialAt(probes[1].distanceM);
+
+    return {
+      chargeMicroC: toMicroCoulombs(sourceSphere.chargeValue || 0, sourceSphere.chargeUnit),
+      distanceA: probes[0].distanceM,
+      distanceB: probes[1].distanceM,
+      potentialA,
+      potentialB,
+      deltaV: potentialB - potentialA,
+      mediumName,
+      dielectric,
     };
   }, [placedComponents, selectedComponents]);
 
@@ -563,6 +761,7 @@ const Canvas = ({
                     blinkToggle={blinkToggle}
                     onDragMove={onComponentMove}
                     onDragEnd={onComponentMoveEnd}
+                    onUpdate={onComponentUpdate}
                     onPinClick={onPinClick}
                     onSelect={onComponentSelect}
                     onSizeResolved={onPortsResolved}
@@ -625,6 +824,53 @@ const Canvas = ({
           mediumName={coulombCalculation.mediumName}
           dielectric={coulombCalculation.dielectric}
           baseForce={coulombCalculation.baseForce}
+        />
+      )}
+
+      {!coulombCalculation && electricFieldCalculation && (
+        <ElectricFieldCalculationPopup
+          chargeMicroC={electricFieldCalculation.chargeMicroC}
+          radiusM={electricFieldCalculation.radiusM}
+          distanceM={electricFieldCalculation.distanceM}
+          electricField={electricFieldCalculation.electricField}
+          sphereType={electricFieldCalculation.sphereType}
+          region={electricFieldCalculation.region}
+        />
+      )}
+
+      {!coulombCalculation && !electricFieldCalculation && electricFluxCalculation && (
+        <ElectricFluxCalculationPopup
+          chargeMicroC={electricFluxCalculation.chargeMicroC}
+          electricField={electricFluxCalculation.electricField}
+          area={electricFluxCalculation.area}
+          angle={electricFluxCalculation.angle}
+          surfaceType={electricFluxCalculation.surfaceType}
+          closedSurface={electricFluxCalculation.closedSurface}
+          flux={electricFluxCalculation.flux}
+        />
+      )}
+
+      {!coulombCalculation && !electricFieldCalculation && !electricFluxCalculation && electricPotentialCalculation && (
+        <ElectricPotentialCalculationPopup
+          chargeMicroC={electricPotentialCalculation.chargeMicroC}
+          radiusM={electricPotentialCalculation.radiusM}
+          distanceM={electricPotentialCalculation.distanceM}
+          electricField={electricPotentialCalculation.electricField}
+          electricPotential={electricPotentialCalculation.electricPotential}
+          region={electricPotentialCalculation.region}
+        />
+      )}
+
+      {!coulombCalculation && !electricFieldCalculation && !electricFluxCalculation && !electricPotentialCalculation && electricPotentialDifferenceCalculation && (
+        <ElectricPotentialDifferenceCalculationPopup
+          chargeMicroC={electricPotentialDifferenceCalculation.chargeMicroC}
+          distanceA={electricPotentialDifferenceCalculation.distanceA}
+          distanceB={electricPotentialDifferenceCalculation.distanceB}
+          potentialA={electricPotentialDifferenceCalculation.potentialA}
+          potentialB={electricPotentialDifferenceCalculation.potentialB}
+          deltaV={electricPotentialDifferenceCalculation.deltaV}
+          mediumName={electricPotentialDifferenceCalculation.mediumName}
+          dielectric={electricPotentialDifferenceCalculation.dielectric}
         />
       )}
 
