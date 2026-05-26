@@ -12,7 +12,9 @@ export function useImage(src: string): HTMLImageElement | null {
     if (cache[src]) {
       setImg(cache[src]);
     } else {
-      setImg(null);
+      if (!img) {
+        setImg(null);
+      }
     }
   }
 

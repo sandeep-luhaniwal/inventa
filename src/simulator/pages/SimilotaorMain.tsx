@@ -9,7 +9,7 @@ import SchematicView from "../components/circuit/SchematicView";
 import BomView from "../components/circuit/BomView";
 import PropertyPanel from "../components/circuit/PropertyPanel";
 import { relativePinsToPorts } from "../utils/circuitUtils";
-import { simulateCircuit } from "../utils/simulation";
+import { simulateCircuit, SimulatedComponentState } from "../utils/simulation";
 import LiveStatsPanel from "../components/circuit/LiveStatsPanel";
 
 const SimilotaorMain = () => {
@@ -17,10 +17,16 @@ const SimilotaorMain = () => {
   const [viewMode, setViewMode] = useState<"canvas" | "schematic" | "bom" | "coulomb">("canvas");
   const [draggedComponent, setDraggedComponent] = useState<ComponentItem | null>(null);
   const [blinkToggle, setBlinkToggle] = useState(true);
+  const [simulationTick, setSimulationTick] = useState(0);
 
   useEffect(() => {
     if (!store.isSimulating) return;
-    const timer = setInterval(() => setBlinkToggle((b) => !b), 500);
+    const timer = setInterval(() => {
+      setSimulationTick((tick) => {
+        if ((tick + 1) % 10 === 0) setBlinkToggle((b) => !b);
+        return tick + 1;
+      });
+    }, 50);
     return () => clearInterval(timer);
   }, [store.isSimulating]);
 
@@ -38,14 +44,18 @@ const SimilotaorMain = () => {
   const undoRef = useRef(store.undo);
   const redoRef = useRef(store.redo);
 
+  const simClock = store.isSimulating ? simulationTick : 0;
   const simResult = useMemo(
-    () => simulateCircuit(store.components, store.wires),
-    [store.components, store.wires]
+    () => {
+      void simClock;
+      return simulateCircuit(store.components, store.wires);
+    },
+    [store.components, store.wires, simClock]
   );
 
   const simulatedComponents = useMemo(
     () =>
-      store.components.reduce<Record<string, { lit?: boolean; powered?: boolean; brightness?: number; isBurned?: boolean; isShortCircuit?: boolean; direction?: number }>>((acc, component) => {
+      store.components.reduce<Record<string, SimulatedComponentState>>((acc, component) => {
         if (!store.isSimulating) {
           acc[component.id] = {
             lit: false,
@@ -60,6 +70,7 @@ const SimilotaorMain = () => {
 
         const state = simResult?.componentStates?.[component.id];
         acc[component.id] = {
+          ...state,
           lit: simResult?.litComponents.includes(component.id),
           powered: simResult?.poweredComponents.includes(component.id),
           brightness: state?.brightness ?? 0,
@@ -68,7 +79,7 @@ const SimilotaorMain = () => {
           direction: state?.direction ?? 1
         };
         return acc;
-      }, {}),
+      }, {} as Record<string, SimulatedComponentState>),
     [store.components, simResult, store.isSimulating]
   );
 
@@ -132,6 +143,8 @@ const SimilotaorMain = () => {
       const { viewBoxW: width, viewBoxH: height } = draggedComponent;
 
       const isSphere = draggedComponent.id.startsWith("sphere_");
+      const isPowerSupply = draggedComponent.id === "dc_power_supply" || draggedComponent.id === "ac_power_supply";
+      const isAcPowerSupply = draggedComponent.id === "ac_power_supply";
       const physicsTopic = isSphere ? draggedComponent.physicsTopic || "Methods of Charging" : undefined;
       if (
         physicsTopic === "Coulomb's Law" &&
@@ -166,6 +179,9 @@ const SimilotaorMain = () => {
         flipped: false,
         ports: relativePinsToPorts(draggedComponent.relativePins, width, height),
         relativePins: draggedComponent.relativePins,
+        voltageValue: draggedComponent.voltageValue,
+        capacitanceValue: draggedComponent.capacitanceValue,
+        capacitanceUnit: draggedComponent.capacitanceUnit,
         chargeValue: initialCharge,
         chargeUnit: initialUnit,
         physicsRadius: initialRadius,
@@ -182,6 +198,11 @@ const SimilotaorMain = () => {
         physicsFluxSurfaceSize: isSphere ? 100 : undefined,
         physicsChargeMethod: isSphere ? "Methods of Charging" : undefined,
         physicsEarthing: isSphere ? "Not Earthed" : undefined,
+        powerSupplyType: isPowerSupply ? (isAcPowerSupply ? "AC" : "DC") : undefined,
+        powerVoltageSet: isPowerSupply ? (draggedComponent.powerVoltageSet ?? (isAcPowerSupply ? 230.5 : 12.5)) : undefined,
+        powerCurrentLimit: isPowerSupply ? (draggedComponent.powerCurrentLimit ?? (isAcPowerSupply ? 1.15 : 0.25)) : undefined,
+        powerFrequency: isAcPowerSupply ? (draggedComponent.powerFrequency ?? 50) : undefined,
+        powerEnabled: isPowerSupply ? true : undefined,
       };
       store.addComponent(newComp);
       setDraggedComponent(null);

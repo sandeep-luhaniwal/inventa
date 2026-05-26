@@ -1,8 +1,9 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint, Drawing } from "../types/circuit";
-import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "../constants/staticComponents";
+import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls } from "../constants/staticComponents";
 import { METAL_PHYSICS } from "../constants/physics";
+import { relativePinsToPorts } from "../utils/circuitUtils";
 
 export type { PlacedComponent, Wire, ConnectingFrom };
 
@@ -29,35 +30,62 @@ function resolveStaticComponentImages(comp: PlacedComponent): PlacedComponent {
     }
     : comp;
 
-  if (comp.componentId === "breadboard") {
-    return normalizedComp;
-  }
+  let result = normalizedComp;
 
-  if (comp.componentId.startsWith("led_") || comp.componentId === "led") {
+  if (comp.componentId === "breadboard") {
+    result = normalizedComp;
+  } else if (comp.componentId.startsWith("led_") || comp.componentId === "led") {
     const resolvedColor =
       comp.ledColor ??
       (comp.componentId.startsWith("led_")
         ? comp.componentId.replace("led_", "")
         : "red");
-    const { imageSrc, litImageSrc } = getLedDataUrls(resolvedColor);
-    return {
+    const { imageSrc, litImageSrc } = getLedDataUrls(resolvedColor, false, comp.id);
+    result = {
       ...normalizedComp,
       ledColor: resolvedColor,
       imageSrc,
       litImageSrc,
     };
+  } else if (comp.componentId === "capacitor") {
+    result = {
+      ...normalizedComp,
+      imageSrc: getCapacitorDataUrl(comp.capacitanceValue ?? 1000, comp.capacitanceUnit ?? "uF", comp.voltageValue ?? 25, false, comp.id),
+    };
+  } else if (comp.componentId === "sphere_red") {
+    result = {
+      ...normalizedComp,
+      imageSrc: getSphereDataUrls(comp.physicsMetal || "Copper", false, comp.id).imageSrc,
+    };
+  } else {
+    const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
+    if (def) {
+      result = {
+        ...normalizedComp,
+        imageSrc: svgToDataUrl(def, false, false, comp.id),
+        litImageSrc: def.litSvgBody ? svgToDataUrl(def, true, false, comp.id) : comp.litImageSrc,
+      };
+    }
   }
 
+  // Always sync width, height, relativePins, and ports from the static definition if one exists
   const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
-  if (!def) {
-    return normalizedComp;
+  if (def && comp.componentId !== "breadboard") {
+    const isSphere = comp.componentId.startsWith("sphere_");
+    result = {
+      ...result,
+      width: isSphere ? result.width : def.viewBoxW,
+      height: isSphere ? result.height : def.viewBoxH,
+      relativePins: def.relativePins,
+      ports: relativePinsToPorts(
+        def.relativePins,
+        isSphere ? (result.width ?? def.viewBoxW) : def.viewBoxW,
+        isSphere ? (result.height ?? def.viewBoxH) : def.viewBoxH
+      ),
+    };
   }
 
-  return {
-    ...normalizedComp,
-    imageSrc: svgToDataUrl(def, false),
-    litImageSrc: def.litSvgBody ? svgToDataUrl(def, true) : comp.litImageSrc,
-  };
+  return result;
 }
 
 const METAL_WORK_FUNCTIONS = Object.fromEntries(
@@ -551,6 +579,49 @@ function applyReadyInductionCharges(components: PlacedComponent[]) {
   return nextComponents;
 }
 
+function snapBulbAndHolder(components: PlacedComponent[], movedId: string): PlacedComponent[] {
+  const movedIdx = components.findIndex((c) => c.id === movedId);
+  if (movedIdx === -1) return components;
+
+  const movedComp = components[movedIdx];
+  if (movedComp.componentId === "ac_bulb") {
+    let closestHolder: PlacedComponent | null = null;
+    let minDist = 60;
+    for (const c of components) {
+      if (c.componentId === "bulb_holder") {
+        const dist = Math.hypot(movedComp.x - c.x, movedComp.y - c.y);
+        if (dist < minDist) {
+          minDist = dist;
+          closestHolder = c;
+        }
+      }
+    }
+    if (closestHolder) {
+      return components.map((c) =>
+        c.id === movedId ? { ...c, x: closestHolder.x, y: closestHolder.y } : c
+      );
+    }
+  } else if (movedComp.componentId === "bulb_holder") {
+    let closestBulb: PlacedComponent | null = null;
+    let minDist = 60;
+    for (const c of components) {
+      if (c.componentId === "ac_bulb") {
+        const dist = Math.hypot(movedComp.x - c.x, movedComp.y - c.y);
+        if (dist < minDist) {
+          minDist = dist;
+          closestBulb = c;
+        }
+      }
+    }
+    if (closestBulb) {
+      return components.map((c) =>
+        c.id === movedId ? { ...c, x: closestBulb.x, y: closestBulb.y } : c
+      );
+    }
+  }
+  return components;
+}
+
 function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; notes: Note[]; drawings: Drawing[] } {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -662,7 +733,8 @@ export function useCircuitStore() {
 
   const moveComponent = useCallback((id: string, x: number, y: number) => {
     setComponents((prev) => {
-      const positioned = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      let positioned = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      positioned = snapBulbAndHolder(positioned, id);
       const constrained = clampPotentialDifferenceProbes(positioned);
       const interacted = applySphereInteractions(
         constrained,
@@ -682,6 +754,7 @@ export function useCircuitStore() {
       if (oldComp.x === x && oldComp.y === y) return prev;
 
       let nextComps = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      nextComps = snapBulbAndHolder(nextComps, id);
       nextComps = clampPotentialDifferenceProbes(nextComps);
       nextComps = applySphereInteractions(
         nextComps,
@@ -698,12 +771,28 @@ export function useCircuitStore() {
   const updateComponent = useCallback((id: string, updates: Partial<PlacedComponent>) => {
     setComponents((prev) => {
       let resolvedUpdates = updates;
-      if (updates.ledColor !== undefined) {
-        const { imageSrc, litImageSrc } = getLedDataUrls(updates.ledColor);
+      const comp = prev.find(c => c.id === id);
+      if (updates.ledColor !== undefined && comp) {
+        const { imageSrc, litImageSrc } = getLedDataUrls(updates.ledColor, false, comp.id);
         resolvedUpdates = { ...updates, imageSrc, litImageSrc };
       }
 
-      const comp = prev.find(c => c.id === id);
+      if (comp) {
+        if (comp.componentId === "capacitor" && (updates.capacitanceValue !== undefined || updates.capacitanceUnit !== undefined || updates.voltageValue !== undefined)) {
+          const capVal = updates.capacitanceValue !== undefined ? updates.capacitanceValue : comp.capacitanceValue;
+          const capUnit = updates.capacitanceUnit !== undefined ? updates.capacitanceUnit : comp.capacitanceUnit;
+          const voltVal = updates.voltageValue !== undefined ? updates.voltageValue : comp.voltageValue;
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            imageSrc: getCapacitorDataUrl(capVal ?? 1000, capUnit ?? "uF", voltVal ?? 25, false, comp.id)
+          };
+        } else if (comp.componentId === "sphere_red" && updates.physicsMetal !== undefined) {
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            imageSrc: getSphereDataUrls(updates.physicsMetal, false, comp.id).imageSrc
+          };
+        }
+      }
       if (comp && comp.componentId.startsWith('sphere_') && updates.physicsEarthing !== undefined) {
         // Induction / Earthing Logic
         if (updates.physicsEarthing === "Earthed" && comp.physicsChargeMethod === "Induction") {

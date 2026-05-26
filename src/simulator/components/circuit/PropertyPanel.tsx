@@ -191,6 +191,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
   const isLed = component.componentId.startsWith('led');
   const isMicrobit = component.componentId === 'microbit';
   const isChargedSphere = component.componentId.startsWith('sphere_');
+  const isPowerSupply = component.componentId === "dc_power_supply" || component.componentId === "ac_power_supply";
+  const isAcPowerSupply = component.componentId === "ac_power_supply";
   const showColor = isLed || isMicrobit;
   const [showTooltip, setShowTooltip] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -817,6 +819,158 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
                 </div>
               </div>
             </div>
+          )}
+
+          {component.componentId === 'capacitor' && (
+            <div className="flex gap-1 h-9">
+              <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[85px]">
+                  Working V
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  value={component.voltageValue ?? 25}
+                  onChange={(e) => onUpdate(component.id, { voltageValue: Math.max(0, parseFloat(e.target.value) || 0) })}
+                  className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                />
+              </div>
+              <div className="w-20 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                V
+              </div>
+            </div>
+          )}
+
+          {isPowerSupply && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[82px]">
+                  Output
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.powerEnabled === false ? "Off" : "On"}
+                    onChange={(e) => onUpdate(component.id, { powerEnabled: e.target.value === "On" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="On">On</option>
+                    <option value="Off">Off</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    {isAcPowerSupply ? "Voltage RMS" : "Voltage Set"}
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={isAcPowerSupply ? 260 : 100}
+                    step={isAcPowerSupply ? 1 : 0.1}
+                    value={component.powerVoltageSet ?? (isAcPowerSupply ? 230.5 : 12.5)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      const maxVoltage = isAcPowerSupply ? 260 : 100;
+                      onUpdate(component.id, {
+                        powerVoltageSet: Math.max(0, Math.min(maxVoltage, Number.isFinite(nextValue) ? nextValue : 0)),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  {isAcPowerSupply ? "Vrms" : "V"}
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    {isAcPowerSupply ? "Current RMS" : "Current Set"}
+                  </div>
+                  <input
+                    type="number"
+                    min={0.001}
+                    step={0.01}
+                    value={component.powerCurrentLimit ?? (isAcPowerSupply ? 1.15 : 0.25)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      onUpdate(component.id, {
+                        powerCurrentLimit: Math.max(0.001, Number.isFinite(nextValue) ? nextValue : 0.001),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  {isAcPowerSupply ? "Arms" : "A"}
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    Frequency
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={400}
+                    step={1}
+                    value={component.powerFrequency ?? (isAcPowerSupply ? 50 : 0)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      onUpdate(component.id, {
+                        powerFrequency: Math.max(0, Math.min(400, Number.isFinite(nextValue) ? nextValue : (isAcPowerSupply ? 50 : 0))),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  Hz
+                </div>
+              </div>
+
+              <div className="rounded-md border border-[#02adea]/30 bg-sky-50 px-3 py-2">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-[#0284c7]">
+                  Theory
+                </div>
+                <p className="mt-1 text-[11px] leading-5 text-slate-700">
+                  {isAcPowerSupply
+                    ? "AC supply outputs a sine wave. Peak voltage = Vrms x 1.414 and instantaneous voltage changes with frequency."
+                    : "DC supply works in CV and CC modes. Ideal current is I = V / R."}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {isAcPowerSupply ? (
+                    <>
+                      <p className="text-[10px] leading-4 text-slate-600">- Vrms is the effective AC voltage shown on the display.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Vpeak = Vrms x 1.414.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Instant voltage: V(t) = Vpeak x sin(2*pi*f*t).</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Current limit protects the connected circuit from overload.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Frequency controls how many sine cycles occur per second.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] leading-4 text-slate-600">- CV mode: current is below limit, so output voltage stays at Vset.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- CC mode: overload clamps current and drops voltage.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- New voltage in overload: Vout = I_limit x R.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- DC frequency is 0 Hz because output is constant.</p>
+                    </>
+                  )}
+                </div>
+                <div className="mt-2 rounded bg-white/80 px-2 py-1.5 text-[10px] text-slate-600">
+                  Range: <span className="font-semibold text-slate-800">{isAcPowerSupply ? "0 to 260 Vrms" : "0 to 100 V"}</span>
+                  {" "} - Current limit: <span className="font-semibold text-slate-800">{component.powerCurrentLimit ?? (isAcPowerSupply ? 1.15 : 0.25)} A</span>
+                  {" "} - Frequency: <span className="font-semibold text-slate-800">{component.powerFrequency ?? (isAcPowerSupply ? 50 : 0)} Hz</span>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Learn more button at bottom if info available */}

@@ -9,11 +9,11 @@ import { getComponentSnapOffset } from "@/simulator/utils/snapUtils";
 import { METAL_PHYSICS } from "@/simulator/constants/physics";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path, Arrow, Line } from "react-konva";
-import { getMicrobitDataUrls } from "@/simulator/constants/staticComponents";
+import { getMicrobitDataUrls, STATIC_COMPONENTS } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
-const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
+const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "bulb_holder", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
 const SPHERE_CHARGE_WAVE_COLOR = "#ef4444";
 const SPHERE_MIN_SIZE = 15;
 const SPHERE_MAX_SIZE = 220;
@@ -164,7 +164,8 @@ const ComponentNode = ({
   const layout = useMemo(() => {
     if (!img) return null;
 
-    const relativePins = comp.relativePins ?? [];
+    const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
+    const relativePins = def ? def.relativePins : (comp.relativePins ?? []);
     const isSvgSource =
       activeSrc.startsWith("data:image/svg+xml") ||
       activeSrc.toLowerCase().endsWith(".svg");
@@ -187,7 +188,7 @@ const ComponentNode = ({
     }
 
     return resolveFullImageLayout(img, relativePins);
-  }, [img, comp.relativePins, activeSrc]);
+  }, [img, comp.componentId, comp.relativePins, activeSrc]);
 
   const naturalW = layout?.w ?? 100;
   const naturalH = layout?.h ?? 100;
@@ -219,6 +220,19 @@ const ComponentNode = ({
 
   const isConnecting = connectingFrom !== null;
   const isThisComponentConnecting = isConnecting && connectingFrom?.compId === comp.id;
+  const isSnapped = useMemo(() => {
+    if (comp.componentId === "ac_bulb") {
+      return allComponents.some(
+        (c) => c.componentId === "bulb_holder" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+      );
+    }
+    if (comp.componentId === "bulb_holder") {
+      return allComponents.some(
+        (c) => c.componentId === "ac_bulb" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+      );
+    }
+    return false;
+  }, [comp.componentId, comp.x, comp.y, allComponents]);
   const sphereMetal = METAL_PHYSICS[comp.physicsMetal || "Copper"] || METAL_PHYSICS.Copper;
   const sphereTextColor = getContrastTextColor(sphereMetal.colors.main);
   const isFrictionSphere = isSphere && comp.physicsChargeMethod === "Friction";
@@ -307,7 +321,19 @@ const ComponentNode = ({
         onClick={(e) => {
           if (!isConnecting) {
             e.cancelBubble = true;
+            if (comp.componentId === "pushbutton") {
+              onUpdate?.(comp.id, { isPressed: !comp.isPressed });
+            }
             onSelect(comp.id, e.evt.ctrlKey || e.evt.metaKey);
+          }
+        }}
+        onTap={(e) => {
+          if (!isConnecting) {
+            e.cancelBubble = true;
+            if (comp.componentId === "pushbutton") {
+              onUpdate?.(comp.id, { isPressed: !comp.isPressed });
+            }
+            onSelect(comp.id, false);
           }
         }}
       >
@@ -413,7 +439,19 @@ const ComponentNode = ({
               width={w} 
               height={h} 
               {...(crop ? { crop } : {})}
-              opacity={isBurned ? 0.4 : 1}
+              opacity={comp.componentId === "ac_bulb" && isSnapped ? 0 : (isBurned ? 0.4 : 1)}
+            />
+          )}
+          {comp.componentId === "bulb_holder" && isSnapped && (
+            <BulbSeatedInHolderOverlay width={w} height={h} isLit={isLit} />
+          )}
+          {(comp.componentId === "dc_power_supply" || comp.componentId === "ac_power_supply") && (
+            <DCPowerSupplyOverlays
+              comp={comp}
+              width={w}
+              height={h}
+              simulationState={simulationState}
+              onUpdate={onUpdate ?? (() => {})}
             />
           )}
           {isSphere && (
@@ -470,11 +508,15 @@ const ComponentNode = ({
                return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} speed={brightness} />;
             }
 
+            if (comp.componentId === 'bulb_holder') {
+              return null;
+            }
+
             // Default glow for LEDs and bulbs
             const ledOpt = LED_COLOR_OPTIONS.find(o => o.value === comp.ledColor) || LED_COLOR_OPTIONS[0];
             const colorHex = comp.componentId === 'ac_bulb' ? '#FBC02D' : ledOpt.hex;
-            const glowY = comp.componentId === 'ac_bulb' ? h * 0.45 : h * 0.38;
-            const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * 0.45 : Math.max(w, h) * 0.38;
+            const glowY = comp.componentId === 'ac_bulb' ? h * (45 / 140) : h * 0.38;
+            const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * (45 / 140) : Math.max(w, h) * 0.38;
 
             return (
               <>
@@ -543,21 +585,399 @@ const ComponentNode = ({
           {isShortCircuit && <SparkEffect x={w / 2} y={h / 2} />}
 
 
-          {visualPins.map((pin, i) => (
-            <PinDot
-              key={i}
-              x={pin.x}
-              y={pin.y}
-              index={i}
-              name={comp.relativePins?.[i]?.name}
-              isActive={connectingFrom?.compId === comp.id && connectingFrom?.portIndex === i}
-              isAvailable={isConnecting && !isThisComponentConnecting}
-              compact={isSphere}
-              onClick={() => onPinClick(comp.id, i)}
-            />
-          ))}
+          {visualPins.map((pin, i) => {
+            if (isSnapped) {
+              if (comp.componentId === "ac_bulb") {
+                return null;
+              }
+              if (comp.componentId === "bulb_holder" && (i === 2 || i === 3)) {
+                return null;
+              }
+            }
+            const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
+            const pinDef = (def ? def.relativePins?.[i] : null) || comp.relativePins?.[i];
+            return (
+              <PinDot
+                key={i}
+                x={pin.x}
+                y={pin.y}
+                index={i}
+                name={pinDef?.name}
+                isActive={connectingFrom?.compId === comp.id && connectingFrom?.portIndex === i}
+                isAvailable={isConnecting && !isThisComponentConnecting}
+                compact={isSphere}
+                onClick={() => onPinClick(comp.id, i)}
+              />
+            );
+          })}
         </Group>
       </Group>
+  );
+};
+
+interface DCPowerSupplyOverlaysProps {
+  comp: PlacedComponent;
+  width: number;
+  height: number;
+  simulationState?: SimulatedComponentState;
+  onUpdate: (id: string, updates: Partial<PlacedComponent>) => void;
+}
+
+const DCPowerSupplyOverlays = ({
+  comp,
+  width,
+  height,
+  simulationState,
+  onUpdate,
+}: DCPowerSupplyOverlaysProps) => {
+  const scaleX = width / 180;
+  const scaleY = height / 170;
+  const isAC = comp.componentId === "ac_power_supply";
+  const runtimeState = simulationState as (SimulatedComponentState & {
+    outputVoltage?: number;
+    outputCurrent?: number;
+    fault?: boolean;
+  }) | undefined;
+  const isOn = comp.powerEnabled !== false;
+  const hasFault = !!runtimeState?.isShortCircuit || !!runtimeState?.fault;
+  const voltageMax = isAC ? 260 : 100;
+  const voltageStep = isAC ? 1 : 0.1;
+  const currentStep = 0.01;
+  const voltageSet = comp.powerVoltageSet ?? (isAC ? 230.5 : 12.5);
+  const currentLimit = comp.powerCurrentLimit ?? (isAC ? 1.15 : 0.25);
+  const displayVoltage = isOn ? runtimeState?.outputVoltage ?? voltageSet : 0;
+  const displayCurrent = isOn ? runtimeState?.outputCurrent ?? 0 : 0;
+  const voltageAngle = (Math.min(Math.max(voltageSet, 0), voltageMax) / voltageMax) * 270 - 135;
+  const currentAngle = (Math.min(Math.max(currentLimit, 0), 5) / 5) * 270 - 135;
+
+  const updateVoltage = (delta: number) => {
+    onUpdate(comp.id, {
+      powerVoltageSet: Math.max(0, Math.min(voltageMax, Number((voltageSet + delta).toFixed(1)))),
+    });
+  };
+
+  const updateCurrent = (delta: number) => {
+    onUpdate(comp.id, {
+      powerCurrentLimit: Math.max(0.01, Math.min(5, Number((currentLimit + delta).toFixed(2)))),
+    });
+  };
+
+  const togglePower = () => onUpdate(comp.id, { powerEnabled: !isOn });
+
+  const renderKnob = (x: number, y: number, label: string, angle: number) => (
+    <Group x={x} y={y} listening={false}>
+      <Circle radius={24} fill="rgba(15,23,42,0.22)" />
+      <Group rotation={angle}>
+        <Circle
+          radius={21}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={21}
+          fillRadialGradientColorStops={[0, "#f8fafc", 0.34, "#94a3b8", 0.68, "#334155", 1, "#020617"]}
+          stroke="#1f2937"
+          strokeWidth={1.3}
+        />
+        <Circle
+          radius={15}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={15}
+          fillRadialGradientColorStops={[0, "#ffffff", 0.36, "#9ca3af", 0.82, "#334155", 1, "#111827"]}
+          stroke="#8aa0b6"
+          strokeWidth={0.8}
+        />
+        <Line points={[0, -18, 0, -10]} stroke="#ffffff" strokeWidth={2.4} lineCap="round" />
+      </Group>
+      <Text
+        x={-11}
+        y={-9}
+        width={22}
+        text={label}
+        fontFamily="Georgia, serif"
+        fontSize={17}
+        fontStyle="bold"
+        align="center"
+        fill="#ffffff"
+      />
+    </Group>
+  );
+
+  const renderFineButton = (
+    x: number,
+    y: number,
+    label: string,
+    onPress: () => void,
+    tone: "voltage" | "current" | "dc"
+  ) => {
+    const fillStops =
+      tone === "voltage"
+        ? [0, "#f5d0fe", 0.48, "#a855f7", 1, "#6b21a8"]
+        : tone === "current"
+          ? [0, "#fed7aa", 0.5, "#f59e0b", 1, "#b45309"]
+          : [0, "#ffffff", 0.38, "#cbd5e1", 1, "#64748b"];
+    const strokeColor = tone === "voltage" ? "#581c87" : tone === "current" ? "#7c2d12" : "#475569";
+    const textColor = tone === "dc" ? "#0f172a" : "#ffffff";
+
+    return (
+      <Group
+        x={x}
+        y={y}
+        onMouseDown={(event) => {
+          event.cancelBubble = true;
+        }}
+        onTouchStart={(event) => {
+          event.cancelBubble = true;
+        }}
+        onMouseEnter={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "pointer";
+        }}
+        onMouseLeave={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "default";
+        }}
+        onClick={(event) => {
+          event.cancelBubble = true;
+          onPress();
+        }}
+        onTap={(event) => {
+          event.cancelBubble = true;
+          onPress();
+        }}
+      >
+        <KonvaRect x={-4} y={-4} width={20} height={18} fill="#000000" opacity={0.01} />
+        <KonvaRect
+          width={13}
+          height={11}
+          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+          fillLinearGradientEndPoint={{ x: 0, y: 11 }}
+          fillLinearGradientColorStops={fillStops}
+          stroke={strokeColor}
+          strokeWidth={0.8}
+          cornerRadius={2}
+          shadowColor="#000000"
+          shadowBlur={1.5}
+          shadowOpacity={0.25}
+          shadowOffset={{ x: 0.5, y: 0.7 }}
+        />
+        <Text
+          y={label === "+" ? 0 : -1}
+          width={13}
+          text={label}
+          fontFamily="system-ui, -apple-system, sans-serif"
+          fontSize={9}
+          fontStyle="bold"
+          align="center"
+          fill={textColor}
+        />
+      </Group>
+    );
+  };
+
+  return (
+    <Group scaleX={scaleX} scaleY={scaleY}>
+      {isOn && (
+        <Group x={22} y={30} listening={false}>
+          <Text
+            width={96}
+            text={isAC ? "888.8Vrms" : "88.8V"}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#3b0764" : "#083344"}
+            opacity={0.26}
+          />
+          <Text
+            y={21}
+            width={96}
+            text={isAC ? "8.88Arms" : "8.88A"}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill="#451a03"
+            opacity={0.25}
+          />
+          <Text
+            width={96}
+            text={isAC ? `${displayVoltage.toFixed(1)}Vrms` : `${displayVoltage.toFixed(1)}V`}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#d946ef" : "#00f3fc"}
+            shadowColor={isAC ? "#d946ef" : "#06b6d4"}
+            shadowBlur={4}
+          />
+          <Text
+            y={21}
+            width={96}
+            text={isAC ? `${displayCurrent.toFixed(2)}Arms` : `${displayCurrent.toFixed(2)}A`}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#facc15" : "#f59e0b"}
+            shadowColor="#d97706"
+            shadowBlur={4}
+          />
+        </Group>
+      )}
+
+      {(hasFault || isOn) && (
+        <Group x={146} y={45} listening={false}>
+          <Circle
+            radius={8.2}
+            fill={hasFault ? "#ef2917" : "#f97316"}
+            opacity={hasFault ? 0.98 : 0.55}
+            shadowColor={hasFault ? "#ef4444" : "#fb923c"}
+            shadowBlur={hasFault ? 10 : 4}
+          />
+          <Circle x={-3.4} y={-4.3} radius={2.5} fill="#fff7ed" opacity={0.9} />
+        </Group>
+      )}
+
+      {renderKnob(52, 108, "V", voltageAngle)}
+      {renderKnob(122, 108, "A", currentAngle)}
+      {renderFineButton(78, 93, "+", () => updateVoltage(voltageStep), isAC ? "voltage" : "dc")}
+      {renderFineButton(78, 114, "-", () => updateVoltage(-voltageStep), isAC ? "voltage" : "dc")}
+      {renderFineButton(148, 93, "+", () => updateCurrent(currentStep), isAC ? "current" : "dc")}
+      {renderFineButton(148, 114, "-", () => updateCurrent(-currentStep), isAC ? "current" : "dc")}
+
+      <Group
+        x={29}
+        y={137}
+        onMouseDown={(event) => {
+          event.cancelBubble = true;
+        }}
+        onTouchStart={(event) => {
+          event.cancelBubble = true;
+        }}
+        onMouseEnter={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "pointer";
+        }}
+        onMouseLeave={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "default";
+        }}
+        onClick={(event) => {
+          event.cancelBubble = true;
+          togglePower();
+        }}
+        onTap={(event) => {
+          event.cancelBubble = true;
+          togglePower();
+        }}
+      >
+        <KonvaRect x={-2} y={-2} width={24} height={30} fill="#000000" opacity={0.01} />
+        <KonvaRect
+          x={2}
+          y={isOn ? 10 : 2}
+          width={16}
+          height={12}
+          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+          fillLinearGradientEndPoint={{ x: 0, y: 12 }}
+          fillLinearGradientColorStops={
+            isOn
+              ? [0, "#fef2f2", 0.35, "#ef4444", 1, "#991b1b"]
+              : [0, "#f8fafc", 0.45, "#cbd5e1", 1, "#64748b"]
+          }
+          stroke={isOn ? "#7f1d1d" : "#475569"}
+          strokeWidth={0.7}
+          cornerRadius={1.5}
+          shadowColor={isOn ? "#ef4444" : "#000000"}
+          shadowBlur={isOn ? 3 : 1}
+          shadowOpacity={0.45}
+        />
+      </Group>
+    </Group>
+  );
+};
+
+const BulbSeatedInHolderOverlay = ({
+  width,
+  height,
+  isLit,
+}: {
+  width: number;
+  height: number;
+  isLit: boolean;
+}) => {
+  const sx = width / 100;
+  const sy = height / 140;
+
+  return (
+    <Group y={-3 * sy} scaleX={sx} scaleY={sy} listening={false}>
+      {isLit && (
+        <>
+          <Circle
+            x={50}
+            y={42}
+            radius={34}
+            fill="rgba(251, 191, 36, 0.22)"
+            shadowColor="#fbbf24"
+            shadowBlur={18}
+            opacity={0.82}
+          />
+          <Circle x={50} y={47} radius={20} fill="rgba(255, 237, 146, 0.28)" opacity={0.7} />
+        </>
+      )}
+      <Path
+        data="M 35 70 C 32 62, 27 54, 27 42 C 27 25, 37 15, 50 15 C 63 15, 73 25, 73 42 C 73 54, 68 62, 65 70 C 61 74, 39 74, 35 70 Z"
+        fill={isLit ? "rgba(255, 214, 86, 0.5)" : "rgba(241, 245, 249, 0.34)"}
+        stroke={isLit ? "#f59e0b" : "#8f98a3"}
+        strokeWidth={1.15}
+        shadowColor={isLit ? "#f59e0b" : "#cbd5e1"}
+        shadowBlur={isLit ? 8 : 2}
+        opacity={0.92}
+      />
+      <Path
+        data="M 31 42 C 33 27, 44 19, 58 21 C 47 24, 37 32, 34 47"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth={2.2}
+        opacity={isLit ? 0.58 : 0.42}
+        lineCap="round"
+      />
+      <Path
+        data="M 42 68 L 44 48 M 58 68 L 56 48 M 44 48 Q 46 44, 48 48 Q 50 44, 52 48 Q 54 44, 56 48"
+        fill="none"
+        stroke={isLit ? "#fff7ad" : "#4b5563"}
+        strokeWidth={isLit ? 1.6 : 1.1}
+        shadowColor="#fbbf24"
+        shadowBlur={isLit ? 8 : 0}
+        lineCap="round"
+      />
+      <Path
+        data="M 40 70 C 43 73, 57 73, 60 70 L 60 81 C 57 84, 43 84, 40 81 Z"
+        fill="rgba(82, 90, 98, 0.94)"
+        stroke="#2f353a"
+        strokeWidth={0.5}
+      />
+      {[72, 75.5, 79].map((y) => (
+        <Path
+          key={y}
+          data={`M 37 ${y} C 42 ${y + 3}, 58 ${y + 3}, 63 ${y}`}
+          fill="none"
+          stroke="#d1d5db"
+          strokeWidth={1.4}
+          opacity={0.85}
+          lineCap="round"
+        />
+      ))}
+      <Path
+        data="M 32 80 C 37 83, 63 83, 68 80"
+        fill="none"
+        stroke={isLit ? "#fde68a" : "#f3f4f6"}
+        strokeWidth={1.3}
+        opacity={isLit ? 0.85 : 0.72}
+        lineCap="round"
+      />
+      <Path
+        data="M 31 80 C 35 85, 65 85, 69 80"
+        fill="none"
+        stroke="#111827"
+        strokeWidth={2}
+        opacity={0.65}
+        lineCap="round"
+      />
+    </Group>
   );
 };
 

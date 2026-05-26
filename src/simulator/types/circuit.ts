@@ -26,6 +26,7 @@ export interface PlacedComponent {
   height?: number;
   ports: Pin[];
   isBlinking?: boolean;
+  isPressed?: boolean;
   relativePins?: RelativePin[];
   
   // Ohm's Law fields
@@ -36,6 +37,13 @@ export interface PlacedComponent {
   capacitanceUnit?: string;
   isBurned?: boolean;
   brightness?: number; // 0 to 1
+
+  // Power Supply Simulation Engine fields
+  powerSupplyType?: "DC" | "AC";
+  powerVoltageSet?: number;
+  powerCurrentLimit?: number;
+  powerFrequency?: number;
+  powerEnabled?: boolean;
 
   // Physics fields (Coulomb's Law)
   chargeValue?: number;

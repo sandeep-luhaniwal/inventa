@@ -8,6 +8,11 @@ export interface SimulatedComponentState {
   isBurned?: boolean;
   isShortCircuit?: boolean;
   direction?: number;
+  capacitorVoltage?: number;
+  capacitorChargeCoulombs?: number;
+  capacitorEnergyJoules?: number;
+  capacitorMode?: "charging" | "discharging" | "charged" | "reverse-polarity" | "breakdown";
+  capacitorEquivalentSeriesResistance?: number;
 }
 
 export interface SimulationResult {
@@ -15,7 +20,7 @@ export interface SimulationResult {
   litComponents: string[];
   poweredComponents: string[];
   poweredWires: string[];
-  componentStates?: Record<string, { brightness: number; isBurned: boolean; direction?: number; lit?: boolean }>;
+  componentStates?: Record<string, SimulatedComponentState>;
   summary: string;
   // Ohm's Law stats
   voltage?: number;
@@ -39,6 +44,7 @@ const UNIT_MULTIPLIERS: Record<string, number> = {
 interface BatteryTerminal {
   positiveRoot: string;
   negativeRoot: string;
+  voltage: number;
 }
 
 type Graph = Map<string, Set<string>>;
@@ -49,6 +55,28 @@ const TWO_TERMINAL_LOAD_RESISTANCES: Record<string, number> = {
   gearmotor: 22,
   vibration_motor: 18,
 };
+
+const CAPACITOR_UNIT_MULTIPLIERS: Record<string, number> = {
+  pF: 1e-12,
+  nF: 1e-9,
+  "ÂµF": 1e-6,
+  "µF": 1e-6,
+  uF: 1e-6,
+  mF: 1e-3,
+  F: 1,
+};
+
+const CAPACITOR_TIME_STEP_SECONDS = 0.05;
+const CAPACITOR_DEFAULT_ESR_OHMS = 0.001;
+const LED_FORWARD_VOLTAGE = 2.0;
+const LED_MAX_SAFE_CURRENT_AMPS = 0.02;
+const LED_INTERNAL_RESISTANCE_OHMS = 350;
+
+type CapacitorRuntimeState = {
+  voltage: number;
+};
+
+const capacitorRuntimeStates = new Map<string, CapacitorRuntimeState>();
 
 function makeNodeKey(compId: string, portIndex: number): string {
   return `${compId}:${portIndex}`;
@@ -110,7 +138,7 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
   }
 
   for (const comp of components) {
-    if (comp.componentId === "breadboard") {
+    if (comp.componentId === "breadboard" || comp.componentId === "bulb_holder") {
       const groups = new Map<string, number[]>();
       comp.relativePins?.forEach((pin, index) => {
         if (!pin.type) return;
@@ -129,11 +157,13 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
     const isResistor = comp.componentId === "resistor";
     if (isResistor && !includeResistors) continue;
 
+    const isClosedPushbutton = comp.componentId === "pushbutton" && comp.isPressed === true;
+
     if (
       isResistor ||
       comp.componentId === "diode" ||
       comp.componentId === "slideswitch" ||
-      comp.componentId === "pushbutton" ||
+      isClosedPushbutton ||
       comp.componentId === "ac_bulb" ||
       comp.componentId.startsWith("led")
     ) {
@@ -149,7 +179,12 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
 function getBatteryTerminals(components: PlacedComponent[]): BatteryTerminal[] {
   const terminals: BatteryTerminal[] = [];
   for (const comp of components) {
-    if (!comp.componentId.startsWith("battery")) continue;
+    const isBattery = comp.componentId.startsWith("battery");
+    const isPowerSupply =
+      (comp.componentId === "dc_power_supply" || comp.componentId === "ac_power_supply") &&
+      comp.powerEnabled !== false;
+    if (!isBattery && !isPowerSupply) continue;
+
     let positiveIndex = -1;
     let negativeIndex = -1;
     comp.relativePins?.forEach((pin, index) => {
@@ -160,6 +195,7 @@ function getBatteryTerminals(components: PlacedComponent[]): BatteryTerminal[] {
       terminals.push({
         positiveRoot: makeNodeKey(comp.id, positiveIndex),
         negativeRoot: makeNodeKey(comp.id, negativeIndex),
+        voltage: isPowerSupply ? (comp.powerVoltageSet ?? (comp.componentId === "ac_power_supply" ? 230.5 : 12.5)) : (comp.voltageValue ?? 9),
       });
     }
   }
@@ -218,6 +254,101 @@ function getBaseResistance(comp: PlacedComponent): number {
   return val * (UNIT_MULTIPLIERS[unit] ?? 1);
 }
 
+function getCapacitanceFarads(comp: PlacedComponent): number {
+  const value = comp.capacitanceValue ?? 0;
+  const unit = comp.capacitanceUnit ?? "ÂµF";
+  return Math.max(0, value * (CAPACITOR_UNIT_MULTIPLIERS[unit] ?? 1e-6));
+}
+
+function getCapacitorVoltageLimit(comp: PlacedComponent): number {
+  return Math.max(0, comp.voltageValue ?? 25);
+}
+
+function getCapacitorTerminals(comp: PlacedComponent) {
+  if ((comp.ports?.length ?? 0) < 2) return null;
+  return {
+    positiveNode: makeNodeKey(comp.id, 0),
+    negativeNode: makeNodeKey(comp.id, 1),
+  };
+}
+
+function simulateCapacitors(
+  components: PlacedComponent[],
+  graph: Graph,
+  batteries: BatteryTerminal[],
+  circuitResistance: number
+): Record<string, SimulatedComponentState> {
+  const states: Record<string, SimulatedComponentState> = {};
+  const activeIds = new Set(components.map((comp) => comp.id));
+  for (const id of capacitorRuntimeStates.keys()) {
+    if (!activeIds.has(id)) capacitorRuntimeStates.delete(id);
+  }
+
+  for (const comp of components) {
+    if (comp.componentId !== "capacitor") continue;
+
+    const capacitance = getCapacitanceFarads(comp);
+    const voltageLimit = getCapacitorVoltageLimit(comp);
+    const terminals = getCapacitorTerminals(comp);
+    const runtime = capacitorRuntimeStates.get(comp.id) ?? { voltage: 0 };
+    let targetVoltage = 0;
+    let isConnectedToSource = false;
+    let isReversePolarity = false;
+
+    if (terminals) {
+      for (const battery of batteries) {
+        const posReach = collectReachable(graph, battery.positiveRoot);
+        const negReach = collectReachable(graph, battery.negativeRoot);
+        const forward =
+          posReach.has(terminals.positiveNode) && negReach.has(terminals.negativeNode);
+        const reverse =
+          posReach.has(terminals.negativeNode) && negReach.has(terminals.positiveNode);
+
+        if (forward || reverse) {
+          isConnectedToSource = true;
+          targetVoltage = forward ? battery.voltage : -battery.voltage;
+          isReversePolarity = reverse;
+          break;
+        }
+      }
+    }
+
+    const equivalentSeriesResistance = Math.max(
+      CAPACITOR_DEFAULT_ESR_OHMS,
+      circuitResistance > 0 ? circuitResistance : CAPACITOR_DEFAULT_ESR_OHMS
+    );
+    const tau = Math.max(CAPACITOR_DEFAULT_ESR_OHMS * Math.max(capacitance, 1e-12), equivalentSeriesResistance * Math.max(capacitance, 1e-12));
+    const alpha = 1 - Math.exp(-CAPACITOR_TIME_STEP_SECONDS / tau);
+    const nextVoltage = runtime.voltage + (targetVoltage - runtime.voltage) * Math.min(1, alpha);
+    const absVoltage = Math.abs(nextVoltage);
+    const capacitanceUf = capacitance / 1e-6;
+    const overVoltage = voltageLimit > 0 && absVoltage > voltageLimit;
+    const highStressCapacitance = capacitanceUf > 10000 && absVoltage > 0;
+    const failed = overVoltage || highStressCapacitance;
+    const mode: SimulatedComponentState["capacitorMode"] = failed
+      ? "breakdown"
+      : isConnectedToSource
+        ? (isReversePolarity ? "reverse-polarity" : (Math.abs(targetVoltage - nextVoltage) < 0.02 ? "charged" : "charging"))
+        : (Math.abs(nextVoltage) < 0.02 ? "discharging" : "discharging");
+
+    capacitorRuntimeStates.set(comp.id, { voltage: nextVoltage });
+
+    states[comp.id] = {
+      brightness: 0,
+      lit: false,
+      powered: isConnectedToSource,
+      isBurned: failed,
+      capacitorVoltage: nextVoltage,
+      capacitorChargeCoulombs: capacitance * nextVoltage,
+      capacitorEnergyJoules: 0.5 * capacitance * nextVoltage * nextVoltage,
+      capacitorMode: mode,
+      capacitorEquivalentSeriesResistance: equivalentSeriesResistance,
+    };
+  }
+
+  return states;
+}
+
 export function simulateCircuit(
   components: PlacedComponent[],
   wires: Wire[]
@@ -250,9 +381,10 @@ export function simulateCircuit(
   const poweredComponents = new Set<string>();
   const poweredWires = new Set<string>();
   
-  const totalVoltage = 9; // User specified 9V fixed
+  const totalVoltage = batteries[0]?.voltage ?? 9;
   let totalResistance = 0;
   let hasPath = false;
+  const componentDirections = new Map<string, number>();
   
   // Basic power distribution (visual green wires)
   for (const battery of batteries) {
@@ -329,13 +461,13 @@ export function simulateCircuit(
           totalResistance += getBaseResistance(comp);
           hasPath = true;
           // Terminal 1 is Pos, Terminal 2 is Neg -> Direction -1 (Reverse)
-          (comp as any)._simDirection = -1;
+          componentDirections.set(comp.id, -1);
         } else if (posReach.has(terminals.secondNode) && negReach.has(terminals.firstNode)) {
           litComponents.add(comp.id);
           totalResistance += getBaseResistance(comp);
           hasPath = true;
           // Terminal 2 is Pos, Terminal 1 is Neg -> Direction 1 (Forward / Clockwise)
-          (comp as any)._simDirection = 1;
+          componentDirections.set(comp.id, 1);
         }
       }
     }
@@ -356,7 +488,39 @@ export function simulateCircuit(
   const currentMA = currentAmps * 1000;
   const powerWatts = totalVoltage * currentAmps;
 
-  const componentStates: Record<string, { brightness: number; isBurned: boolean; direction?: number; lit?: boolean }> = {};
+  const componentStates: Record<string, SimulatedComponentState> = simulateCapacitors(
+    components,
+    graph,
+    batteries,
+    totalResistance
+  );
+
+  for (const capacitor of components) {
+    if (capacitor.componentId !== "capacitor") continue;
+    const capState = componentStates[capacitor.id];
+    if (!capState || capState.isBurned || Math.abs(capState.capacitorVoltage ?? 0) < 1.6) continue;
+
+    const terminals = getCapacitorTerminals(capacitor);
+    if (!terminals) continue;
+
+    const capPositiveReach = collectReachable(graph, terminals.positiveNode);
+    const capNegativeReach = collectReachable(graph, terminals.negativeNode);
+    const capNetwork = new Set([...capPositiveReach, ...capNegativeReach]);
+
+    for (const load of components) {
+      const isLedLoad = load.componentId.startsWith("led") || load.componentId === "ac_bulb";
+      const isMotorLoad = load.componentId.toLowerCase().includes("motor");
+      if (!isLedLoad && !isMotorLoad) continue;
+
+      const isConnectedToChargedCapacitor = (load.ports ?? []).some((_, index) =>
+        capNetwork.has(makeNodeKey(load.id, index))
+      );
+      if (isConnectedToChargedCapacitor) {
+        litComponents.add(load.id);
+        poweredComponents.add(load.id);
+      }
+    }
+  }
 
   // Calculate output states based on current
   components.forEach(comp => {
@@ -368,14 +532,51 @@ export function simulateCircuit(
 
     if (isLed || isBulb || isMotor || isMicrobit || isEsc) {
       if (litComponents.has(comp.id)) {
+        if (isLed) {
+          const ledResistance = totalResistance > 0 ? totalResistance : LED_INTERNAL_RESISTANCE_OHMS;
+          const ledCurrentAmps = totalVoltage > LED_FORWARD_VOLTAGE
+            ? (totalVoltage - LED_FORWARD_VOLTAGE) / ledResistance
+            : 0;
+          const currentBrightness = Math.min(1, ledCurrentAmps / LED_MAX_SAFE_CURRENT_AMPS);
+
+          if (isShortCircuit || totalVoltage > 20 || ledCurrentAmps > LED_MAX_SAFE_CURRENT_AMPS * 5) {
+            componentStates[comp.id] = { isBurned: true, brightness: 0, lit: false };
+          } else if (totalVoltage < LED_FORWARD_VOLTAGE || ledCurrentAmps <= 0) {
+            componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
+          } else if (totalVoltage <= 3.5) {
+            const dimRatio = (totalVoltage - LED_FORWARD_VOLTAGE) / (3.5 - LED_FORWARD_VOLTAGE);
+            componentStates[comp.id] = {
+              isBurned: false,
+              brightness: Math.max(0.1, Math.min(0.4, 0.1 + dimRatio * 0.3)),
+              direction: 1,
+              lit: true,
+            };
+          } else if (totalVoltage <= 9) {
+            componentStates[comp.id] = {
+              isBurned: false,
+              brightness: Math.max(0.41, Math.min(1, currentBrightness)),
+              direction: 1,
+              lit: true,
+            };
+          } else {
+            componentStates[comp.id] = {
+              isBurned: false,
+              brightness: 1,
+              direction: 1,
+              lit: true,
+            };
+          }
+          return;
+        }
+
         // Failure States: Over-voltage (e.g. > 12V for small components)
-        const voltageRating = (comp as any).voltageValue || 12;
+        const voltageRating = comp.voltageValue || 12;
         const isOverVoltage = totalVoltage > voltageRating * 2.0;
 
-        if ((isLed && (currentMA > 100 || isShortCircuit)) || isOverVoltage) {
+        if (isOverVoltage) {
           componentStates[comp.id] = { isBurned: true, brightness: 0 };
         } else {
-          let direction = (comp as any)._simDirection ?? 1;
+          let direction = componentDirections.get(comp.id) ?? 1;
 
           // BLDC Logic: Direct Battery Check & Phase swapping
           if (comp.componentId === "bldc_motor") {

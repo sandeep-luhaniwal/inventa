@@ -15,7 +15,7 @@ import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulato
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
-import { getLedDataUrls, getSphereDataUrls, STATIC_COMPONENTS, svgToDataUrl } from "@/simulator/constants/staticComponents";
+import { getLedDataUrls, getSphereDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl } from "@/simulator/constants/staticComponents";
 import { ZoomIn, ZoomOut, Maximize, RefreshCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
@@ -741,14 +741,25 @@ const Canvas = ({
                 const isSelected = selectedComponents.includes(comp.id);
                 const staticDef = STATIC_COMPONENTS.find((d) => d.id === comp.componentId);
                 const isSphere = comp.componentId.startsWith('sphere_');
-                const sphereUrls = isSphere ? getSphereDataUrls(comp.physicsMetal || "Copper", isSelected && !isSphere) : null;
-                const resolvedBaseImageSrc = sphereUrls ? sphereUrls.imageSrc : (staticDef
-                  ? svgToDataUrl(staticDef, false, isSelected)
-                  : comp.imageSrc);
+                const isCapacitor = comp.componentId === 'capacitor';
+                const isPowerSupply = comp.componentId === 'dc_power_supply' || comp.componentId === 'ac_power_supply';
+                const sphereUrls = isSphere ? getSphereDataUrls(comp.physicsMetal || "Copper", isSelected && !isSphere, comp.id) : null;
+                const capacitorImageSrc = isCapacitor
+                  ? getCapacitorDataUrl(
+                      comp.capacitanceValue ?? 1000,
+                      comp.capacitanceUnit ?? "uF",
+                      comp.voltageValue ?? 25,
+                      isSelected,
+                      comp.id
+                    )
+                  : null;
+                const resolvedBaseImageSrc = capacitorImageSrc || (sphereUrls ? sphereUrls.imageSrc : (staticDef
+                  ? svgToDataUrl(staticDef, false, isSelected && !isPowerSupply, comp.id)
+                  : comp.imageSrc));
                 // For LEDs, resolve the live image URLs from the current ledColor
                 const isLed = comp.componentId.startsWith('led_');
                 const resolvedColor = isLed ? (comp.ledColor ?? comp.componentId.replace('led_', '')) : null;
-                const ledUrls = isLed && resolvedColor ? getLedDataUrls(resolvedColor, isSelected) : null;
+                const ledUrls = isLed && resolvedColor ? getLedDataUrls(resolvedColor, isSelected, comp.id) : null;
                 return (
                   <ComponentNode
                     key={comp.id}
@@ -795,6 +806,7 @@ const Canvas = ({
         onWireClick={onWireSelect}
         onWireDoubleClick={onWireDelete}
         onMidPointsChange={onWireMidPointsChange}
+        onComponentClick={(componentId) => onComponentSelect(componentId, false)}
       />
 
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground bg-card/80 px-2 py-1 rounded-full border border-border pointer-events-none select-none">

@@ -57,11 +57,10 @@ const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Prop
             <div className="px-3 pb-3">
               <button
                 onClick={onCoulombClick}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border ${
-                  isCoulombActive
-                    ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20"
-                    : "bg-gradient-to-r from-indigo-500/10 to-blue-500/10 text-indigo-400 border-indigo-500/30 hover:from-indigo-500/20 hover:to-blue-500/20 hover:border-indigo-500/50"
-                }`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border ${isCoulombActive
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20"
+                  : "bg-gradient-to-r from-indigo-500/10 to-blue-500/10 text-indigo-400 border-indigo-500/30 hover:from-indigo-500/20 hover:to-blue-500/20 hover:border-indigo-500/50"
+                  }`}
               >
                 <Zap size={16} className={isCoulombActive ? "text-yellow-300" : "text-indigo-400"} />
                 <span>Coulomb&apos;s Law</span>
@@ -100,46 +99,51 @@ const ComponentPalette = ({ onDragStart, onCoulombClick, isCoulombActive }: Prop
                           : comp;
 
                         return (
-                      <div
-                        key={comp.id}
-                        draggable
-                        onDragStart={(e) => onDragStart(paletteComp, e)}
-                        className="flex flex-col items-center p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all bg-card"
-                      >
-                        {comp.imageSrc ? (
-                          <img src={comp.imageSrc} alt={comp.name} className="mb-2 h-12 w-12 object-contain" draggable={false} />
-                        ) : (
-                          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-md bg-secondary text-[10px] text-muted-foreground">
-                            No image
-                          </div>
-                        )}
-                        <span className="text-center text-xs text-foreground font-medium">{comp.name}</span>
-                        {comp.name === "Charged Sphere" && (
                           <div
-                            className="mt-3 w-full rounded-lg border border-border bg-background/60"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onDragStart={(e) => e.preventDefault()}
+                            key={comp.id}
+                            draggable
+                            onDragStart={(e) => onDragStart(paletteComp, e)}
+                            className="flex min-w-0 flex-col items-center overflow-hidden p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all bg-card"
                           >
-                            <label className="block px-2.5 pt-2 text-[11px] font-semibold text-muted-foreground">
-                              Topics
-                            </label>
-                            <div className="p-2.5 pt-1.5">
-                              <select
-                                value={chargedSphereTopic}
-                                onChange={(e) => setChargedSphereTopic(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[11px] font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            {comp.imageSrc ? (
+                                <img
+                                  src={comp.imageSrc}
+                                  alt={comp.name}
+                                  className="mb-2 h-12 w-12 object-contain"
+                                  draggable={false}
+                                />
+                            ) : (
+                              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-md bg-secondary text-[10px] text-muted-foreground">
+                                No image
+                              </div>
+                            )}
+                            <span className="max-w-full break-words text-center text-xs font-medium leading-tight text-foreground">{comp.name}</span>
+                            {comp.name === "Charged Sphere" && (
+                              <div
+                                className="mt-3 w-full rounded-lg border border-border bg-background/60"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onDragStart={(e) => e.preventDefault()}
                               >
-                                {CHARGED_SPHERE_TOPICS.map((topic) => (
-                                  <option key={topic} value={topic}>
-                                    {topic}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                                <label className="block px-2.5 pt-2 text-[11px] font-semibold text-muted-foreground">
+                                  Topics
+                                </label>
+                                <div className="p-2.5 pt-1.5">
+                                  <select
+                                    value={chargedSphereTopic}
+                                    onChange={(e) => setChargedSphereTopic(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-[11px] font-medium text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                  >
+                                    {CHARGED_SPHERE_TOPICS.map((topic) => (
+                                      <option key={topic} value={topic}>
+                                        {topic}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
                         );
                       })()
                     ))}
