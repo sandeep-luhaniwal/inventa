@@ -230,7 +230,7 @@ export function StandAsset() {
 
 export function RoundBottomFlaskAsset() {
   return (
-    <svg viewBox="0 0 200 280" className="h-44 w-44 drop-shadow-[0_22px_40px_rgba(0,0,0,0.18)]">
+    <svg viewBox="0 0 200 280" className="h-25 w-full drop-shadow-[0_22px_40px_rgba(0,0,0,0.18)]">
       <defs>
         <radialGradient id="rbfBulbFill" cx="38%" cy="36%" r="72%">
           <stop offset="0%" stopColor="#e8f4ff" stopOpacity="0.18" />
@@ -298,7 +298,7 @@ export function RoundBottomFlaskAsset() {
 }
 export function SeparatoryFunnelAsset() {
   return (
-    <svg viewBox="0 0 220 660" className="h-56 w-44 drop-shadow-[0_22px_36px_rgba(0,0,0,0.18)]">
+    <svg viewBox="0 0 220 660" className="h-25 w-full drop-shadow-[0_22px_36px_rgba(0,0,0,0.18)]">
       <defs>
         <radialGradient id="sfBulbFill" cx="44%" cy="30%" r="78%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
@@ -393,22 +393,22 @@ export function SeparatoryFunnelAsset() {
 
         {/* stopcock body - Horizontal Cylinder */}
         <rect x="75" y="338" width="70" height="26" rx="6" fill="url(#sfStopcockGlass)" stroke="url(#sfGlassEdge)" strokeWidth="1.8" />
-        
+
         {/* Yellow Clip/Band as seen in the reference image */}
-        <path 
-          d="M85 334 Q78 351 85 368 M85 334 L92 334 Q85 351 92 368 L85 368" 
-          fill="none" 
-          stroke="#eab308" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
+        <path
+          d="M85 334 Q78 351 85 368 M85 334 L92 334 Q85 351 92 368 L85 368"
+          fill="none"
+          stroke="#eab308"
+          strokeWidth="2"
+          strokeLinecap="round"
           opacity="0.9"
         />
-        <path 
-          d="M135 334 Q142 351 135 368 M135 334 L128 334 Q135 351 128 368 L135 368" 
-          fill="none" 
-          stroke="#eab308" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
+        <path
+          d="M135 334 Q142 351 135 368 M135 334 L128 334 Q135 351 128 368 L135 368"
+          fill="none"
+          stroke="#eab308"
+          strokeWidth="2"
+          strokeLinecap="round"
           opacity="0.9"
         />
         {/* Connectors of the clip */}
@@ -416,20 +416,20 @@ export function SeparatoryFunnelAsset() {
 
         {/* stopcock knob / handle */}
         <g transform="translate(145, 351)">
-           <circle cx="15" cy="0" r="10" fill="url(#sfStopcockGlass)" stroke="url(#sfGlassEdge)" strokeWidth="1.6" />
-           <path d="M10 -5 L20 5 M10 5 L20 -5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+          <circle cx="15" cy="0" r="10" fill="url(#sfStopcockGlass)" stroke="url(#sfGlassEdge)" strokeWidth="1.6" />
+          <path d="M10 -5 L20 5 M10 5 L20 -5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
         </g>
 
         {/* very long stem */}
         <rect x="106" y="364" width="8" height="260" rx="1" fill="url(#sfTubeFill)" stroke="url(#sfGlassEdge)" strokeWidth="1.5" />
         <path d="M110 366 V620" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.12" />
-        
+
         {/* beveled stem tip - angled cut */}
-        <path 
-          d="M106 624 L114 624 L114 645 L106 630 Z" 
-          fill="url(#sfTubeFill)" 
-          stroke="url(#sfGlassEdge)" 
-          strokeWidth="1.4" 
+        <path
+          d="M106 624 L114 624 L114 645 L106 630 Z"
+          fill="url(#sfTubeFill)"
+          stroke="url(#sfGlassEdge)"
+          strokeWidth="1.4"
         />
         <path d="M107 625 L113 625 L113 643 L107 629 Z" fill="#ffffff" fillOpacity="0.08" />
       </g>
@@ -439,21 +439,21 @@ export function SeparatoryFunnelAsset() {
 
 export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
+    <svg viewBox="0 0 120 160" className="h-25 w-full drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
       <GlassDefs />
       <g filter="url(#ultraGlass)">
         {/* Bottle Body */}
         <rect x="35" y="40" width="50" height="90" rx="12" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
         <rect x="35" y="40" width="50" height="90" rx="12" fill="url(#internalReflection)" />
-        
+
         {/* Neck */}
         <rect x="47" y="15" width="26" height="25" rx="4" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-        
+
         {/* Stopper */}
         {!isOpen && (
           <path d="M50 8 L70 8 L66 22 L54 22 Z" fill="#475569" stroke="#1e293b" strokeWidth="1" />
         )}
-        
+
         {/* Measurement Marks - Very subtle like Nobook */}
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
           <line
@@ -474,7 +474,7 @@ export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
 
 export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 220 300" className="h-52 w-44 drop-shadow-[0_22px_40px_rgba(0,0,0,0.15)]">
+    <svg viewBox="0 0 220 300" className="h-25 w-full drop-shadow-[0_22px_40px_rgba(0,0,0,0.15)]">
       <defs>
         <radialGradient id="gjBodyFill" cx="42%" cy="32%" r="80%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
@@ -547,9 +547,9 @@ export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
 
         {/* Neck */}
         <rect x="84" y="38" width="52" height="34" fill="url(#gjNeckFill)" stroke="url(#gjGlassEdge)" strokeWidth="2.2" />
-        
+
         {/* Thick Lip / Rim */}
-        <path 
+        <path
           d="M80 18 
              C80 15 85 12 110 12 
              S140 15 140 18 
@@ -561,11 +561,11 @@ export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
           stroke="url(#gjGlassEdge)"
           strokeWidth="2.4"
         />
-        
+
         {/* Lighting Details from Reference */}
         {/* Highlight on shoulder */}
         <ellipse cx="78" cy="110" rx="14" ry="7" fill="#ffffff" fillOpacity="0.45" filter="url(#gjSoftBlur)" />
-        
+
         {/* Vertical side reflections */}
         <path d="M60 130 V240" fill="none" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.12" filter="url(#gjSoftBlur)" />
         <path d="M160 130 V240" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeOpacity="0.08" />
@@ -573,7 +573,7 @@ export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
         {/* Thick Base Effect */}
         <path d="M52 255 H168" fill="none" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.15" />
         <path d="M52 262 H168" fill="none" stroke="#2a3038" strokeWidth="6" strokeOpacity="0.4" />
-        
+
         {/* Lid (when closed) */}
         {!isOpen && <rect x="85" y="14" width="50" height="12" rx="4" fill="#d1dae5" fillOpacity="0.65" />}
       </g>
@@ -593,7 +593,7 @@ export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "
   const bodyHeight = dims.h - radius;
 
   return (
-    <svg viewBox="0 0 100 200" className="h-52 w-44 drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)]">
+    <svg viewBox="0 0 100 200" className="h-25 w-full drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)]">
       <GlassDefs />
       <g filter="url(#ultraGlass)">
         {/* Main Body - Path for U-shape */}
@@ -607,7 +607,7 @@ export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "
           strokeWidth="0.6"
           strokeOpacity="0.35"
         />
-        
+
         {/* Internal Reflection / Depth */}
         <path
           d={`M${dims.x + 1} ${dims.y} 
@@ -640,9 +640,9 @@ export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "
           fillOpacity="0.14"
           filter="url(#softRim)"
         />
-        
+
         {/* Bottom Curved Highlight */}
-        <path 
+        <path
           d={`M${dims.x + radius * 0.5} ${dims.y + bodyHeight + radius * 0.6} A${radius * 0.5} ${radius * 0.2} 0 0 0 ${dims.x + dims.w - radius * 0.5} ${dims.y + bodyHeight + radius * 0.6}`}
           fill="none"
           stroke="#ffffff"
@@ -658,13 +658,13 @@ export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "
 
 export function GlassBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 120 160" className="h-44 w-44 drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
+    <svg viewBox="0 0 120 160" className="h-25 w-full drop-shadow-[0_20px_35px_rgba(0,0,0,0.12)]">
       <GlassDefs />
       <g filter="url(#ultraGlass)">
         <rect x="35" y="40" width="50" height="85" rx="10" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
         <rect x="35" y="40" width="50" height="85" rx="10" fill="url(#internalReflection)" />
         <rect x="47" y="15" width="26" height="25" rx="3" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-        
+
         {!isOpen && (
           <path d="M50 10 L70 10 L66 22 L54 22 Z" fill="#475569" stroke="#1e293b" strokeWidth="1" />
         )}
@@ -778,15 +778,15 @@ export function MatchAsset({ lit = false }: { lit?: boolean }) {
       <g transform="translate(30 80) rotate(22)">
         {/* The Matchstick Body - Rounded and clean */}
         <rect x="0" y="-3" width="85" height="6" fill={lit ? "url(#perfectBurn)" : "#f8eed3"} rx="2" />
-        
+
         {/* Ash Head */}
         <ellipse cx="6" cy="0" rx="10" ry="7" fill={lit ? "#e5e7eb" : "#e14a3b"} stroke={lit ? "#9ca3af" : "none"} strokeWidth="0.5" />
-        
+
         {lit && (
           <g transform="translate(10, 0)">
             {/* Soft Atmospheric Outer Glow - Scoped to the flame */}
             <circle cx="15" cy="-20" r="30" fill="#f59e0b" opacity="0.15" filter="url(#matchSoftGlow)" />
-            
+
             {/* The Flame - High Fidelity and Clean */}
             <g filter="url(#matchSoftGlow)">
               <path d="M0 0 q-12 -16 0 -40 q12 24 0 40Z" fill="#3b82f6" opacity="0.4" />
@@ -853,7 +853,7 @@ export function MatchboxAsset({
                 <animate attributeName="d" values="M0 0 q-8 -12 0 -34 q8 18 0 34Z; M0 0 q-10 -15 0 -38 q10 20 0 38Z; M0 0 q-8 -12 0 -34 q8 18 0 30Z" dur="0.15s" repeatCount="indefinite" />
               </path>
               <path d="M0 0 q-14 -18 0 -50 q14 28 0 50Z" fill="#fb923c" opacity="0.9">
-                 <animate attributeName="d" values="M0 0 q-14 -18 0 -50 q14 28 0 50Z; M0 0 q-18 -22 0 -55 q18 32 0 55Z; M0 0 q-14 -18 0 -50 q14 28 0 50Z" dur="0.2s" repeatCount="indefinite" />
+                <animate attributeName="d" values="M0 0 q-14 -18 0 -50 q14 28 0 50Z; M0 0 q-18 -22 0 -55 q18 32 0 55Z; M0 0 q-14 -18 0 -50 q14 28 0 50Z" dur="0.2s" repeatCount="indefinite" />
               </path>
             </g>
           )}
@@ -864,32 +864,32 @@ export function MatchboxAsset({
       <g transform="translate(40 30)">
         {/* Front-Left Face */}
         <path d="M0 45 L40 75 L40 100 L0 70 Z" fill="#b9a67e" stroke="#9d8a64" strokeWidth="0.5" />
-        
+
         {/* Front-Right Face (Striking Surface) */}
         <path d="M40 75 L145 35 L145 60 L40 100 Z" fill="#311c1d" stroke="#1f1213" strokeWidth="0.5" />
-        
+
         {/* Top Face */}
         <path d="M0 45 L105 5 L145 35 L40 75 Z" fill="#dfd1b3" stroke="#cbb994" strokeWidth="0.5" />
 
         {/* Red Border Design on Top */}
-        <path 
-          d="M12 47 L102 12 L133 35 L43 70 Z" 
-          fill="none" 
-          stroke="#b44f50" 
-          strokeWidth="1.8" 
+        <path
+          d="M12 47 L102 12 L133 35 L43 70 Z"
+          fill="none"
+          stroke="#b44f50"
+          strokeWidth="1.8"
         />
-        <path 
-          d="M18 48 L100 16 L128 36 L46 67 Z" 
-          fill="none" 
-          stroke="#b44f50" 
-          strokeWidth="0.8" 
+        <path
+          d="M18 48 L100 16 L128 36 L46 67 Z"
+          fill="none"
+          stroke="#b44f50"
+          strokeWidth="0.8"
           opacity="0.6"
         />
 
         {/* Text - Perfectly centered within borders */}
         <g transform="translate(75 38) rotate(-21)">
-           <text textAnchor="middle" fill="#b44f50" fontSize="9" fontWeight="700" fontFamily="serif" letterSpacing="1.2">INVENTA</text>
-           <text x="0" y="18" textAnchor="middle" fill="#b44f50" fontSize="20" fontWeight="500" fontFamily="serif">Matches</text>
+          <text textAnchor="middle" fill="#b44f50" fontSize="9" fontWeight="700" fontFamily="serif" letterSpacing="1.2">INVENTA</text>
+          <text x="0" y="18" textAnchor="middle" fill="#b44f50" fontSize="20" fontWeight="500" fontFamily="serif">Matches</text>
         </g>
       </g>
     </svg>
@@ -913,30 +913,30 @@ export function DropperAsset() {
       </defs>
 
       {/* Glass Body - Slender and Tapered */}
-      <path 
+      <path
         d="M34 80 
            L46 80 
            L45 160 
            Q44 210 42 215 
            L38 215 
            Q36 210 35 160 
-           Z" 
-        fill="url(#dropperGlass)" 
-        stroke="rgba(255,255,255,0.2)" 
-        strokeWidth="0.5" 
+           Z"
+        fill="url(#dropperGlass)"
+        stroke="rgba(255,255,255,0.2)"
+        strokeWidth="0.5"
       />
-      
+
       {/* Glossy Red Bulb */}
-      <path 
+      <path
         d="M32 80 
            C32 75 30 70 28 60 
            C24 45 24 25 40 10 
            C56 25 56 45 52 60 
            C50 70 48 75 48 80 
-           Z" 
-        fill="url(#dropperBulb)" 
+           Z"
+        fill="url(#dropperBulb)"
       />
-      
+
       {/* Bulb Highlights */}
       <path d="M33 25 Q38 18 45 22" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
       <path d="M31 35 Q32 30 35 28" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
@@ -1049,10 +1049,10 @@ export function GauzeAsset() {
       <rect x="20" y="30" width="60" height="40" fill="none" stroke="#cfd8e3" strokeWidth="1.5" />
       <rect x="35" y="35" width="30" height="30" fill="rgba(255,255,255,0.05)" stroke="#94a3b8" strokeDasharray="2,2" />
       {[0, 1, 2, 3, 4, 5].map(i => (
-         <React.Fragment key={i}>
-           <line x1="20" y1={30+i*8} x2="80" y2={30+i*8} stroke="#475569" strokeWidth="0.5" />
-           <line x1={20+i*12} y1="30" x2={20+i*12} y2="70" stroke="#475569" strokeWidth="0.5" />
-         </React.Fragment>
+        <React.Fragment key={i}>
+          <line x1="20" y1={30 + i * 8} x2="80" y2={30 + i * 8} stroke="#475569" strokeWidth="0.5" />
+          <line x1={20 + i * 12} y1="30" x2={20 + i * 12} y2="70" stroke="#475569" strokeWidth="0.5" />
+        </React.Fragment>
       ))}
     </svg>
   );
@@ -1163,3 +1163,259 @@ export function SparkEffect() {
     </svg>
   );
 }
+
+export const BeakerIcon = () => {
+  return (
+    <BeakerIconBase
+      capacity="1000mL"
+      marks={[
+        { y: 140, label: "1000" },
+        { y: 210, label: "800" },
+        { y: 280, label: "600" },
+        { y: 350, label: "400" },
+        { y: 420, label: "200" },
+      ]}
+    />
+  );
+};
+
+export const Beaker100Icon = () => {
+  return (
+    <BeakerIconBase
+      capacity="100mL"
+      marks={[
+        { y: 220, label: "100" },
+        { y: 280, label: "80" },
+        { y: 340, label: "60" },
+        { y: 400, label: "40" },
+        { y: 460, label: "20" },
+      ]}
+    />
+  );
+};
+
+export const Beaker250Icon = () => {
+  return (
+    <BeakerIconBase
+      capacity="250mL"
+      marks={[
+        { y: 180, label: "250" },
+        { y: 240, label: "200" },
+        { y: 300, label: "150" },
+        { y: 360, label: "100" },
+        { y: 430, label: "50" },
+      ]}
+    />
+  );
+};
+
+const BeakerIconBase = ({
+  capacity,
+  marks,
+}: {
+  capacity: string;
+  marks: { y: number; label: string }[];
+}) => {
+  return (
+    <svg
+      width="494"
+      height="534"
+      viewBox="0 0 494 534"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="drop-shadow-[0_44px_45px_rgba(0,0,0,0.22)] h-60 object-contain"
+    >
+      <defs>
+        <radialGradient id="glassFill" cx="38%" cy="36%" r="72%">
+          <stop offset="0%" stopColor="#e8f4ff" stopOpacity="0.18" />
+          <stop offset="45%" stopColor="#c8d8e8" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#7a8fa8" stopOpacity="0.22" />
+        </radialGradient>
+
+
+        <linearGradient id="glassStroke" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#8faabf" stopOpacity="0.75" />
+          <stop offset="20%" stopColor="#ffffff" stopOpacity="0.25" />
+          <stop offset="50%" stopColor="#dcefff" stopOpacity="0.08" />
+          <stop offset="80%" stopColor="#ffffff" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#8faabf" stopOpacity="0.65" />
+        </linearGradient>
+
+        <clipPath id="clip0_2048_6">
+          <rect width="494" height="534" fill="white" />
+        </clipPath>
+      </defs>
+
+      <g clipPath="url(#clip0_2048_6)">
+        {/* ORIGINAL MAIN PATH */}
+        <path
+          d="M205.287 0.250516C89.6607 2.16958 10.3582 9.13661 1.40624 18.1896C-0.890347 20.5258 -0.609133 21.1099 5.10889 26.2413C11.2487 31.7482 12.2799 33.4169 13.5922 40.0502C14.5296 44.8061 14.5296 45.2233 14.5296 260.617V476.428L15.5138 479.015C22.9191 498.706 53.9465 514.351 104.284 523.737C129.687 528.452 161.98 531.664 200.365 533.249C217.285 533.917 274.981 533.958 290.588 533.249C354.565 530.412 395.763 524.53 429.977 513.308C436.867 511.055 450.224 505.214 455.286 502.294C467.425 495.243 475.159 487.484 478.627 478.931L479.705 476.22L479.939 257.405C480.174 45.724 480.221 38.5066 481.064 36.2955C482.236 33.2083 484.017 30.9972 489.407 25.991C494.563 21.235 494.844 20.5258 492.594 18.1896C484.486 10.0127 420.135 3.58802 318.476 0.792859C303.477 0.417391 220.894 0.000203157 205.287 0.250516Z"
+          fill="url(#glassFill)"
+          stroke="url(#glassStroke)"
+          strokeWidth="3"
+        />
+
+        {/* INNER PATH */}
+        <path
+          d="M180.915 5.04834C80.6618 6.92568 11.8112 12.6411 8.34286 19.4413C6.93679 22.1947 9.70206 23.9886 18.5603 25.9911C24.2783 27.3261 24.5596 27.4513 24.9345 28.6194C25.1689 29.2869 25.7313 33.2919 26.2468 37.5472C27.6998 49.3954 28.356 51.7733 30.4651 52.3574C32.4804 52.9415 34.2615 51.3561 42.6979 41.3854C46.0725 37.4221 49.5876 33.4171 50.5719 32.541C52.5873 30.6219 53.0559 30.5802 62.1017 31.2894C79.5838 32.6244 103.675 33.9177 128.89 34.8355C169.947 36.2957 184.102 36.5043 247 36.5043C288.432 36.5043 317.023 36.2957 329.255 35.9619C398.668 34.0011 439.398 31.5397 465.363 27.7016C482.095 25.2402 487.485 23.0291 485.657 19.3996C482.142 12.5577 414.088 6.9674 310.086 5.00662C285.011 4.54771 206.505 4.54771 180.915 5.04834Z"
+          fill="#ffffff"
+          fillOpacity="0.03"
+          stroke="#ffffff"
+          strokeOpacity="0.08"
+          strokeWidth="1.5"
+        />
+
+        {/* SCALE */}
+        <g opacity="0.34">
+          <line
+            x1="325"
+            y1={marks[0].y}
+            x2="325"
+            y2={marks[marks.length - 1].y}
+            stroke="#ffffff"
+            strokeWidth="3"
+            strokeOpacity="0.25"
+          />
+
+          {marks.map((mark, index) => (
+            <g key={index}>
+              <line
+                x1="325"
+                y1={mark.y}
+                x2="375"
+                y2={mark.y}
+                stroke="#ffffff"
+                strokeWidth="3"
+                strokeOpacity="0.35"
+              />
+
+              <text
+                x="385"
+                y={mark.y + 12}
+                fill="#ffffff"
+                fontSize="26"
+                fontWeight="400"
+                fontFamily="system-ui"
+                fillOpacity="0.45"
+              >
+                {mark.label}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        {/* LEFT TEXT */}
+        <text
+          x="90"
+          y="200"
+          fill="#ffffff"
+          fontSize="42"
+          fontWeight="600"
+          fontFamily="system-ui"
+          fillOpacity="0.42"
+        >
+          {capacity}
+        </text>
+
+        {/* WATERMARK */}
+        <text
+          x="80"
+          y="430"
+          fill="#ffffff"
+          fontSize="20"
+          fontWeight="300"
+          fontFamily="system-ui"
+          fillOpacity="0.30"
+          letterSpacing="1"
+        >
+          NirmanX
+        </text>
+
+        {/* BOTTOM LIGHT */}
+        <ellipse
+          cx="247"
+          cy="482"
+          rx="230"
+          ry="50"
+          fill="#ffffff"
+          fillOpacity="0.03"
+        />
+      </g>
+    </svg>
+  );
+};
+
+export const ErlenmeyerFlaskIcon = ({ sizeText = "100mL" }) => (
+  <svg
+    viewBox="0 0 220 220"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-[120px] w-auto"
+  >
+    <defs>
+      <linearGradient id={`erlen-fill-${sizeText.replace(/\s+/g, '')}`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
+        <stop offset="100%" stopColor="#94A3B8" stopOpacity="0.04" />
+      </linearGradient>
+      <linearGradient id={`erlen-stroke-${sizeText.replace(/\s+/g, '')}`} x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="#D1D5DB" stopOpacity="0.85" />
+        <stop offset="50%" stopColor="#F8FAFC" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="#D1D5DB" stopOpacity="0.75" />
+      </linearGradient>
+    </defs>
+    <g filter="url(#glassGlow-100)">
+      <path
+        d="M90 20 H130 V60 L180 180 C185 190 180 200 170 200 H50 C40 200 35 190 40 180 L90 60 V20 Z"
+        fill={`url(#erlen-fill-${sizeText.replace(/\s+/g, '')})`}
+        stroke={`url(#erlen-stroke-${sizeText.replace(/\s+/g, '')})`}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path d="M85 20 H135" stroke="#E5E7EB" strokeWidth="4" strokeLinecap="round" />
+      <path d="M96 22 V60 L50 180" stroke="#ffffff" strokeOpacity="0.18" strokeWidth="4" strokeLinecap="round" />
+
+      <text x="110" y="140" fill="#D1D5DB" fontSize="16" fontWeight="500" fontFamily="Arial" textAnchor="middle">
+        {sizeText}
+      </text>
+      <text x="110" y="160" fill="#D1D5DB" fillOpacity="0.55" fontSize="12" fontFamily="Arial" letterSpacing="0.5" textAnchor="middle">
+        NOBOOK
+      </text>
+    </g>
+  </svg>
+);
+
+export const ThreeNeckedFlaskIcon = () => (
+  <svg
+    viewBox="0 0 220 220"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-[120px] w-auto"
+  >
+    <defs>
+      <linearGradient id="tnf-fill" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
+        <stop offset="100%" stopColor="#94A3B8" stopOpacity="0.04" />
+      </linearGradient>
+      <linearGradient id="tnf-stroke" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="#D1D5DB" stopOpacity="0.85" />
+        <stop offset="50%" stopColor="#F8FAFC" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="#D1D5DB" stopOpacity="0.75" />
+      </linearGradient>
+    </defs>
+    <g filter="url(#glassGlow-100)">
+      <g transform="translate(60, 60) rotate(-30) translate(-60, -60)">
+        <rect x="45" y="30" width="25" height="60" fill="url(#tnf-fill)" stroke="url(#tnf-stroke)" strokeWidth="3" />
+        <path d="M40 30 H75" stroke="#E5E7EB" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <g transform="translate(160, 60) rotate(30) translate(-160, -60)">
+        <rect x="150" y="30" width="25" height="60" fill="url(#tnf-fill)" stroke="url(#tnf-stroke)" strokeWidth="3" />
+        <path d="M145 30 H180" stroke="#E5E7EB" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <rect x="95" y="20" width="30" height="60" fill="url(#tnf-fill)" stroke="url(#tnf-stroke)" strokeWidth="3" />
+      <path d="M90 20 H130" stroke="#E5E7EB" strokeWidth="4" strokeLinecap="round" />
+
+      <circle cx="110" cy="130" r="65" fill="url(#tnf-fill)" stroke="url(#tnf-stroke)" strokeWidth="3" />
+      <circle cx="110" cy="130" r="55" fill="none" stroke="#ffffff" strokeOpacity="0.1" strokeWidth="1" />
+    </g>
+  </svg>
+);

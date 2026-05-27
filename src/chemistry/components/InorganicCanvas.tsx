@@ -23,6 +23,11 @@ import {
   SparkEffect,
   StandAsset,
   TestTubeAsset,
+  BeakerIcon,
+  Beaker100Icon,
+  Beaker250Icon,
+  ErlenmeyerFlaskIcon,
+  ThreeNeckedFlaskIcon,
 } from "./LabAssets";
 
 interface InorganicCanvasProps {
@@ -364,7 +369,19 @@ export default function InorganicCanvas({
           >
             {/* High Fidelity Asset Rendering */}
             <div className="relative select-none pointer-events-auto">
-              {item.id === "round-bottom-flask" ? (
+              {item.id === "beaker" ? (
+                <BeakerIcon />
+              ) : item.id === "beaker-100" ? (
+                <Beaker100Icon />
+              ) : item.id === "beaker-250" ? (
+                <Beaker250Icon />
+              ) : item.id === "erlenmeyer-100" ? (
+                <ErlenmeyerFlaskIcon sizeText="100mL" />
+              ) : item.id === "erlenmeyer-250" ? (
+                <ErlenmeyerFlaskIcon sizeText="250mL" />
+              ) : item.id === "three-neck-flask" ? (
+                <ThreeNeckedFlaskIcon />
+              ) : item.id === "round-bottom-flask" ? (
                 <RoundBottomFlaskAsset />
               ) : item.id === "separatory-funnel" ? (
                 <SeparatoryFunnelAsset />
@@ -542,14 +559,20 @@ function VesselContents({
   const hasLiquid = contents.some((content) => content.state === "liquid");
   const solids = contents.filter((content) => content.state === "solid");
   const hasGas = contents.some((content) => content.state === "gas");
-  const shape =
-    item.id === "test-tube"
-      ? "left-[73px] top-[94px] h-[50px] w-[30px] rounded-b-[18px]"
-      : item.id === "gas-jar"
-        ? "left-[62px] top-[70px] h-[72px] w-[48px] rounded-b-[18px]"
-        : item.id === "separatory-funnel"
-          ? "left-[57px] top-[56px] h-[42px] w-[60px] rounded-full"
-          : "left-[52px] top-[102px] h-[42px] w-[72px] rounded-b-full";
+  let shape = "left-[52px] top-[102px] h-[42px] w-[72px] rounded-b-full";
+  if (item.id === "test-tube" || item.id === "test-tube-small" || item.id === "test-tube-mini") {
+    shape = "left-[73px] top-[94px] h-[50px] w-[30px] rounded-b-[18px]";
+  } else if (item.id === "gas-jar") {
+    shape = "left-[62px] top-[70px] h-[72px] w-[48px] rounded-b-[18px]";
+  } else if (item.id === "separatory-funnel") {
+    shape = "left-[57px] top-[56px] h-[42px] w-[60px] rounded-full";
+  } else if (item.id.includes("beaker")) {
+    shape = "left-[50px] top-[50px] h-[86px] w-[78px] rounded-b-[8px]";
+  } else if (item.id.includes("erlenmeyer")) {
+    shape = "left-[54px] top-[93px] h-[48px] w-[68px] rounded-b-[10px] [clip-path:polygon(20%_0%,80%_0%,100%_100%,0%_100%)]";
+  } else if (item.id === "three-neck-flask") {
+    shape = "left-[53px] top-[100px] h-[35px] w-[70px] rounded-b-full";
+  }
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">

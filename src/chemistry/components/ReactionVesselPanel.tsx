@@ -9,6 +9,11 @@ import {
   RoundBottomFlaskAsset,
   SeparatoryFunnelAsset,
   TestTubeAsset,
+  BeakerIcon,
+  Beaker100Icon,
+  Beaker250Icon,
+  ErlenmeyerFlaskIcon,
+  ThreeNeckedFlaskIcon,
 } from "./LabAssets";
 
 interface ReactionVesselPanelProps {
@@ -29,11 +34,11 @@ export default function ReactionVesselPanel({ items, onItemClick }: ReactionVess
           onClick={() => onItemClick(item)}
           className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
         >
-          <div className="h-[140px] flex items-center justify-center lg:h-[170px]">
+          <div className="flex items-center justify-center h-[90px] transform scale-65 origin-center">
             <LabSVG type={item.id} />
           </div>
 
-          <p className="text-center text-[13px] leading-4 mt-2 font-medium text-gray-100 lg:text-[15px] lg:leading-5">
+          <p className="text-center leading-4 mt-2 font-normal text-gray-100 text-xs lg:leading-4">
             {item.name}
           </p>
         </div>
@@ -68,6 +73,19 @@ function LabSVG({ type }: { type: string }) {
 
     case "test-tube-mini":
       return <TestTubeAsset size="mini" />;
+
+    case "beaker":
+      return <BeakerIcon />;
+    case "beaker-100":
+      return <Beaker100Icon />;
+    case "beaker-250":
+      return <Beaker250Icon />;
+    case "erlenmeyer-100":
+      return <ErlenmeyerFlaskIcon sizeText="100mL" />;
+    case "erlenmeyer-250":
+      return <ErlenmeyerFlaskIcon sizeText="250mL" />;
+    case "three-neck-flask":
+      return <ThreeNeckedFlaskIcon />;
 
     default:
       // Fallback for items not explicitly handled but in the category

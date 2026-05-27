@@ -13,6 +13,7 @@ import {
   SquarePen,
   Trash2,
   ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import Canvas from "@/chemistry/components/Canvas";
 import Sidebar from "@/chemistry/components/Sidebar";
@@ -139,7 +140,10 @@ export default function ChemistryPage() {
   const [activeModule, setActiveModule] = useState<ChemistryModule>("inorganic");
   const [activeCategory, setActiveCategory] = useState<ChemistryCategory>(getDefaultCategoryForModule("inorganic"));
   const [searchTerm, setSearchTerm] = useState("");
-  const [zoomLevel] = useState(94);
+  const [zoomLevel, setZoomLevel] = useState(100);
+
+  const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 10, 200));
+  const handleZoomOut = () => setZoomLevel((z) => Math.max(z - 10, 50));
 
   const [inorganicItems, setInorganicItems] = useState<PlacedInorganicItem[]>([]);
   const [selectedInorganicId, setSelectedInorganicId] = useState<string | null>(null);
@@ -449,37 +453,39 @@ export default function ChemistryPage() {
 
         <main className="grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
           <section className="relative min-h-0 overflow-hidden bg-[#3a3f47]">
-            <Canvas
-              module={activeModule}
-              inorganic={{
-                items: inorganicItems,
-                selectedId: selectedInorganicId,
-                onSelect: setSelectedInorganicId,
-                onMove: (id, x, y) => {
-                  setInorganicItems((current) =>
-                    current.map((item) => (item.instanceId === id ? { ...item, x, y } : item))
-                  );
-                },
-                onCombine: handleInorganicCombine,
-                onDrop: handleInorganicDrop,
-                onUpdate: handleInorganicUpdate,
-                onRemove: handleInorganicRemove,
-              }}
-              organic={{
-                atoms: organicAtoms,
-                bonds: organicBonds,
-                selectedNodeId: selectedOrganicNodeId,
-                pendingBondStartId,
-                selectedTool: selectedOrganicTool,
-                onCanvasAction: handleOrganicCanvasAction,
-                onNodeAction: handleOrganicNodeAction,
-                onMoveNode: (id, x, y) => {
-                  setOrganicAtoms((current) =>
-                    current.map((atom) => (atom.id === id ? { ...atom, x, y } : atom))
-                  );
-                },
-              }}
-            />
+            <div style={{ zoom: zoomLevel / 100, width: '100%', height: '100%' } as any}>
+              <Canvas
+                module={activeModule}
+                inorganic={{
+                  items: inorganicItems,
+                  selectedId: selectedInorganicId,
+                  onSelect: setSelectedInorganicId,
+                  onMove: (id, x, y) => {
+                    setInorganicItems((current) =>
+                      current.map((item) => (item.instanceId === id ? { ...item, x, y } : item))
+                    );
+                  },
+                  onCombine: handleInorganicCombine,
+                  onDrop: handleInorganicDrop,
+                  onUpdate: handleInorganicUpdate,
+                  onRemove: handleInorganicRemove,
+                }}
+                organic={{
+                  atoms: organicAtoms,
+                  bonds: organicBonds,
+                  selectedNodeId: selectedOrganicNodeId,
+                  pendingBondStartId,
+                  selectedTool: selectedOrganicTool,
+                  onCanvasAction: handleOrganicCanvasAction,
+                  onNodeAction: handleOrganicNodeAction,
+                  onMoveNode: (id, x, y) => {
+                    setOrganicAtoms((current) =>
+                      current.map((atom) => (atom.id === id ? { ...atom, x, y } : atom))
+                    );
+                  },
+                }}
+              />
+            </div>
 
             <button className="absolute right-[8px] top-1/2 z-20 hidden h-11 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#3a3f47] text-white/38 lg:flex">
               <ChevronRight className="h-6 w-6" />
@@ -506,10 +512,15 @@ export default function ChemistryPage() {
 
               <div className="rounded-2xl bg-[#23272d] px-3 py-2.5 shadow-2xl shadow-black/18 lg:px-4 lg:py-3">
                 <div className="flex items-center gap-4">
-                  <ZoomIn className="h-6 w-6 text-white/82" />
+                  <button onClick={handleZoomOut} className="opacity-80 hover:opacity-100" title="Zoom Out">
+                    <ZoomOut className="h-6 w-6 text-white/82" />
+                  </button>
                   <div className="h-7 w-px bg-white/16" />
-                  <span className="text-[14px] text-white lg:text-[16px]">{zoomLevel}%</span>
-                  <ChevronUp className="h-3.5 w-3.5 text-white/72" />
+                  <span className="text-[14px] text-white lg:text-[16px] min-w-[3rem] text-center">{zoomLevel}%</span>
+                  <div className="h-7 w-px bg-white/16" />
+                  <button onClick={handleZoomIn} className="opacity-80 hover:opacity-100" title="Zoom In">
+                    <ZoomIn className="h-6 w-6 text-white/82" />
+                  </button>
                 </div>
               </div>
 
@@ -534,7 +545,7 @@ export default function ChemistryPage() {
                   >
                     <Trash2 className="h-6 w-6" />
                   </button>
-                  <button className="opacity-80" title="Zoom">
+                  <button onClick={handleZoomIn} className="opacity-80" title="Zoom">
                     <ZoomIn className="h-6 w-6" />
                   </button>
                 </div>
