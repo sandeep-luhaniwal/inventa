@@ -10,6 +10,7 @@ const DashBoardNavBar = () => {
     const { isOpenSideBar, setIsOpenSideBar } = useSideBar();
     const [isProfile, setIsProfile] = useState(false);
 
+    
     useEffect(() => {
         if (isOpenSideBar) {
             document.body.classList.add("overflow-hidden");
