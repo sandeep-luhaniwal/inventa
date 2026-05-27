@@ -76,6 +76,7 @@ function LabSVG({ type }: { type: string }) {
 
     case "beaker":
       return <BeakerIcon />;
+      
     case "beaker-100":
       return <Beaker100Icon />;
     case "beaker-250":
