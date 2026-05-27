@@ -52,8 +52,6 @@ function LabSVG({ type }: { type: string }) {
   switch (type) {
     case "round-bottom-flask":
       return <RoundBottomFlaskAsset />;
-
-      
     case "separatory-funnel":
       return <SeparatoryFunnelAsset />;
 
