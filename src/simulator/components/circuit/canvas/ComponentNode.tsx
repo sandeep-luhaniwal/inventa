@@ -118,6 +118,51 @@ function findInductionSource(comp: PlacedComponent, allComponents: PlacedCompone
   }, null);
 }
 
+const BatteryDischargeOverlay = ({ isSimulating, w, h }: { isSimulating: boolean; w: number; h: number }) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isSimulating) {
+      const frame = requestAnimationFrame(() => setElapsed(0));
+      return () => cancelAnimationFrame(frame);
+    }
+    const frame = requestAnimationFrame(() => setElapsed(0));
+    const interval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(interval);
+    };
+  }, [isSimulating]);
+
+  if (!isSimulating) return null;
+
+  const visibleSlots = Math.max(0, 6 - Math.floor(elapsed / 10));
+
+  const slotWidth = w * 0.18;
+  const slotHeight = (h * 0.4) / 6;
+  const startX = w * 0.65;
+  const startY = h * 0.35;
+
+  return (
+    <Group x={0} y={0} listening={false}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <KonvaRect
+          key={i}
+          x={startX}
+          y={startY + (5 - i) * (slotHeight * 1.1)}
+          width={slotWidth}
+          height={slotHeight * 0.9}
+          fill={i < visibleSlots ? "#22c55e" : "#ef4444"}
+          opacity={0.85}
+          cornerRadius={2}
+        />
+      ))}
+    </Group>
+  );
+};
+
 const ComponentNode = ({
   comp,
   imageSrc,
@@ -289,6 +334,21 @@ const ComponentNode = ({
   const isBurned = simulationState?.isBurned;
     const brightness = simulationState?.brightness ?? 0;
     const isShortCircuit = simulationState?.isShortCircuit;
+    const capacitorSparkIntensity = simulationState?.capacitorSparkIntensity ?? 0;
+    const capacitorSparkPoint = useMemo(() => {
+      if (comp.componentId !== "capacitor" || capacitorSparkIntensity <= 0 || visualPins.length < 2) return null;
+      let positiveIndex = comp.relativePins?.findIndex((pin) => pin.type === "positive") ?? -1;
+      let negativeIndex = comp.relativePins?.findIndex((pin) => pin.type === "negative") ?? -1;
+      if (positiveIndex < 0) positiveIndex = 1;
+      if (negativeIndex < 0) negativeIndex = 0;
+      const positivePin = visualPins[positiveIndex] ?? visualPins[1] ?? visualPins[0];
+      const negativePin = visualPins[negativeIndex] ?? visualPins[0] ?? visualPins[1];
+      if (!positivePin || !negativePin) return null;
+      return {
+        x: (positivePin.x + negativePin.x) / 2,
+        y: (positivePin.y + negativePin.y) / 2,
+      };
+    }, [capacitorSparkIntensity, comp.componentId, comp.relativePins, visualPins]);
 
     return (
       <Group
@@ -583,7 +643,38 @@ const ComponentNode = ({
           })()}
 
           {isShortCircuit && <SparkEffect x={w / 2} y={h / 2} />}
+          {capacitorSparkPoint && (
+            <CapacitorSparkEffect
+              x={capacitorSparkPoint.x}
+              y={capacitorSparkPoint.y}
+              intensity={capacitorSparkIntensity}
+            />
+          )}
 
+          {(comp.componentId === "battery9v" || comp.componentId === "batteryaa" || comp.componentId === "battery3v") && simulationState?.isPrimaryBattery !== false && !!simulationState?.inParallel && (
+            <BatteryDischargeOverlay isSimulating={!!isSimulating} w={w} h={h} />
+          )}
+
+          {comp.componentId === "battery9v" && (
+            <Text
+              x={w / 2}
+              y={h * 0.73}
+              text="9V"
+              fontFamily="sans-serif"
+              fontSize={28 * Math.min(scaleX, scaleY)}
+              fontStyle="bold"
+              align="center"
+              verticalAlign="middle"
+              fill="#FFFFFF"
+              opacity={0.9}
+              width={w}
+              height={50 * Math.min(scaleX, scaleY)}
+              offsetX={w / 2}
+              offsetY={25 * Math.min(scaleX, scaleY)}
+              scaleX={comp.mirrored ? -1 : 1}
+              scaleY={comp.flipped ? -1 : 1}
+            />
+          )}
 
           {visualPins.map((pin, i) => {
             if (isSnapped) {
@@ -645,8 +736,15 @@ const DCPowerSupplyOverlays = ({
   const currentStep = 0.01;
   const voltageSet = comp.powerVoltageSet ?? (isAC ? 230.5 : 12.5);
   const currentLimit = comp.powerCurrentLimit ?? (isAC ? 1.15 : 0.25);
-  const displayVoltage = isOn ? runtimeState?.outputVoltage ?? voltageSet : 0;
-  const displayCurrent = isOn ? runtimeState?.outputCurrent ?? 0 : 0;
+  
+  // For AC Power Supply, show the set voltage so the user can see their knob adjustments even if tripped.
+  // For DC, show the actual output voltage (which drops in CC mode).
+  const displayVoltage = isOn ? (isAC ? voltageSet : (runtimeState?.outputVoltage ?? voltageSet)) : 0;
+  
+  // For current, show the current limit for AC so the knob feels responsive.
+  // The actual drawn current is visible in the Circuit Stats panel.
+  const displayCurrent = isOn ? (isAC ? currentLimit : (runtimeState?.outputCurrent ?? 0)) : 0;
+  
   const voltageAngle = (Math.min(Math.max(voltageSet, 0), voltageMax) / voltageMax) * 270 - 135;
   const currentAngle = (Math.min(Math.max(currentLimit, 0), 5) / 5) * 270 - 135;
 
@@ -2209,6 +2307,88 @@ const SmokeAnimation = ({ x, y }: { x: number; y: number }) => {
           opacity={p.o}
         />
       ))}
+    </Group>
+  );
+};
+
+const CapacitorSparkEffect = ({ x, y, intensity }: { x: number; y: number; intensity: number }) => {
+  const [phase, setPhase] = useState(0);
+  const safeIntensity = Math.max(0, Math.min(1, intensity));
+  const arcWidth = 18 + safeIntensity * 20;
+  const arcHeight = 8 + safeIntensity * 10;
+
+  useEffect(() => {
+    const interval = setInterval(() => setPhase((value) => (value + 1) % 4), 85);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (safeIntensity <= 0) return null;
+
+  const jitter = (phase - 1.5) * 1.4;
+  const mainPoints = [
+    -arcWidth / 2,
+    0,
+    -arcWidth * 0.28,
+    -arcHeight * 0.45 + jitter,
+    -arcWidth * 0.08,
+    arcHeight * 0.4 - jitter,
+    arcWidth * 0.14,
+    -arcHeight * 0.28,
+    arcWidth * 0.34,
+    arcHeight * 0.25 + jitter,
+    arcWidth / 2,
+    0,
+  ];
+  const particleAngles = [-155, -118, -58, -24, 28, 62, 116, 152];
+
+  return (
+    <Group x={x} y={y} listening={false}>
+      <Circle
+        radius={arcWidth * 0.62}
+        fillRadialGradientStartRadius={0}
+        fillRadialGradientEndRadius={arcWidth * 0.62}
+        fillRadialGradientColorStops={[0, "rgba(255,255,255,0.85)", 0.28, "rgba(96,165,250,0.45)", 1, "rgba(96,165,250,0)"]}
+        opacity={0.45 + safeIntensity * 0.4}
+      />
+      <Line
+        points={mainPoints}
+        stroke="#ffffff"
+        strokeWidth={2.2 + safeIntensity * 1.7}
+        lineCap="round"
+        lineJoin="round"
+        shadowColor="#60a5fa"
+        shadowBlur={12 + safeIntensity * 16}
+      />
+      <Line
+        points={mainPoints}
+        stroke="#2563eb"
+        strokeWidth={1.1 + safeIntensity}
+        lineCap="round"
+        lineJoin="round"
+        opacity={0.85}
+      />
+      {particleAngles.map((angle, index) => {
+        const theta = (angle * Math.PI) / 180;
+        const distance = 11 + safeIntensity * 28 + ((phase + index) % 3) * 3;
+        const particleOpacity = Math.max(0, safeIntensity - index * 0.035);
+        return (
+          <Line
+            key={angle}
+            points={[
+              Math.cos(theta) * (arcWidth * 0.35),
+              Math.sin(theta) * 3,
+              Math.cos(theta) * distance,
+              Math.sin(theta) * distance,
+            ]}
+            stroke={index % 2 === 0 ? "#f97316" : "#facc15"}
+            strokeWidth={0.8 + safeIntensity * 1.1}
+            opacity={particleOpacity}
+            lineCap="round"
+            shadowColor="#fb923c"
+            shadowBlur={4 + safeIntensity * 8}
+          />
+        );
+      })}
     </Group>
   );
 };

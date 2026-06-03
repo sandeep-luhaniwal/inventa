@@ -18,11 +18,11 @@ const DesignNavBar = () => {
                             className='w-25 sm:w-28'
                         />
                         <div className='w-px h-5 bg-gray block' />
-                        <Paragraph base medium className='text-[#D1D5DC]!'>
+                        <Paragraph base medium className='text-[#D1D5DC]! text-nowrap'>
                             Circuit Simulator
                         </Paragraph>
                     </div>
-                    <div className="py-2 px-4 max-w-md bg-[#1E293B] border-gray rounded-lg w-full border">
+                    <div className="py-2 px-4 max-w-md bg-[#1E293B] border-gray rounded-lg w-1/5 border">
                         <Paragraph xs>
                             My LED Circuit
                         </Paragraph>

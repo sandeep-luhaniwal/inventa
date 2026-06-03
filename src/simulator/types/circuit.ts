@@ -33,6 +33,7 @@ export interface PlacedComponent {
   resistanceValue?: number;
   resistanceUnit?: string;
   voltageValue?: number;
+  wattageValue?: number;
   capacitanceValue?: number;
   capacitanceUnit?: string;
   isBurned?: boolean;

@@ -21,6 +21,7 @@ export interface PaletteComponentItem {
   ledColor?: string;
   physicsTopic?: string;
   voltageValue?: number;
+  wattageValue?: number;
   capacitanceValue?: number;
   capacitanceUnit?: string;
   powerVoltageSet?: number;
@@ -47,6 +48,7 @@ export function useStaticComponents() {
         litImageSrc: def.litSvgBody ? svgToDataUrl(def, true, false, `palette-${def.id}`) : undefined,
         ledColor: def.ledColor,
         voltageValue: def.voltageValue,
+        wattageValue: def.wattageValue,
         capacitanceValue: def.capacitanceValue,
         capacitanceUnit: def.capacitanceUnit,
         powerVoltageSet: def.powerVoltageSet,

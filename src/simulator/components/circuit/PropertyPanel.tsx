@@ -348,6 +348,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
             />
           </div>
 
+          {component.componentId === "pushbutton" && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                Status
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.isPressed ? "On" : "Off"}
+                  onChange={(e) => onUpdate(component.id, { isPressed: e.target.value === "On" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="On">On</option>
+                  <option value="Off">Off</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {isChargedSphere && (
             <>
               <div className="flex gap-1 h-9">
@@ -751,6 +772,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
                 min="0"
                 max="220"
               />
+            </div>
+          )}
+
+          {/* AC Bulb Wattage selection */}
+          {component.componentId === 'ac_bulb' && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                Watt
+              </div>
+              <input
+                type="number"
+                value={component.wattageValue ?? 9}
+                onChange={(e) => {
+                  let val = parseFloat(e.target.value);
+                  if (isNaN(val)) val = 0;
+                  onUpdate(component.id, { wattageValue: Math.max(0, val) });
+                }}
+                className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none"
+                min="0"
+              />
+              <div className="w-12 bg-white flex items-center justify-center text-xs font-bold text-[#02adea] border-l-2 border-[#02adea]">
+                W
+              </div>
             </div>
           )}
 

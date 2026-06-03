@@ -8,11 +8,22 @@ export interface SimulatedComponentState {
   isBurned?: boolean;
   isShortCircuit?: boolean;
   direction?: number;
+  outputVoltage?: number;
+  outputCurrent?: number;
+  powerMode?: "CV" | "CC" | "AC" | "TRIP" | "OFF";
+  peakVoltage?: number;
+  instantaneousVoltage?: number;
+  frequency?: number;
+  fault?: boolean;
   capacitorVoltage?: number;
   capacitorChargeCoulombs?: number;
   capacitorEnergyJoules?: number;
-  capacitorMode?: "charging" | "discharging" | "charged" | "reverse-polarity" | "breakdown";
+  capacitorMode?: "charging" | "discharging" | "charged" | "discharged" | "reverse-polarity" | "breakdown";
   capacitorEquivalentSeriesResistance?: number;
+  capacitorSparkIntensity?: number;
+  capacitorShorted?: boolean;
+  isPrimaryBattery?: boolean;
+  inParallel?: boolean;
 }
 
 export interface SimulationResult {
@@ -42,9 +53,15 @@ const UNIT_MULTIPLIERS: Record<string, number> = {
 };
 
 interface BatteryTerminal {
+  sourceId: string;
+  sourceIds?: string[];
+  sourceType: "battery" | "dc_power_supply" | "ac_power_supply";
   positiveRoot: string;
   negativeRoot: string;
   voltage: number;
+  currentLimit?: number;
+  frequency?: number;
+  inParallel?: boolean;
 }
 
 type Graph = Map<string, Set<string>>;
@@ -68,12 +85,17 @@ const CAPACITOR_UNIT_MULTIPLIERS: Record<string, number> = {
 
 const CAPACITOR_TIME_STEP_SECONDS = 0.05;
 const CAPACITOR_DEFAULT_ESR_OHMS = 0.001;
+const CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS = 3000;
+const CAPACITOR_SPARK_HOLD_MS = 650;
 const LED_FORWARD_VOLTAGE = 2.0;
 const LED_MAX_SAFE_CURRENT_AMPS = 0.02;
 const LED_INTERNAL_RESISTANCE_OHMS = 350;
+const AC_PEAK_MULTIPLIER = 1.414;
 
 type CapacitorRuntimeState = {
   voltage: number;
+  sparkUntil?: number;
+  sparkIntensity?: number;
 };
 
 const capacitorRuntimeStates = new Map<string, CapacitorRuntimeState>();
@@ -89,6 +111,126 @@ function addEdge(graph: Graph, a: string, b: string) {
   graph.get(a)!.add(b);
   graph.get(b)!.add(a);
 }
+
+interface CircuitPath {
+  ledVoltage: number;
+  resistance: number;
+  components: string[];
+}
+
+function evaluatePaths(graph: Graph, startNode: string, endNode: string, components: PlacedComponent[]): CircuitPath[] {
+  const paths: CircuitPath[] = [];
+  const compMap = new Map(components.map(c => [c.id, c]));
+
+  function dfs(current: string, target: string, visitedNodes: Set<string>, currentPath: CircuitPath) {
+    if (current === target) {
+      paths.push({ ...currentPath, components: [...currentPath.components] });
+      return;
+    }
+    
+    if (paths.length > 50) return;
+
+    for (const next of (graph.get(current) || [])) {
+      if (!visitedNodes.has(next)) {
+        const currComp = current.split(":")[0];
+        const nextComp = next.split(":")[0];
+        
+        let nextLedVoltage = currentPath.ledVoltage;
+        let nextResistance = currentPath.resistance;
+        let nextComponents = currentPath.components;
+
+        if (currComp === nextComp && current !== next) {
+          const comp = compMap.get(currComp);
+          if (comp) {
+            if (comp.componentId.startsWith("led") || comp.componentId === "diode") {
+               const pins = getLedPins(comp);
+               if (current !== pins?.anodeNode || next !== pins?.cathodeNode) {
+                  continue; 
+               }
+               if (comp.componentId.startsWith("led")) {
+                 nextLedVoltage += Number(comp.voltageValue ?? LED_FORWARD_VOLTAGE);
+               }
+            } else if (comp.componentId === "resistor" || comp.componentId === "ac_bulb" || comp.componentId.includes("motor")) {
+               nextResistance += getBaseResistance(comp);
+            }
+            
+            nextComponents = [...currentPath.components, currComp];
+          }
+        }
+
+        visitedNodes.add(next);
+        dfs(next, target, visitedNodes, { ledVoltage: nextLedVoltage, resistance: nextResistance, components: nextComponents });
+        visitedNodes.delete(next);
+      }
+    }
+  }
+
+  const visited = new Set<string>();
+  visited.add(startNode);
+  dfs(startNode, endNode, visited, { ledVoltage: 0, resistance: 0, components: [] });
+  
+  return paths;
+}
+
+function getWheatstoneBridgeState(
+  load: PlacedComponent,
+  components: PlacedComponent[],
+  wireOnlyGraph: Graph,
+  posReach: Set<string>,
+  negReach: Set<string>
+) {
+  const terminals = getTwoTerminalNodes(load);
+  if (!terminals) return { isBridge: false, balanced: false };
+
+  const nodeAReach = collectReachable(wireOnlyGraph, terminals.firstNode);
+  const nodeBReach = collectReachable(wireOnlyGraph, terminals.secondNode);
+
+  if (
+    [...nodeAReach].some(n => posReach.has(n) || negReach.has(n)) ||
+    [...nodeBReach].some(n => posReach.has(n) || negReach.has(n))
+  ) {
+    return { isBridge: false, balanced: false };
+  }
+
+  const resistors = components.filter(c => c.componentId === "resistor");
+  
+  let P = 0, Q = 0, R = 0, S = 0;
+  let pCount = 0, qCount = 0, rCount = 0, sCount = 0;
+
+  for (const res of resistors) {
+    const resTerms = getTwoTerminalNodes(res);
+    if (!resTerms) continue;
+    
+    const r1 = resTerms.firstNode;
+    const r2 = resTerms.secondNode;
+    
+    const is1A = nodeAReach.has(r1), is2A = nodeAReach.has(r2);
+    const is1B = nodeBReach.has(r1), is2B = nodeBReach.has(r2);
+    const is1Pos = posReach.has(r1), is2Pos = posReach.has(r2);
+    const is1Neg = negReach.has(r1), is2Neg = negReach.has(r2);
+
+    const val = getBaseResistance(res);
+    if (val === 0) continue;
+
+    if ((is1A && is2Pos) || (is2A && is1Pos)) { P += 1/val; pCount++; }
+    else if ((is1A && is2Neg) || (is2A && is1Neg)) { Q += 1/val; qCount++; }
+    else if ((is1B && is2Pos) || (is2B && is1Pos)) { R += 1/val; rCount++; }
+    else if ((is1B && is2Neg) || (is2B && is1Neg)) { S += 1/val; sCount++; }
+  }
+
+  if (pCount > 0 && qCount > 0 && rCount > 0 && sCount > 0) {
+    P = 1 / P; Q = 1 / Q; R = 1 / R; S = 1 / S;
+    
+    const ratio1 = P / Q;
+    const ratio2 = R / S;
+    const balanced = Math.abs(ratio1 - ratio2) < 0.01;
+    
+    return { isBridge: true, balanced, P, Q, R, S };
+  }
+
+  return { isBridge: false, balanced: false };
+}
+
 
 function collectReachable(graph: Graph, start: string): Set<string> {
   const visited = new Set<string>();
@@ -154,18 +296,26 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
       continue;
     }
 
-    const isResistor = comp.componentId === "resistor";
-    if (isResistor && !includeResistors) continue;
+    const isLoad = comp.componentId === "resistor" || comp.componentId.startsWith("led") || comp.componentId === "ac_bulb" || comp.componentId === "diode";
+    if (isLoad && !includeResistors) continue;
 
-    const isClosedPushbutton = comp.componentId === "pushbutton" && comp.isPressed === true;
+    const isPushbutton = comp.componentId === "pushbutton";
 
-    if (
-      isResistor ||
-      comp.componentId === "diode" ||
-      comp.componentId === "slideswitch" ||
-      isClosedPushbutton ||
-      comp.componentId === "ac_bulb" ||
-      comp.componentId.startsWith("led")
+    if (isPushbutton) {
+      // Tactile switches internally connect Top-Left (0) with Bottom-Left (2)
+      // and Top-Right (1) with Bottom-Right (3)
+      if ((comp.ports?.length ?? 0) >= 4) {
+        addEdge(graph, makeNodeKey(comp.id, 0), makeNodeKey(comp.id, 2));
+        addEdge(graph, makeNodeKey(comp.id, 1), makeNodeKey(comp.id, 3));
+      }
+      
+      if (comp.isPressed) {
+        // Connect the left side to the right side when pressed
+        addEdge(graph, makeNodeKey(comp.id, 0), makeNodeKey(comp.id, 1));
+      }
+    } else if (
+      isLoad ||
+      comp.componentId === "slideswitch"
     ) {
       for (let i = 1; i < (comp.ports?.length ?? 0); i++) {
         addEdge(graph, makeNodeKey(comp.id, 0), makeNodeKey(comp.id, i));
@@ -193,13 +343,122 @@ function getBatteryTerminals(components: PlacedComponent[]): BatteryTerminal[] {
     });
     if (positiveIndex >= 0 && negativeIndex >= 0) {
       terminals.push({
+        sourceId: comp.id,
+        sourceType: isPowerSupply ? comp.componentId as "dc_power_supply" | "ac_power_supply" : "battery",
         positiveRoot: makeNodeKey(comp.id, positiveIndex),
         negativeRoot: makeNodeKey(comp.id, negativeIndex),
-        voltage: isPowerSupply ? (comp.powerVoltageSet ?? (comp.componentId === "ac_power_supply" ? 230.5 : 12.5)) : (comp.voltageValue ?? 9),
+        voltage: isPowerSupply
+          ? Math.max(0, Math.min(comp.componentId === "dc_power_supply" ? 100 : 260, comp.powerVoltageSet ?? (comp.componentId === "ac_power_supply" ? 230.5 : 12.5)))
+          : (comp.voltageValue ?? 9),
+        currentLimit: isPowerSupply ? Math.max(0.001, comp.powerCurrentLimit ?? (comp.componentId === "ac_power_supply" ? 1.15 : 0.25)) : undefined,
+        frequency: comp.componentId === "ac_power_supply" ? Math.max(1, comp.powerFrequency ?? 50) : undefined,
       });
     }
   }
   return terminals;
+}
+
+function resolveSourceOutput(source: BatteryTerminal, loadResistance: number, shortCircuit: boolean) {
+  if (source.sourceType === "battery") {
+    return {
+      ...source,
+      outputVoltage: source.voltage,
+      outputCurrent: shortCircuit ? 100 : (loadResistance > 0 ? source.voltage / loadResistance : 0),
+      peakVoltage: undefined,
+      instantaneousVoltage: undefined,
+      mode: "CV" as const,
+      fault: shortCircuit,
+    };
+  }
+
+  const currentLimit = source.currentLimit ?? 0.25;
+  if (source.sourceType === "ac_power_supply") {
+    const frequency = source.frequency ?? 50;
+    const peakVoltage = source.voltage * AC_PEAK_MULTIPLIER;
+    const timeSeconds = Date.now() / 1000;
+    const instantaneousVoltage = peakVoltage * Math.sin(2 * Math.PI * frequency * timeSeconds);
+
+    if (shortCircuit || loadResistance <= 0) {
+      return {
+        ...source,
+        voltage: 0,
+        outputVoltage: 0,
+        outputCurrent: currentLimit,
+        peakVoltage,
+        instantaneousVoltage: 0,
+        frequency,
+        mode: "TRIP" as const,
+        fault: true,
+      };
+    }
+
+    const rmsCurrent = source.voltage / loadResistance;
+    if (rmsCurrent > currentLimit) {
+      const limitedVoltage = currentLimit * loadResistance;
+      const limitedPeakVoltage = limitedVoltage * AC_PEAK_MULTIPLIER;
+      const limitedInstVoltage = limitedPeakVoltage * Math.sin(2 * Math.PI * frequency * timeSeconds);
+      return {
+        ...source,
+        voltage: limitedVoltage,
+        outputVoltage: limitedVoltage,
+        outputCurrent: currentLimit,
+        peakVoltage: limitedPeakVoltage,
+        instantaneousVoltage: limitedInstVoltage,
+        frequency,
+        mode: "CC" as const,
+        fault: true,
+      };
+    }
+
+    return {
+      ...source,
+      outputVoltage: source.voltage,
+      outputCurrent: rmsCurrent,
+      peakVoltage,
+      instantaneousVoltage,
+      frequency,
+      mode: "AC" as const,
+      fault: false,
+    };
+  }
+
+  if (shortCircuit || loadResistance <= 0) {
+    return {
+      ...source,
+      voltage: 0,
+      outputVoltage: 0,
+      outputCurrent: currentLimit,
+      peakVoltage: undefined,
+      instantaneousVoltage: undefined,
+      mode: "CC" as const,
+      fault: true,
+    };
+  }
+
+  const idealCurrent = source.voltage / loadResistance;
+  if (idealCurrent <= currentLimit) {
+    return {
+      ...source,
+      outputVoltage: source.voltage,
+      outputCurrent: idealCurrent,
+      peakVoltage: undefined,
+      instantaneousVoltage: undefined,
+      mode: "CV" as const,
+      fault: false,
+    };
+  }
+
+  const limitedVoltage = currentLimit * loadResistance;
+  return {
+    ...source,
+    voltage: limitedVoltage,
+    outputVoltage: limitedVoltage,
+    outputCurrent: currentLimit,
+    peakVoltage: undefined,
+    instantaneousVoltage: undefined,
+    mode: "CC" as const,
+    fault: true,
+  };
 }
 
 function getLedPins(comp: PlacedComponent) {
@@ -246,6 +505,11 @@ function buildPoweredWireIds(
 }
 
 function getBaseResistance(comp: PlacedComponent): number {
+  if (comp.componentId === "ac_bulb") {
+    const v = comp.voltageValue || 220;
+    const p = comp.wattageValue || 9;
+    return (v * v) / (p || 1); // R = V^2 / P
+  }
   if (comp.componentId in TWO_TERMINAL_LOAD_RESISTANCES) {
     return TWO_TERMINAL_LOAD_RESISTANCES[comp.componentId];
   }
@@ -266,9 +530,19 @@ function getCapacitorVoltageLimit(comp: PlacedComponent): number {
 
 function getCapacitorTerminals(comp: PlacedComponent) {
   if ((comp.ports?.length ?? 0) < 2) return null;
+  let posIndex = -1;
+  let negIndex = -1;
+  comp.relativePins?.forEach((pin, index) => {
+    if (pin.type === "positive") posIndex = index;
+    if (pin.type === "negative") negIndex = index;
+  });
+  // Fallback if types are not defined
+  if (posIndex === -1) posIndex = 1;
+  if (negIndex === -1) negIndex = 0;
+  
   return {
-    positiveNode: makeNodeKey(comp.id, 0),
-    negativeNode: makeNodeKey(comp.id, 1),
+    positiveNode: makeNodeKey(comp.id, posIndex),
+    negativeNode: makeNodeKey(comp.id, negIndex),
   };
 }
 
@@ -294,6 +568,8 @@ function simulateCapacitors(
     let targetVoltage = 0;
     let isConnectedToSource = false;
     let isReversePolarity = false;
+    let isTerminalShorted = false;
+    let sourceVoltageForSpark = 0;
 
     if (terminals) {
       for (const battery of batteries) {
@@ -311,14 +587,58 @@ function simulateCapacitors(
           break;
         }
       }
+
+      const terminalPaths = evaluatePaths(graph, terminals.positiveNode, terminals.negativeNode, components);
+      isTerminalShorted = terminalPaths.some((path) => path.resistance <= 0 && path.ledVoltage <= 0);
     }
 
-    const equivalentSeriesResistance = Math.max(
-      CAPACITOR_DEFAULT_ESR_OHMS,
-      circuitResistance > 0 ? circuitResistance : CAPACITOR_DEFAULT_ESR_OHMS
-    );
-    const tau = Math.max(CAPACITOR_DEFAULT_ESR_OHMS * Math.max(capacitance, 1e-12), equivalentSeriesResistance * Math.max(capacitance, 1e-12));
-    const alpha = 1 - Math.exp(-CAPACITOR_TIME_STEP_SECONDS / tau);
+    let dischargeResistance = CAPACITOR_DEFAULT_ESR_OHMS;
+    if (isTerminalShorted) {
+      sourceVoltageForSpark = Math.abs(targetVoltage);
+      dischargeResistance = CAPACITOR_DEFAULT_ESR_OHMS;
+      isConnectedToSource = false;
+      isReversePolarity = false;
+      targetVoltage = 0;
+    } else if (!isConnectedToSource && terminals) {
+      const paths = evaluatePaths(graph, terminals.positiveNode, terminals.negativeNode, components);
+      if (paths.length > 0) {
+        let minRes = Infinity;
+        for (const p of paths) {
+          let r = p.resistance;
+          // Slow the visual LED discharge so a charged capacitor keeps the LED on briefly.
+          if (p.ledVoltage > 0) r += CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS;
+          if (r < minRes) minRes = r;
+        }
+        if (minRes !== Infinity) dischargeResistance = minRes;
+      } else {
+        // Not connected to a closed circuit, hold charge
+        dischargeResistance = Infinity;
+      }
+    }
+
+    const equivalentSeriesResistance = isConnectedToSource
+      ? Math.max(CAPACITOR_DEFAULT_ESR_OHMS, circuitResistance > 0 ? circuitResistance : CAPACITOR_DEFAULT_ESR_OHMS)
+      : dischargeResistance;
+
+    const tau = equivalentSeriesResistance === Infinity
+      ? Infinity
+      : Math.max(CAPACITOR_DEFAULT_ESR_OHMS * Math.max(capacitance, 1e-12), equivalentSeriesResistance * Math.max(capacitance, 1e-12));
+
+    if (!isConnectedToSource || isTerminalShorted) {
+      targetVoltage = 0;
+    }
+
+    const now = Date.now();
+    const sparkVoltage = Math.max(Math.abs(runtime.voltage), sourceVoltageForSpark);
+    const sparkEnergy = 0.5 * capacitance * sparkVoltage * sparkVoltage;
+    let sparkUntil = runtime.sparkUntil;
+    let sparkIntensity = runtime.sparkIntensity ?? 0;
+    if (isTerminalShorted && sparkVoltage > 0.5) {
+      sparkIntensity = Math.min(1, 0.18 + Math.min(0.45, sparkVoltage / 60) + Math.min(0.45, sparkEnergy / 0.35));
+      sparkUntil = now + CAPACITOR_SPARK_HOLD_MS;
+    }
+
+    const alpha = tau === Infinity ? 0 : 1 - Math.exp(-CAPACITOR_TIME_STEP_SECONDS / tau);
     const nextVoltage = runtime.voltage + (targetVoltage - runtime.voltage) * Math.min(1, alpha);
     const absVoltage = Math.abs(nextVoltage);
     const capacitanceUf = capacitance / 1e-6;
@@ -327,11 +647,18 @@ function simulateCapacitors(
     const failed = overVoltage || highStressCapacitance;
     const mode: SimulatedComponentState["capacitorMode"] = failed
       ? "breakdown"
+      : isTerminalShorted
+        ? "discharging"
       : isConnectedToSource
         ? (isReversePolarity ? "reverse-polarity" : (Math.abs(targetVoltage - nextVoltage) < 0.02 ? "charged" : "charging"))
-        : (Math.abs(nextVoltage) < 0.02 ? "discharging" : "discharging");
+        : (Math.abs(nextVoltage) <= 0.02 ? "discharged" : "discharging");
 
-    capacitorRuntimeStates.set(comp.id, { voltage: nextVoltage });
+    const activeSparkIntensity = sparkUntil && sparkUntil > now ? sparkIntensity : 0;
+    capacitorRuntimeStates.set(comp.id, {
+      voltage: nextVoltage,
+      sparkUntil,
+      sparkIntensity: activeSparkIntensity,
+    });
 
     states[comp.id] = {
       brightness: 0,
@@ -343,6 +670,8 @@ function simulateCapacitors(
       capacitorEnergyJoules: 0.5 * capacitance * nextVoltage * nextVoltage,
       capacitorMode: mode,
       capacitorEquivalentSeriesResistance: equivalentSeriesResistance,
+      capacitorSparkIntensity: activeSparkIntensity,
+      capacitorShorted: isTerminalShorted,
     };
   }
 
@@ -365,7 +694,64 @@ export function simulateCircuit(
 
   const graph = buildConductiveGraph(components, wires, true);
   const wireOnlyGraph = buildConductiveGraph(components, wires, false);
-  const batteries = getBatteryTerminals(components);
+  let batteries = getBatteryTerminals(components);
+
+  if (batteries.length > 0) {
+    let changed = true;
+    const maxIterations = 10;
+    let iter = 0;
+    while (changed && iter++ < maxIterations) {
+      changed = false;
+      for (let i = 0; i < batteries.length; i++) {
+        for (let j = 0; j < batteries.length; j++) {
+          if (i === j) continue;
+          const b1 = batteries[i];
+          const b2 = batteries[j];
+          
+          if (b1.sourceId === b2.sourceId) continue;
+          
+          const b1NegReach = collectReachable(wireOnlyGraph, b1.negativeRoot);
+          const b1PosReach = collectReachable(wireOnlyGraph, b1.positiveRoot);
+          
+          if (b1NegReach.has(b2.positiveRoot)) { // Series connection
+            const combined: BatteryTerminal = {
+              sourceId: b1.sourceId + "+" + b2.sourceId,
+              sourceIds: [...(b1.sourceIds || [b1.sourceId]), ...(b2.sourceIds || [b2.sourceId])],
+              sourceType: b1.sourceType === "battery" && b2.sourceType === "battery" ? "battery" : "dc_power_supply",
+              positiveRoot: b1.positiveRoot,
+              negativeRoot: b2.negativeRoot,
+              voltage: b1.voltage + b2.voltage,
+              currentLimit: b1.currentLimit ? (b2.currentLimit ? Math.min(b1.currentLimit, b2.currentLimit) : b1.currentLimit) : b2.currentLimit,
+              frequency: b1.frequency ?? b2.frequency
+            };
+            
+            batteries = batteries.filter(b => b !== b1 && b !== b2);
+            batteries.push(combined);
+            changed = true;
+            break;
+          } else if (b1NegReach.has(b2.negativeRoot) && b1PosReach.has(b2.positiveRoot)) { // Parallel connection
+            const combined: BatteryTerminal = {
+              sourceId: b1.sourceId + "||" + b2.sourceId,
+              sourceIds: [...(b1.sourceIds || [b1.sourceId]), ...(b2.sourceIds || [b2.sourceId])],
+              sourceType: b1.sourceType === "battery" && b2.sourceType === "battery" ? "battery" : "dc_power_supply",
+              positiveRoot: b1.positiveRoot,
+              negativeRoot: b1.negativeRoot,
+              voltage: Math.max(b1.voltage, b2.voltage), // Voltage remains the same (max of both)
+              currentLimit: (b1.currentLimit ?? 10) + (b2.currentLimit ?? 10), // Current capacity increases
+              frequency: b1.frequency ?? b2.frequency,
+              inParallel: true
+            };
+            
+            batteries = batteries.filter(b => b !== b1 && b !== b2);
+            batteries.push(combined);
+            changed = true;
+            break;
+          }
+        }
+        if (changed) break;
+      }
+    }
+  }
 
   if (batteries.length === 0) {
     return {
@@ -381,7 +767,6 @@ export function simulateCircuit(
   const poweredComponents = new Set<string>();
   const poweredWires = new Set<string>();
   
-  const totalVoltage = batteries[0]?.voltage ?? 9;
   let totalResistance = 0;
   let hasPath = false;
   const componentDirections = new Map<string, number>();
@@ -421,34 +806,18 @@ export function simulateCircuit(
       }
     }
 
-    // Polarity check for LEDs
+    // Path-based LED logic
+    const allPaths = evaluatePaths(graph, battery.positiveRoot, battery.negativeRoot, components);
+    for (const p of allPaths) {
+       hasPath = true;
+       for (const compId of p.components) {
+          litComponents.add(compId);
+       }
+       if (p.resistance === 0 && battery.voltage <= p.ledVoltage + 0.1) {
+          totalResistance += (p.ledVoltage / LED_MAX_SAFE_CURRENT_AMPS);
+       }
+    }
     for (const comp of components) {
-      if (comp.componentId.startsWith("led")) {
-        const ledPins = getLedPins(comp);
-        if (ledPins) {
-          const edgesA = graph.get(ledPins.anodeNode);
-          const edgesC = graph.get(ledPins.cathodeNode);
-          edgesA?.delete(ledPins.cathodeNode);
-          edgesC?.delete(ledPins.anodeNode);
-
-          const posReach = collectReachable(graph, battery.positiveRoot);
-          const negReach = collectReachable(graph, battery.negativeRoot);
-
-          // Polarity check: Anode must reach Positive, Cathode must reach Negative
-          if (posReach.has(ledPins.anodeNode) && negReach.has(ledPins.cathodeNode)) {
-            // Bypass check: If there's already a conductive path between anode and cathode 
-            // (without using the LED's internal bridge), the current will skip the LED.
-            if (!posReach.has(ledPins.cathodeNode)) {
-              litComponents.add(comp.id);
-              hasPath = true;
-            }
-          }
-
-          edgesA?.add(ledPins.cathodeNode);
-          edgesC?.add(ledPins.anodeNode);
-        }
-      }
-
       if (comp.componentId in TWO_TERMINAL_LOAD_RESISTANCES) {
         const terminals = getTwoTerminalNodes(comp);
         if (!terminals) continue;
@@ -483,17 +852,111 @@ export function simulateCircuit(
     }
   }
 
-  const isShortCircuit = directShort || (hasPath && totalResistance === 0);
-  const currentAmps = isShortCircuit ? 100 : (totalResistance > 0 ? totalVoltage / totalResistance : 0);
+  let isShortCircuit = directShort || (hasPath && totalResistance === 0);
+
+  const baseTotalVoltage = batteries[0]?.voltage ?? 9;
+  const allGlobalPaths = batteries[0] ? evaluatePaths(graph, batteries[0].positiveRoot, batteries[0].negativeRoot, components) : [];
+  let pathBasedCurrent = 0;
+  let validPathFound = false;
+
+  for (const p of allGlobalPaths) {
+     validPathFound = true;
+     if (p.resistance > 0) {
+        pathBasedCurrent += Math.max(0, (baseTotalVoltage - p.ledVoltage) / p.resistance);
+     } else if (baseTotalVoltage <= p.ledVoltage + 0.1) {
+        pathBasedCurrent += LED_MAX_SAFE_CURRENT_AMPS;
+     } else {
+        isShortCircuit = true;
+     }
+  }
+
+  if (validPathFound && pathBasedCurrent > 0 && baseTotalVoltage > 0) {
+      totalResistance = baseTotalVoltage / pathBasedCurrent;
+  }
+
+  const effectiveResistance = hasPath ? totalResistance : Infinity;
+  const resolvedSources = batteries.map((source) => resolveSourceOutput(source, effectiveResistance, isShortCircuit));
+  const primarySource = resolvedSources[0];
+  const totalVoltage = primarySource?.outputVoltage ?? batteries[0]?.voltage ?? 9;
+  const currentAmps = primarySource?.outputCurrent ?? (isShortCircuit ? 100 : (effectiveResistance > 0 && effectiveResistance !== Infinity ? totalVoltage / effectiveResistance : 0));
   const currentMA = currentAmps * 1000;
   const powerWatts = totalVoltage * currentAmps;
+
+  // Wheatstone Bridge specific override
+  let bridgeStatus: { isBridge: boolean, balanced: boolean, vLoad: number } | null = null;
+  const overrideVoltages = new Map<string, number>();
+
+  if (batteries.length > 0) {
+    const pBat = batteries[0];
+    const pPosReach = collectReachable(wireOnlyGraph, pBat.positiveRoot);
+    const pNegReach = collectReachable(wireOnlyGraph, pBat.negativeRoot);
+
+    for (const comp of components) {
+      if (comp.componentId === "ac_bulb") {
+        const bridge = getWheatstoneBridgeState(comp, components, wireOnlyGraph, pPosReach, pNegReach);
+        if (bridge.isBridge) {
+          let vLoad = 0;
+          if (bridge.balanced) {
+            litComponents.delete(comp.id);
+          } else {
+            const vTotal = totalVoltage;
+            const vA = vTotal * (bridge.Q!) / ((bridge.P!) + (bridge.Q!));
+            const vB = vTotal * (bridge.S!) / ((bridge.R!) + (bridge.S!));
+            const vTh = Math.abs(vA - vB);
+            const rTh = ((bridge.P!) * (bridge.Q!)) / ((bridge.P!) + (bridge.Q!)) + ((bridge.R!) * (bridge.S!)) / ((bridge.R!) + (bridge.S!));
+            const rLoad = getBaseResistance(comp);
+            vLoad = vTh * rLoad / (rTh + rLoad);
+            
+            litComponents.add(comp.id);
+            overrideVoltages.set(comp.id, vLoad);
+          }
+          bridgeStatus = { isBridge: true, balanced: bridge.balanced, vLoad };
+        }
+      }
+    }
+  }
 
   const componentStates: Record<string, SimulatedComponentState> = simulateCapacitors(
     components,
     graph,
-    batteries,
+    resolvedSources,
     totalResistance
   );
+
+  for (const source of resolvedSources) {
+    if (source.sourceType === "battery") {
+      const ids = source.sourceIds || [source.sourceId];
+      for (let i = 0; i < ids.length; i++) {
+        componentStates[ids[i]] = {
+          powered: source.outputVoltage > 0,
+          isPrimaryBattery: i === 0,
+          outputVoltage: source.outputVoltage,
+          inParallel: !!source.inParallel,
+        } as SimulatedComponentState;
+      }
+      continue;
+    }
+    
+    const ids = source.sourceIds || [source.sourceId];
+  for (const id of ids) {
+      componentStates[id] = {
+        powered: source.outputVoltage > 0,
+        lit: false,
+        brightness: 0,
+        isBurned: false,
+        isShortCircuit: isShortCircuit,
+        outputVoltage: source.outputVoltage,
+        outputCurrent: source.outputCurrent,
+        powerMode: source.mode,
+        peakVoltage: source.peakVoltage,
+        instantaneousVoltage: source.instantaneousVoltage,
+        frequency: source.frequency,
+        fault: source.fault,
+      };
+    }
+  }
+
+  const capacitorLoadVoltages = new Map<string, number>();
 
   for (const capacitor of components) {
     if (capacitor.componentId !== "capacitor") continue;
@@ -518,6 +981,11 @@ export function simulateCircuit(
       if (isConnectedToChargedCapacitor) {
         litComponents.add(load.id);
         poweredComponents.add(load.id);
+        const capVoltage = Math.abs(capState.capacitorVoltage ?? 0);
+        capacitorLoadVoltages.set(
+          load.id,
+          Math.max(capacitorLoadVoltages.get(load.id) ?? 0, capVoltage)
+        );
       }
     }
   }
@@ -532,36 +1000,101 @@ export function simulateCircuit(
 
     if (isLed || isBulb || isMotor || isMicrobit || isEsc) {
       if (litComponents.has(comp.id)) {
-        if (isLed) {
-          const ledResistance = totalResistance > 0 ? totalResistance : LED_INTERNAL_RESISTANCE_OHMS;
-          const ledCurrentAmps = totalVoltage > LED_FORWARD_VOLTAGE
-            ? (totalVoltage - LED_FORWARD_VOLTAGE) / ledResistance
-            : 0;
-          const currentBrightness = Math.min(1, ledCurrentAmps / LED_MAX_SAFE_CURRENT_AMPS);
+        const isAcComponent = comp.componentId.startsWith("ac_");
+        const hasAcSource = resolvedSources.some(s => s.sourceType === "ac_power_supply");
+        if (isAcComponent && !hasAcSource) {
+           litComponents.delete(comp.id);
+           componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
+           return;
+        }
 
-          if (isShortCircuit || totalVoltage > 20 || ledCurrentAmps > LED_MAX_SAFE_CURRENT_AMPS * 5) {
+        if (isLed) {
+          const pathsWithLed = batteries[0] ? evaluatePaths(graph, batteries[0].positiveRoot, batteries[0].negativeRoot, components).filter(p => p.components.includes(comp.id)) : [];
+          
+          let ledMaxCurrent = 0;
+          let ledBurned = false;
+          let hasValidPath = false;
+
+          for (const p of pathsWithLed) {
+             hasValidPath = true;
+             let pathCurrent = 0;
+             if (p.resistance === 0) {
+               if (totalVoltage > p.ledVoltage + 0.1) {
+                 ledBurned = true;
+                 pathCurrent = 100;
+               } else if (Math.abs(totalVoltage - p.ledVoltage) <= 0.1) {
+                 pathCurrent = LED_MAX_SAFE_CURRENT_AMPS;
+               } else {
+                 pathCurrent = 0;
+               }
+             } else {
+               if (totalVoltage > p.ledVoltage) {
+                 pathCurrent = (totalVoltage - p.ledVoltage) / p.resistance;
+               }
+               if (pathCurrent > LED_MAX_SAFE_CURRENT_AMPS * 5) {
+                 ledBurned = true;
+               }
+             }
+             ledMaxCurrent = Math.max(ledMaxCurrent, pathCurrent);
+          }
+
+          // Evaluate paths from charged capacitors to power the LED
+          for (const capacitor of components) {
+            if (capacitor.componentId !== "capacitor") continue;
+            const capState = componentStates[capacitor.id];
+            if (!capState || capState.isBurned || Math.abs(capState.capacitorVoltage ?? 0) < 1.0) continue;
+            const terminals = getCapacitorTerminals(capacitor);
+            if (!terminals) continue;
+            
+            const capPaths = evaluatePaths(graph, terminals.positiveNode, terminals.negativeNode, components).filter(p => p.components.includes(comp.id));
+            const capVoltage = Math.abs(capState.capacitorVoltage ?? 0);
+            
+            for (const p of capPaths) {
+               hasValidPath = true;
+               let pathCurrent = 0;
+               let effectiveResistance = p.resistance;
+               if (p.ledVoltage > 0) effectiveResistance += CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS;
+               if (effectiveResistance === 0) effectiveResistance = 1;
+               
+               if (capVoltage > p.ledVoltage) {
+                 pathCurrent = (capVoltage - p.ledVoltage) / effectiveResistance;
+                 // Scale up current for brightness calculation to match the 3000 Ohm artificial decay
+                 pathCurrent = pathCurrent * (CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS / LED_INTERNAL_RESISTANCE_OHMS);
+               }
+               
+               ledMaxCurrent = Math.max(ledMaxCurrent, pathCurrent);
+            }
+          }
+
+          const capacitorSupplyVoltage = capacitorLoadVoltages.get(comp.id) ?? 0;
+          if (capacitorSupplyVoltage > LED_FORWARD_VOLTAGE) {
+            hasValidPath = true;
+            const capacitorCurrent =
+              (capacitorSupplyVoltage - LED_FORWARD_VOLTAGE) /
+              CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS;
+            const displayCurrent =
+              capacitorCurrent * (CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS / LED_INTERNAL_RESISTANCE_OHMS);
+            ledMaxCurrent = Math.max(ledMaxCurrent, displayCurrent);
+          }
+
+          if (!hasValidPath) {
+             litComponents.delete(comp.id);
+             componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
+             return;
+          }
+
+          const currentBrightness = Math.min(1, ledMaxCurrent / LED_MAX_SAFE_CURRENT_AMPS);
+
+          if (ledBurned || isShortCircuit || totalVoltage > 20) {
+            litComponents.delete(comp.id);
             componentStates[comp.id] = { isBurned: true, brightness: 0, lit: false };
-          } else if (totalVoltage < LED_FORWARD_VOLTAGE || ledCurrentAmps <= 0) {
+          } else if (ledMaxCurrent <= 0) {
+            litComponents.delete(comp.id);
             componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
-          } else if (totalVoltage <= 3.5) {
-            const dimRatio = (totalVoltage - LED_FORWARD_VOLTAGE) / (3.5 - LED_FORWARD_VOLTAGE);
-            componentStates[comp.id] = {
-              isBurned: false,
-              brightness: Math.max(0.1, Math.min(0.4, 0.1 + dimRatio * 0.3)),
-              direction: 1,
-              lit: true,
-            };
-          } else if (totalVoltage <= 9) {
-            componentStates[comp.id] = {
-              isBurned: false,
-              brightness: Math.max(0.41, Math.min(1, currentBrightness)),
-              direction: 1,
-              lit: true,
-            };
           } else {
             componentStates[comp.id] = {
               isBurned: false,
-              brightness: 1,
+              brightness: Math.max(0.1, currentBrightness),
               direction: 1,
               lit: true,
             };
@@ -571,10 +1104,14 @@ export function simulateCircuit(
 
         // Failure States: Over-voltage (e.g. > 12V for small components)
         const voltageRating = comp.voltageValue || 12;
-        const isOverVoltage = totalVoltage > voltageRating * 2.0;
+        const appliedVoltage = overrideVoltages.has(comp.id) ? overrideVoltages.get(comp.id)! : totalVoltage;
+        const isOverVoltage = isBulb ? (appliedVoltage > voltageRating + 0.1) : (appliedVoltage > voltageRating * 2.0);
 
         if (isOverVoltage) {
-          componentStates[comp.id] = { isBurned: true, brightness: 0 };
+          componentStates[comp.id] = { isBurned: true, brightness: 0, lit: false };
+        } else if (appliedVoltage <= 0.1) {
+          litComponents.delete(comp.id);
+          componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
         } else {
           let direction = componentDirections.get(comp.id) ?? 1;
 
@@ -586,7 +1123,7 @@ export function simulateCircuit(
             );
 
             if (escWires.length < 3) {
-              componentStates[comp.id] = { isBurned: true, brightness: 0 };
+              componentStates[comp.id] = { isBurned: true, brightness: 0, lit: false };
               // We'll update summary later
             } else {
               // Direction reversal logic: Swap Phase A and B
@@ -603,22 +1140,39 @@ export function simulateCircuit(
           // AC Motor: Fixed direction
           if (comp.componentId === "ac_motor") direction = 1;
 
-          const brightness = (isLed || isBulb) ? (currentMA >= 10 ? 0.6 : 0.3) : (isMotor ? Math.min(totalVoltage / 9, 1.5) : 0);
+          let brightness = 0;
+          if (isBulb) {
+             const ratio = appliedVoltage / voltageRating;
+             brightness = ratio >= 0.95 ? 1.0 : Math.pow(ratio, 3);
+          } else if (isMotor) {
+             brightness = Math.min(appliedVoltage / 9, 1.5);
+          }
+
           componentStates[comp.id] = { isBurned: componentStates[comp.id]?.isBurned || false, brightness, direction, lit: true };
         }
       } else {
+        litComponents.delete(comp.id);
         componentStates[comp.id] = { isBurned: false, brightness: 0, direction: 1, lit: false };
       }
     }
   });
 
+  const currentLimitedSource = resolvedSources.find((source) => source.mode === "CC");
+  const trippedAcSource = resolvedSources.find((source) => source.sourceType === "ac_power_supply" && source.mode === "TRIP");
   let summary = "Simulation running.";
-  if (isShortCircuit) summary = "CRITICAL: Short Circuit detected!";
+  
+  if (bridgeStatus) {
+    if (bridgeStatus.balanced) summary = "Bridge santulit hai. Bulb nahi jalega.";
+    else summary = "Bridge asantulit hai. Bulb jalega.";
+  }
+  else if (isShortCircuit) summary = "CRITICAL: Short Circuit detected!";
   else if (Object.values(componentStates).some(s => s.isBurned)) {
     const burnedBLDC = components.find(c => c.componentId === "bldc_motor" && componentStates[c.id]?.isBurned);
     if (burnedBLDC) summary = "ERROR: BLDC Motor must be connected to an ESC!";
     else summary = "Simulation Warning: Component burned out due to over-voltage!";
   }
+  else if (trippedAcSource) summary = "AC supply tripped: RMS current crossed the safety limit.";
+  else if (currentLimitedSource) summary = "Power supply is in CC mode: overload current is limited and output voltage dropped.";
   else if (litComponents.size > 0) summary = `Simulation running: ${currentMA.toFixed(1)}mA current.`;
 
   return {

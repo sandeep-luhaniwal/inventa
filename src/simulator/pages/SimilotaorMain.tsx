@@ -75,7 +75,7 @@ const SimilotaorMain = () => {
           powered: simResult?.poweredComponents.includes(component.id),
           brightness: state?.brightness ?? 0,
           isBurned: state?.isBurned ?? false,
-          isShortCircuit: simResult?.isShortCircuit,
+          isShortCircuit: state?.isShortCircuit ?? false,
           direction: state?.direction ?? 1
         };
         return acc;
@@ -180,6 +180,7 @@ const SimilotaorMain = () => {
         ports: relativePinsToPorts(draggedComponent.relativePins, width, height),
         relativePins: draggedComponent.relativePins,
         voltageValue: draggedComponent.voltageValue,
+        wattageValue: draggedComponent.wattageValue,
         capacitanceValue: draggedComponent.capacitanceValue,
         capacitanceUnit: draggedComponent.capacitanceUnit,
         chargeValue: initialCharge,

@@ -28,6 +28,7 @@ export interface StaticComponentDef {
   relativePins: StaticPin[];
   ledColor?: string;
   voltageValue?: number;
+  wattageValue?: number;
   capacitanceValue?: number;
   capacitanceUnit?: string;
   powerVoltageSet?: number;
@@ -233,6 +234,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     name: "AC LED Bulb",
     category: "Output",
     voltageValue: 220,
+    wattageValue: 9,
     viewBoxW: 100,
     viewBoxH: 140,
     svgBody: `
@@ -876,8 +878,8 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <line x1="10" y1="133" x2="170" y2="133" stroke="#7a808e" stroke-width="1" stroke-linecap="round"/>
       <rect x="29" y="137" width="20" height="26" rx="4" fill="url(#acps_bezel_grad)" stroke="#1a1c22" stroke-width="0.8"/>
       <rect x="31" y="139" width="16" height="22" rx="2.5" fill="#04060a" stroke="#000" stroke-width="1"/>
-      <text x="56" y="146" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">ON</text>
-      <text x="56" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">OFF</text>
+      <text x="56" y="146" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">OFF</text>
+      <text x="56" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">ON</text>
       <text x="124" y="141" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">AC OUTPUT</text>
       <text x="89" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="900" text-anchor="middle" fill="#334155">N</text>
       <circle cx="106" cy="153" r="11" fill="url(#acps_bezel_grad)" stroke="#0f172a" stroke-width="0.8"/>
@@ -936,9 +938,6 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <text x="35" y="84" font-size="16" font-weight="bold" text-anchor="middle" fill="#000" opacity="0.5">+</text>
       <circle cx="65" cy="78" r="8" fill="#000" opacity="0.2"/>
       <text x="65" y="84" font-size="16" font-weight="bold" text-anchor="middle" fill="#000" opacity="0.5">−</text>
-      
-      <!-- Label -->
-      <text x="50" y="145" font-size="38" font-weight="bold" text-anchor="middle" fill="#FFFFFF" opacity="0.9">9V</text>
     `,
     relativePins: [
       { name: "Positive (+)", relX: 33.5 / 100, relY: 12 / 180, type: "positive" },
