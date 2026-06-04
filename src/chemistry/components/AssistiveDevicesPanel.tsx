@@ -14,6 +14,20 @@ import {
   GlassConduitAsset,
   RetortStandAsset,
   RubberStopperAsset,
+  RingStandAsset,
+  ClampAsset,
+  ScissorAsset,
+  KnifeAsset,
+  CrucibleTongsAsset,
+  ThermometerAsset,
+  SandpaperAsset,
+  CopperWireAsset,
+  WoodenBoxAsset,
+  BalloonAsset,
+  TowelAsset,
+  CottonAsset,
+  FilterPaperAsset,
+  GlassPipeAsset,
 } from "./LabAssets";
 
 interface AssistiveDevicesPanelProps {
@@ -34,11 +48,22 @@ export default function AssistiveDevicesPanel({ items, onItemClick }: AssistiveD
           onClick={() => onItemClick(item)}
           className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
         >
-          <div className="h-[140px] flex items-center justify-center lg:h-[160px]">
-            <DeviceSVG type={item.id} />
+          <div className="flex items-center justify-center h-[90px] w-full">
+            <div
+              className="flex items-center justify-center [&>svg]:h-full [&>svg]:w-auto [&>svg]:max-h-full [&>svg]:object-contain"
+              style={{ height: "70px" }}
+            >
+              {item.id === "sandpaper" ? (
+                <div className="w-[105px] h-[70px] flex items-center justify-center">
+                  <DeviceSVG type={item.id} />
+                </div>
+              ) : (
+                <DeviceSVG type={item.id} />
+              )}
+            </div>
           </div>
 
-          <p className="text-center text-[13px] mt-2 font-medium text-gray-100 lg:text-[15px] lg:leading-5">
+          <p className="text-center leading-6 mt-2 font-medium text-white text-sm line-clamp-2">
             {item.name}
           </p>
         </div>
@@ -54,10 +79,14 @@ function DeviceSVG({ type }: { type: string }) {
     case "tripod":
     case "retort-stand":
       return <RetortStandAsset />;
+    case "ring-stand":
+      return <RingStandAsset />;
+    case "clamp":
+      return <ClampAsset />;
     case "match":
       return <MatchAsset />;
     case "matchbox":
-      return <MatchboxAsset lit={false} />;
+      return <MatchboxAsset />;
     case "dropper":
       return <DropperAsset />;
     case "forceps":
@@ -65,13 +94,37 @@ function DeviceSVG({ type }: { type: string }) {
     case "clay-net":
       return <ClayNetAsset />;
     case "gauze":
-      return <GauzeAsset />;
+      return <div className="scale-100"><GauzeAsset /></div>;
     case "spatula":
-      return <SpatulaAsset />;
+      return <div className="scale-100"><SpatulaAsset /></div>;
+    case "scissor":
+      return <ScissorAsset />;
+    case "knife":
+      return <KnifeAsset />;
+    case "crucible-tongs":
+      return <CrucibleTongsAsset />;
+    case "thermometer":
+      return <ThermometerAsset />;
     case "glass-conduit":
       return <GlassConduitAsset />;
+    case "glass-pipe":
+      return <GlassPipeAsset />;
     case "rubber-stopper":
       return <RubberStopperAsset />;
+    case "sandpaper":
+      return <SandpaperAsset />;
+    case "copper-wire":
+      return <CopperWireAsset />;
+    case "wooden-box":
+      return <WoodenBoxAsset />;
+    case "balloon":
+      return <BalloonAsset />;
+    case "towel":
+      return <TowelAsset />;
+    case "cotton":
+      return <CottonAsset />;
+    case "filter-paper":
+      return <FilterPaperAsset />;
     default:
       return (
         <div className="flex items-center justify-center text-gray-500 italic text-xs">

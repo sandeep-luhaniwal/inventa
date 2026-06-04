@@ -96,11 +96,10 @@ export default function Sidebar({
                 className="flex w-full flex-col items-center px-1.5 py-1.5"
               >
                 <div
-                  className={`flex h-[62px] w-[54px] items-center justify-center rounded-2xl transition lg:h-[68px] lg:w-[58px] ${
-                    active
+                  className={`flex h-[62px] w-[54px] items-center justify-center rounded-2xl transition lg:h-[68px] lg:w-[58px] ${active
                       ? "bg-[#2990ff] text-white shadow-[0_8px_24px_rgba(41,144,255,0.35)]"
                       : "bg-transparent text-white/68 hover:bg-white/6 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {getCategoryIcon(category.id)}
                 </div>
@@ -138,12 +137,12 @@ export default function Sidebar({
           style={{ scrollbarGutter: "stable" }}
         >
           {activeCategory === "glassware" ? (
-            <ReactionVesselPanel 
+            <ReactionVesselPanel
               items={reactionVessels}
               onItemClick={handleInorganicClick}
             />
           ) : activeCategory === "equipment" ? (
-            <AssistiveDevicesPanel 
+            <AssistiveDevicesPanel
               items={assistiveDevices}
               onItemClick={handleInorganicClick}
             />
@@ -151,7 +150,7 @@ export default function Sidebar({
             <div className="grid grid-cols-2 gap-3">
               {items.map((item) => {
                 const active = item.module === "organic" && item.id === selectedOrganicToolId;
-                const meta = item.module === "inorganic" ? item.symbol : getOrganicMeta(item);
+                const meta = item.module === "inorganic" ? (item.state === "solid" || item.state === "liquid" || item.state === "gas" ? "" : item.symbol) : getOrganicMeta(item);
                 const title = item.module === "inorganic" ? item.name : item.label;
                 const accent = item.module === "inorganic" ? item.accent : item.color;
 
@@ -165,21 +164,22 @@ export default function Sidebar({
                       }
                     }}
                     onClick={() => onItemClick(item)}
-                    className={`group min-h-[142px] rounded-2xl border p-3 text-left transition lg:min-h-[156px] lg:p-4 ${
-                      active
+                    className={`group min-h-[142px] rounded-2xl border p-3 text-left transition lg:min-h-[156px] lg:p-4 ${active
                         ? "border-[#2990ff] bg-[#3b424a] shadow-[0_12px_30px_rgba(41,144,255,0.18)]"
                         : "border-black/12 bg-[#353b43] hover:border-white/12 hover:bg-[#3a4048]"
-                    }`}
+                      }`}
                   >
                     <div
-                      className="mb-3 flex h-20 items-center justify-center rounded-2xl border lg:mb-4 lg:h-24"
+                      className="mb-3 flex h-20 items-center justify-center"
                       style={{
                         borderColor: `${accent}22`,
-                        background: `radial-gradient(circle at 50% 35%, ${accent}44, transparent 62%)`,
+                        // background: `radial-gradient(circle at 50% 35%, ${accent}44, transparent 62%)`,
                       }}
                     >
                       {item.module === "inorganic" ? (
-                        <InorganicThumbnail item={item} />
+                        <div className="flex h-full w-full items-center justify-center">
+                          <InorganicThumbnail item={item} />
+                        </div>
                       ) : (
                         <div
                           className="flex h-14 min-w-14 items-center justify-center rounded-2xl border px-3 text-center text-lg font-semibold text-white shadow-lg lg:h-16 lg:min-w-16 lg:text-xl"
@@ -193,8 +193,8 @@ export default function Sidebar({
                       )}
                     </div>
 
-                    <h3 className="line-clamp-2 text-[15px] font-medium leading-7 text-white lg:text-[17px]">{title}</h3>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/34 lg:text-xs">{meta}</p>
+                    <h3 className="line-clamp-2 text-sm font-medium leading-4 text-white text-center">{title}</h3>
+                    <p className="mt-px text-[10px] uppercase tracking-[0.16em] text-white/34 lg:text-xs">{meta}</p>
                   </button>
                 );
               })}

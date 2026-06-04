@@ -8,13 +8,24 @@ import {
   RoundBottomFlaskAsset,
   SeparatoryFunnelAsset,
   TestTubeAsset,
+  SandpaperAsset,
+  CopperWireAsset,
+  WoodenBoxAsset,
+  BalloonAsset,
+  TowelAsset,
+  CottonAsset,
+  FilterPaperAsset,
+  GlassPipeAsset,
+  GlassStopperStandaloneAsset,
+  CorkStopperStandaloneAsset,
+  GlassDefs,
 } from "./LabAssets";
 
 interface InorganicThumbnailProps {
   item: InorganicLibraryItem;
 }
 
-function GlassDefs() {
+function ThumbnailDefs() {
   return (
     <defs>
       <linearGradient id="glassStroke" x1="0" y1="0" x2="0" y2="1">
@@ -43,7 +54,7 @@ function GlassDefs() {
 function GlassBottle() {
   return (
     <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
+      <ThumbnailDefs />
       <path
         d="M44 18h32v10c0 5 3 10 8 14v46c0 9-7 16-16 16H52c-9 0-16-7-16-16V42c5-4 8-9 8-14V18Z"
         fill="url(#glassFill)"
@@ -62,7 +73,7 @@ function GlassBottle() {
 function TubeRackBottle() {
   return (
     <svg viewBox="0 0 120 120" className="h-24 w-24" aria-hidden="true">
-      <GlassDefs />
+      <ThumbnailDefs />
       <path
         d="M44 18h32v10c0 4 2 8 6 11v48c0 9-7 16-16 16H54c-9 0-16-7-16-16V39c4-3 6-7 6-11V18Z"
         fill="url(#glassFill)"
@@ -78,7 +89,7 @@ function TubeRackBottle() {
 
 export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
   const wrap = (el: React.ReactNode) => (
-    <div className="h-20 w-20 flex items-center justify-center lg:h-24 lg:w-24 overflow-hidden">
+    <div className="flex h-full w-full items-center justify-center [&>svg]:h-16 [&>svg]:w-auto lg:[&>svg]:h-20 drop-shadow-md">
       {el}
     </div>
   );
@@ -100,10 +111,35 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
       return wrap(<TestTubeAsset size="mini" />);
     case "glass-bottle":
       return <GlassBottle />;
+    case "glass-stopper":
+      return wrap(<GlassStopperStandaloneAsset />);
+    case "cork-stopper":
+      return wrap(<CorkStopperStandaloneAsset />);
+    case "glass-pipe":
+      return wrap(<GlassPipeAsset />);
+    case "sandpaper":
+      return wrap(<SandpaperAsset />);
+    case "wooden-box":
+      return wrap(<WoodenBoxAsset />);
+    case "balloon":
+      return wrap(<BalloonAsset />);
+    case "towel":
+      return wrap(<TowelAsset />);
+    case "cotton":
+      return wrap(<CottonAsset />);
+    case "filter-paper":
+      return wrap(<FilterPaperAsset />);
+    case "copper-wire":
+      return wrap(
+        <div className="h-full w-full flex items-center justify-center [&>svg]:h-full [&>svg]:w-auto [&>svg]:max-h-full [&>svg]:object-contain">
+          <CopperWireAsset />
+        </div>
+      );
     default:
       if (item.state === "solid" || item.state === "liquid" || item.state === "gas") {
         return wrap(
           <ChemicalContainerAsset
+            id={item.id}
             state={item.state}
             label={item.name}
             symbol={item.symbol}

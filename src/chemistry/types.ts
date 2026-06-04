@@ -28,6 +28,8 @@ export interface InorganicLibraryItem {
   accent: string;
   description: string;
   hidden?: boolean;
+  volume?: number;
+  mass?: number;
 }
 
 export type OrganicTool =
@@ -49,6 +51,9 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   y: number;
   rotation?: number;
   isOpen?: boolean;
+  isOpenLeft?: boolean;
+  isOpenMiddle?: boolean;
+  isOpenRight?: boolean;
   isLit?: boolean;
   isStriking?: boolean;
   isHeated?: boolean;
@@ -56,6 +61,14 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   reactionState?: "idle" | "heating" | "boiling" | "burst" | "gas" | "precipitate" | "reduction";
   note?: string;
   contents?: InorganicLibraryItem[];
+  label1?: string;
+  label2?: string;
+  temperature?: number;
+  volume?: number;
+  concentration?: number;
+  mass?: number;
+  hasRubberStopper?: boolean;
+  metadata?: Record<string, any>;
 }
 
 export interface OrganicNode {

@@ -14,6 +14,8 @@ import {
   Beaker250Icon,
   ErlenmeyerFlaskIcon,
   ThreeNeckedFlaskIcon,
+  FunnelIcon,
+  Funnel100Icon,
 } from "./LabAssets";
 
 interface ReactionVesselPanelProps {
@@ -34,11 +36,23 @@ export default function ReactionVesselPanel({ items, onItemClick }: ReactionVess
           onClick={() => onItemClick(item)}
           className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
         >
-          <div className="flex items-center justify-center h-[90px] transform scale-65 origin-center">
-            <LabSVG type={item.id} />
+          <div className="flex items-center justify-center h-[90px] w-full">
+            <div
+              className="flex items-center justify-center [&>svg]:h-full [&>svg]:w-auto [&>svg]:max-h-full [&>svg]:object-contain"
+              style={{
+                height:
+                  item.id === "beaker-100" ||
+                    item.id === "erlenmeyer-100" ||
+                    item.id === "funnel-100" ? "60px" :
+                    item.id === "beaker" ? "80px" :
+                      "70px"
+              }}
+            >
+              <LabSVG type={item.id} />
+            </div>
           </div>
 
-          <p className="text-center leading-4 mt-2 font-normal text-gray-100 text-xs lg:leading-4">
+          <p className="text-center leading-6 mt-2 font-medium text-white text-sm line-clamp-2">
             {item.name}
           </p>
         </div>
@@ -75,7 +89,7 @@ function LabSVG({ type }: { type: string }) {
 
     case "beaker":
       return <BeakerIcon />;
-      
+
     case "beaker-100":
       return <Beaker100Icon />;
     case "beaker-250":
@@ -86,6 +100,10 @@ function LabSVG({ type }: { type: string }) {
       return <ErlenmeyerFlaskIcon sizeText="250mL" />;
     case "three-neck-flask":
       return <ThreeNeckedFlaskIcon />;
+    case "funnel":
+      return <FunnelIcon />;
+    case "funnel-100":
+      return <Funnel100Icon />;
 
     default:
       // Fallback for items not explicitly handled but in the category

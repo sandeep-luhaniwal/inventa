@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
-import type { PlacedInorganicItem } from "@/chemistry/types";
+import React, { useMemo, useRef, useState, useEffect } from "react";
+import { MoreHorizontal, Beaker } from "lucide-react";
+import type { PlacedInorganicItem, InorganicLibraryItem } from "@/chemistry/types";
+import { resolveReaction } from "../reactions";
 import {
   BurnerAsset,
   ChemicalContainerAsset,
@@ -12,12 +14,19 @@ import {
   GauzeAsset,
   GlassBottleAsset,
   GlassConduitAsset,
+  GlassPipeAsset,
   MatchAsset,
   MatchboxAsset,
   MeasureBottleAsset,
   RoundBottomFlaskAsset,
   RubberStopperAsset,
   RetortStandAsset,
+  RingStandAsset,
+  ClampAsset,
+  ScissorAsset,
+  KnifeAsset,
+  CrucibleTongsAsset,
+  ThermometerAsset,
   SeparatoryFunnelAsset,
   SpatulaAsset,
   SparkEffect,
@@ -28,6 +37,21 @@ import {
   Beaker250Icon,
   ErlenmeyerFlaskIcon,
   ThreeNeckedFlaskIcon,
+  FunnelIcon,
+  Funnel100Icon,
+  SandpaperAsset,
+  CopperWireAsset,
+  WoodenBoxAsset,
+  BalloonAsset,
+  TowelAsset,
+  CottonAsset,
+  FilterPaperAsset,
+  playCapSound,
+  GlassDefs,
+  GlassStopperStandaloneAsset,
+  CorkStopperStandaloneAsset,
+  GlassPlateStandaloneAsset,
+  BurnerCapStandaloneAsset,
 } from "./LabAssets";
 
 interface InorganicCanvasProps {
@@ -35,7 +59,7 @@ interface InorganicCanvasProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
-  onCombine: (sourceId: string, targetId: string) => void;
+  onCombine: (sourceId: string, targetId: string, volume?: number) => void;
   onDrop: (itemId: string, x: number, y: number, overrides?: Partial<PlacedInorganicItem>) => void;
   onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
   onRemove: (id: string) => void;
@@ -45,12 +69,291 @@ interface DragState {
   id: string;
   offsetX: number;
   offsetY: number;
+  isInitialCapDrag?: boolean;
+  dragStartX?: number;
+  dragStartY?: number;
+  draggedNeck?: "left" | "middle" | "right";
 }
 
 type DispenseMode = "solid" | "liquid" | "gas";
 
+const isBottleCork = (id: string) => {
+  return id === "sodium-carbonate" ||
+    id === "barium-hydroxide" ||
+    id === "calcium-hydroxide" ||
+    id === "potassium-hydroxide" ||
+    id === "sodium-bicarbonate" ||
+    id === "sodium-hydroxide-solid" ||
+    id === "potassium-carbonate" ||
+    id === "sodium-hydroxide-solution" ||
+    id === "clear-lime-water" ||
+    id === "barium-hydroxide-solution" ||
+    id === "potassium-hydroxide-solution" ||
+    id === "sodium-carbonate-solution" ||
+    id === "sodium-bicarbonate-solution" ||
+    id === "ammonia-water" ||
+    id === "potassium-carbonate-solution";
+};
+
+const isBottleDropper = (id: string) => {
+  return false;
+};
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+const getItemUnscaledDims = (id: string, state: string) => {
+  if (state !== "glassware") {
+    if (id === "glass-stopper") return { w: 42, h: 48 };
+    if (id === "cork-stopper") return { w: 42, h: 22 };
+    if (id === "burner-cap") return { w: 60, h: 60 };
+    if (id === "burner") return { w: 176, h: 176 };
+    if (id === "tripod") return { w: 128, h: 256 };
+    if (id === "retort-stand") return { w: 144, h: 224 };
+    if (id === "matchbox") return { w: 208, h: 176 };
+    if (id === "match") return { w: 160, h: 160 };
+    if (id === "dropper") return { w: 80, h: 224 };
+    if (id === "forceps") return { w: 160, h: 160 };
+    if (id === "clay-net") return { w: 160, h: 112 };
+    if (id === "copper-wire") return { w: 74, h: 628 };
+    if (id === "wooden-box") return { w: 303, h: 234 };
+    if (id === "balloon") return { w: 104, h: 142 };
+    if (id === "towel") return { w: 103, h: 104 };
+    if (id === "cotton") return { w: 120, h: 86 };
+    if (id === "filter-paper") return { w: 120, h: 144 };
+    if (state === "solid" || state === "liquid" || state === "gas") {
+      return { w: 130, h: 160 };
+    }
+    return { w: 128, h: 128 };
+  }
+  if (id.includes("beaker")) return { w: 222, h: 240 };
+  if (id.includes("funnel")) return { w: 194, h: 240 };
+  if (id.includes("erlenmeyer") || id === "three-neck-flask") return { w: 120, h: 120 };
+  if (id === "round-bottom-flask") return { w: 200, h: 280 };
+  if (id === "separatory-funnel") return { w: 220, h: 660 };
+  if (id === "gas-jar") return { w: 220, h: 300 };
+  if (id === "measure-bottle" || id === "glass-bottle") return { w: 120, h: 160 };
+  if (id.includes("test-tube")) return { w: 100, h: 200 };
+  return { w: 100, h: 100 };
+};
+
+const getItemCanvasScale = (id: string, state: string) => {
+  if (id === "copper-wire") return 0.25;
+  if (id === "wooden-box") return 0.5;
+  if (id === "balloon") return 1.0;
+  if (id === "towel") return 1.0;
+  if (id === "cotton") return 1.0;
+  if (id === "filter-paper") return 1.0;
+  if (state !== "glassware") return 1.0;
+  if (id === "beaker" || id === "funnel") return 1.0;
+  if (id === "beaker-100" || id === "funnel-100") return 0.75;
+  if (id === "erlenmeyer-100") return 1.5;
+  if (id === "beaker-250") return 0.88;
+  if (id === "erlenmeyer-250" || id === "three-neck-flask") return 1.76;
+  if (id === "round-bottom-flask") return 1.056;
+  if (id === "separatory-funnel" || id === "gas-jar") return 0.96;
+  if (id === "measure-bottle" || id === "glass-bottle") return 1.76;
+  return 2.112; // test-tube etc.
+};
+
+function getRoundedPolylinePath(points: { x: number, y: number }[], radius = 25) {
+  if (points.length < 2) return '';
+  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+
+    const dPrev = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+    const dNext = Math.hypot(next.x - curr.x, next.y - curr.y);
+
+    const r = Math.min(radius, dPrev / 2.1, dNext / 2.1);
+
+    const startX = curr.x + (prev.x - curr.x) * (r / dPrev);
+    const startY = curr.y + (prev.y - curr.y) * (r / dPrev);
+
+    const endX = curr.x + (next.x - curr.x) * (r / dNext);
+    const endY = curr.y + (next.y - curr.y) * (r / dNext);
+
+    d += ` L ${startX} ${startY}`;
+    d += ` Q ${curr.x} ${curr.y} ${endX} ${endY}`;
+  }
+
+  d += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
+  return d;
+}
+
+function DynamicGlassPipe({
+  points,
+  isSelected,
+  gasFlow,
+  onNodeMouseDown,
+  onNodeDoubleClick,
+  onPathDoubleClick
+}: {
+  points: { x: number, y: number }[];
+  isSelected: boolean;
+  gasFlow?: { color: string; reverse: boolean };
+  onNodeMouseDown: (e: React.MouseEvent, index: number, x: number, y: number) => void;
+  onNodeDoubleClick: (index: number) => void;
+  onPathDoubleClick: (e: React.MouseEvent) => void;
+}) {
+  const pathD = getRoundedPolylinePath(points, 0);
+  const flowPathD = gasFlow?.reverse ? getRoundedPolylinePath([...points].reverse(), 0) : pathD;
+  const highlightPoints = points.map(p => ({ x: p.x - 1, y: p.y - 1 }));
+  const highlightD = getRoundedPolylinePath(highlightPoints, 0);
+
+  return (
+    <svg className="absolute inset-0 overflow-visible pointer-events-none drop-shadow-[0_18px_28px_rgba(0,0,0,0.2)]">
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        <path
+          d={pathD}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="24"
+          strokeLinecap="round"
+          strokeOpacity="0.0"
+          className="pointer-events-auto cursor-pointer"
+          onDoubleClick={onPathDoubleClick}
+        />
+        <path d={pathD} fill="none" stroke="#ffffff" strokeWidth="12" strokeLinecap="round" strokeOpacity="0.3" className="pointer-events-none" />
+        <path d={pathD} fill="none" stroke="url(#glassBody)" strokeWidth="11" strokeLinecap="round" className="pointer-events-none" />
+        <path d={pathD} fill="none" stroke="url(#internalReflection)" strokeWidth="11" strokeLinecap="round" className="pointer-events-none" />
+        <path d={highlightD} fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.45" className="pointer-events-none" />
+      </g>
+
+      {isSelected && points.map((p, i) => (
+        <circle
+          key={i}
+          cx={p.x}
+          cy={p.y}
+          r="16"
+          fill="transparent"
+          stroke="transparent"
+          className="pointer-events-auto cursor-grab"
+          onMouseDown={(e) => onNodeMouseDown(e, i, p.x, p.y)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onNodeDoubleClick(i);
+          }}
+        />
+      ))}
+      {/* Gas flow animation through the pipe */}
+      {gasFlow && (
+        <g style={{ mixBlendMode: "screen" }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <circle key={`flow-${i}`} r={3 + (i % 3)} fill={gasFlow.color} opacity="0" filter="blur(2px)">
+              <animateMotion
+                path={flowPathD}
+                dur="1.5s"
+                repeatCount="indefinite"
+                begin={`${i * 0.25}s`}
+              />
+              <animate attributeName="opacity" values="0;0.75;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.25}s`} />
+            </circle>
+          ))}
+        </g>
+      )}
+      {/* Gas escaping from the exit end of the pipe */}
+      {gasFlow && (() => {
+        const exitPt = gasFlow.reverse ? points[0] : points[points.length - 1];
+        return (
+          <g style={{ mixBlendMode: "screen" }}>
+            <circle cx={exitPt.x} cy={exitPt.y} r="5" fill={gasFlow.color} opacity="0" filter="blur(3px)">
+              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 50}`} dur="2s" repeatCount="indefinite" begin="0s" />
+              <animate attributeName="opacity" values="0;0.6;0" dur="2s" repeatCount="indefinite" begin="0s" />
+              <animate attributeName="r" values="5;16" dur="2s" repeatCount="indefinite" begin="0s" />
+            </circle>
+            <circle cx={exitPt.x - 6} cy={exitPt.y} r="3" fill={gasFlow.color} opacity="0" filter="blur(3px)">
+              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 40}`} dur="2.4s" repeatCount="indefinite" begin="0.7s" />
+              <animate attributeName="opacity" values="0;0.5;0" dur="2.4s" repeatCount="indefinite" begin="0.7s" />
+              <animate attributeName="r" values="3;12" dur="2.4s" repeatCount="indefinite" begin="0.7s" />
+            </circle>
+            <circle cx={exitPt.x + 7} cy={exitPt.y} r="4" fill={gasFlow.color} opacity="0" filter="blur(3px)">
+              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 55}`} dur="1.8s" repeatCount="indefinite" begin="1.3s" />
+              <animate attributeName="opacity" values="0;0.55;0" dur="1.8s" repeatCount="indefinite" begin="1.3s" />
+              <animate attributeName="r" values="4;18" dur="1.8s" repeatCount="indefinite" begin="1.3s" />
+            </circle>
+          </g>
+        );
+      })()}
+    </svg>
+  );
+}
+
+export function getVesselCapacity(id: string): number {
+  if (id === "beaker-100") return 100;
+  if (id === "beaker-250") return 250;
+  if (id === "beaker") return 1000;
+  if (id === "erlenmeyer-100") return 100;
+  if (id === "erlenmeyer-250") return 250;
+  if (id === "three-neck-flask") return 250;
+  if (id === "round-bottom-flask") return 250;
+  if (id === "gas-jar") return 250;
+  if (id === "separatory-funnel") return 250;
+  if (id === "test-tube") return 50;
+  if (id === "test-tube-small") return 30;
+  if (id === "test-tube-mini") return 15;
+  if (id.includes("funnel")) return 100;
+  return 250;
+}
+
+export function getTotalVolume(contents: InorganicLibraryItem[]): number {
+  return contents.reduce((sum, item) => {
+    if (item.volume !== undefined) return sum + item.volume;
+    if (item.state === "liquid") return sum + 30;
+    if (item.state === "solid") return sum + 10;
+    if (item.state === "gas") return sum + 10;
+    return sum;
+  }, 0);
+}
+
+function getLiquidCanvasY(item: PlacedInorganicItem): number {
+  const contents = item.contents ?? [];
+  const dims = getItemUnscaledDims(item.id, item.state);
+  const scale = getItemCanvasScale(item.id, item.state);
+  const capacity = getVesselCapacity(item.id);
+  const totalVolume = getTotalVolume(contents);
+  const fillPercent = Math.min((totalVolume / capacity) * 100, 100);
+
+  type VesselGeo = { x: number; y: number; w: number; h: number; rx?: number; shape?: "round" | "cone" | "beaker" };
+  const geo: VesselGeo = (() => {
+    if (item.id.includes("beaker")) return { x: 14, y: 50, w: 466, h: 484, shape: "beaker" };
+    if (item.id.includes("erlenmeyer")) return { x: 40, y: 100, w: 140, h: 90, rx: 10, shape: "cone" };
+    if (item.id === "three-neck-flask") return { x: 45, y: 65, w: 130, h: 130, rx: 65, shape: "round" };
+    if (item.id === "round-bottom-flask") return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
+    if (item.id === "gas-jar") return { x: 50, y: 72, w: 120, h: 196, rx: 18 };
+    if (item.id === "separatory-funnel") return { x: 47, y: 94, w: 126, h: 210, rx: 63, shape: "round" };
+    if (item.id === "test-tube") return { x: 36, y: 10, w: 28, h: 170, rx: 14 };
+    if (item.id === "test-tube-small") return { x: 40, y: 15, w: 20, h: 140, rx: 10 };
+    if (item.id === "test-tube-mini") return { x: 44, y: 40, w: 12, h: 100, rx: 6 };
+    if (item.id.includes("funnel")) return { x: 95, y: 58, w: 230, h: 422, rx: 0 };
+    return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
+  })();
+
+  const svgViewBox = (() => {
+    if (item.id === "beaker" || item.id === "beaker-100" || item.id === "beaker-250") return "0 0 494 534";
+    if (item.id.includes("erlenmeyer") || item.id === "three-neck-flask") return "0 0 220 220";
+    if (item.id === "round-bottom-flask") return "0 0 200 280";
+    if (item.id === "gas-jar") return "0 0 220 300";
+    if (item.id === "separatory-funnel") return "0 0 220 660";
+    if (item.id.includes("test-tube")) return "0 0 100 200";
+    if (item.id.includes("funnel")) return "0 0 420 520";
+    return "0 0 200 280";
+  })();
+
+  const vbH = parseInt(svgViewBox.split(" ")[3]);
+  const liquidH = (geo.h * fillPercent) / 100;
+  const liquidY = geo.y + geo.h - liquidH;
+
+  const unscaledY = (liquidY / vbH) * dims.h;
+  const scaledOffsetFromBottom = (dims.h - unscaledY) * scale;
+  return (item.y + dims.h) - scaledOffsetFromBottom;
 }
 
 export default function InorganicCanvas({
@@ -69,6 +372,220 @@ export default function InorganicCanvas({
   const [dispensing, setDispensing] = useState<Record<string, DispenseMode>>({});
   const removalTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const actionTimers = useRef<Record<string, NodeJS.Timeout[]>>({});
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const didPanRef = useRef(false);
+  const [rotateState, setRotateState] = useState<{ id: string; centerX: number; centerY: number; lastAngleDeg: number; currentRotation: number } | null>(null);
+  const [popupItemId, setPopupItemId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [hoveringCapId, setHoveringCapId] = useState<string | null>(null);
+  const [hoveringNeck, setHoveringNeck] = useState<"left" | "middle" | "right" | null>(null);
+  const [prePour, setPrePour] = useState<{
+    itemId: string;
+    targetId: string;
+    startX: number;
+    startY: number;
+    targetStartX?: number;
+    targetStartY?: number;
+    progress: number;
+    pouredVolume: number;
+    initialVolume: number;
+    isSnapping?: boolean;
+    isManual?: boolean;
+  } | null>(null);
+  const [sliderDrag, setSliderDrag] = useState<{
+    startY: number;
+    startProgress: number;
+  } | null>(null);
+  const [activeNodeDrag, setActiveNodeDrag] = useState<{ id: string; nodeIndex: number; offsetX: number; offsetY: number } | null>(null);
+
+  React.useEffect(() => {
+    if (selectedId === null || selectedId !== popupItemId) {
+      setPopupItemId(null);
+    }
+    if (selectedId === null || selectedId !== menuOpenId) {
+      setMenuOpenId(null);
+    }
+  }, [selectedId]);
+
+  const itemsRef = useRef(items);
+  React.useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  React.useEffect(() => {
+    if (prePour) {
+      const hasSource = items.some(i => i.instanceId === prePour.itemId);
+      const hasTarget = prePour.targetId === "table" || items.some(i => i.instanceId === prePour.targetId);
+      if (!hasSource || !hasTarget) {
+        setPrePour(null);
+        setDispensing(prev => {
+          const next = { ...prev };
+          delete next[prePour.itemId];
+          return next;
+        });
+      }
+    }
+  }, [items, prePour]);
+
+  const prePourRef = useRef(prePour);
+  React.useEffect(() => {
+    prePourRef.current = prePour;
+  }, [prePour]);
+
+  React.useEffect(() => {
+    if (!prePour) {
+      setDispensing({});
+    }
+  }, [prePour]);
+
+  React.useEffect(() => {
+    if (!prePour || prePour.progress <= 0.1) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const currentPrePour = prePourRef.current;
+      if (!currentPrePour || currentPrePour.progress <= 0.1) return;
+
+      const currentItems = itemsRef.current;
+      const sourceItem = currentItems.find(i => i.instanceId === currentPrePour.itemId);
+      if (!sourceItem) return;
+
+      if (sourceItem.state === "glassware") {
+        const hasVolOrMass = (c: any) => {
+          const vol = c.volume !== undefined ? c.volume : (c.state === "solid" ? 0 : (c.state === "gas" ? 10 : 30));
+          const mass = c.mass !== undefined ? c.mass : (c.state === "solid" ? 10 : 0);
+          return vol > 0.01 || mass > 0.01;
+        };
+
+        if (!sourceItem.contents || sourceItem.contents.length === 0 || sourceItem.contents.findIndex(hasVolOrMass) === -1) {
+          setPrePour(null);
+          setDispensing(prev => {
+            const next = { ...prev };
+            delete next[currentPrePour.itemId];
+            return next;
+          });
+          return;
+        }
+
+        const pourableIndex = sourceItem.contents.findIndex(hasVolOrMass);
+
+        const sourceContent = sourceItem.contents[pourableIndex];
+        const isSolid = sourceContent.state === "solid";
+
+        let tiltSpeedMultiplier = 1;
+        if (currentPrePour.progress > 0.85) {
+          tiltSpeedMultiplier = 4;
+        } else if (currentPrePour.progress > 0.6) {
+          tiltSpeedMultiplier = 2;
+        }
+
+        const tickAmount = (isSolid ? 2 : 5) * tiltSpeedMultiplier;
+        const currentVol = sourceContent.volume ?? (isSolid ? 10 : 30);
+        const actualTick = Math.min(tickAmount * currentPrePour.progress, currentVol);
+        if (actualTick <= 0) return;
+
+        const updatedSourceContents = sourceItem.contents.map((c, idx) => {
+          if (idx === pourableIndex) {
+            const nv = currentVol - actualTick;
+            const nm = c.mass !== undefined ? Math.max(0, (c.mass ?? 10) - actualTick) : undefined;
+            return {
+              ...c,
+              volume: nv,
+              mass: nm
+            };
+          }
+          return c;
+        }).filter(hasVolOrMass);
+
+        onUpdate(sourceItem.instanceId, { contents: updatedSourceContents });
+
+        setPrePour(prev => {
+          if (!prev || prev.itemId !== currentPrePour.itemId) return prev;
+          return {
+            ...prev,
+            pouredVolume: prev.pouredVolume + actualTick
+          };
+        });
+
+        // Increment target contents (if targetId !== "table")
+        if (currentPrePour.targetId !== "table") {
+          const targetItem = currentItems.find(i => i.instanceId === currentPrePour.targetId);
+          if (targetItem && targetItem.state === "glassware") {
+            const targetCapacity = getVesselCapacity(targetItem.id);
+            const targetTotalVolume = getTotalVolume(targetItem.contents || []);
+
+            if (targetTotalVolume < targetCapacity) {
+              const addedTick = Math.min(actualTick, targetCapacity - targetTotalVolume);
+              if (addedTick > 0) {
+                const updatedTargetContents = [...(targetItem.contents || [])];
+                const targetIdx = updatedTargetContents.findIndex(c => c.id === sourceContent.id);
+                if (targetIdx !== -1) {
+                  const existing = updatedTargetContents[targetIdx];
+                  const existingVol = existing.volume ?? (existing.state === "solid" ? 10 : 30);
+                  const existingMass = existing.mass;
+                  updatedTargetContents[targetIdx] = {
+                    ...existing,
+                    volume: existingVol + addedTick,
+                    mass: existingMass !== undefined ? existingMass + addedTick : undefined
+                  };
+                } else {
+                  updatedTargetContents.push({
+                    ...sourceContent,
+                    volume: addedTick,
+                    mass: sourceContent.mass !== undefined ? addedTick : undefined
+                  });
+                }
+
+                // Resolve reaction in target
+                const reaction = resolveReaction(updatedTargetContents);
+                onUpdate(targetItem.instanceId, {
+                  contents: reaction.contents,
+                  reactionState: reaction.state ?? "idle",
+                  note: reaction.note
+                });
+              }
+            }
+          }
+        }
+      } else {
+        // Original logic for chemical bottle
+        const targetItem = currentItems.find(i => i.instanceId === currentPrePour.targetId);
+        if (!targetItem || targetItem.state !== "glassware") return;
+
+        const targetCapacity = getVesselCapacity(targetItem.id);
+        const currentVolume = getTotalVolume(targetItem.contents || []);
+
+        if (currentVolume >= targetCapacity) {
+          return; // full
+        }
+
+        const isSolid = sourceItem.state === "solid";
+        let tiltSpeedMultiplier = 1;
+        if (currentPrePour.progress > 0.85) {
+          tiltSpeedMultiplier = 4;
+        } else if (currentPrePour.progress > 0.6) {
+          tiltSpeedMultiplier = 2;
+        }
+
+        const tickAmount = (isSolid ? 2 : 5) * currentPrePour.progress * tiltSpeedMultiplier;
+
+        onCombine(currentPrePour.itemId, currentPrePour.targetId, tickAmount);
+
+        setPrePour(prev => {
+          if (!prev || prev.itemId !== currentPrePour.itemId) return prev;
+          return {
+            ...prev,
+            pouredVolume: prev.pouredVolume + tickAmount
+          };
+        });
+      }
+    }, 150);
+
+    return () => clearInterval(interval);
+  }, [prePour?.itemId, prePour?.targetId, (prePour?.progress ?? 0) > 0.1]);
 
   const queueItemTimer = (id: string, callback: () => void, delay: number) => {
     const timer = setTimeout(() => {
@@ -97,7 +614,7 @@ export default function InorganicCanvas({
       isLit: false,
       showStick: true,
     });
-    flashSpark(item.x + 138, item.y + 102, 360);
+    // Removed flashSpark to hide the \"cross sign\"
 
     queueItemTimer(item.instanceId, () => {
       onUpdate(item.instanceId, { isLit: true });
@@ -109,7 +626,7 @@ export default function InorganicCanvas({
         isLit: false,
       });
       onDrop("match", item.x + 126, item.y + 56, {
-        rotation: 10,
+        rotation: 338, // 68 + 22 (internal) = 90 degrees exactly straight
       });
     }, 180);
 
@@ -160,15 +677,450 @@ export default function InorganicCanvas({
     };
   }, []);
 
+  const handleBackgroundMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 && event.button !== 1) return;
+
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    if (!rect || !surfaceRef.current) return;
+
+    setIsPanning(true);
+    didPanRef.current = false;
+    panStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      panX: panOffset.x,
+      panY: panOffset.y,
+    };
+  };
+
   const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!dragState || !surfaceRef.current) return;
+    if (activeNodeDrag) {
+      const draggedItem = items.find((i) => i.instanceId === activeNodeDrag.id);
+      if (draggedItem && surfaceRef.current) {
+        const rect = surfaceRef.current.getBoundingClientRect();
+        const zoom = rect.width / surfaceRef.current.offsetWidth;
+        const nextX = (event.clientX - rect.left) / zoom - panOffset.x;
+        const nextY = (event.clientY - rect.top) / zoom - panOffset.y;
+
+        const localX = nextX - draggedItem.x - activeNodeDrag.offsetX;
+        const localY = nextY - draggedItem.y - activeNodeDrag.offsetY;
+
+        const points = draggedItem.metadata?.points || [
+          { x: 20, y: 100 },
+          { x: 20, y: 20 },
+          { x: 100, y: 20 },
+        ];
+        const newPoints = [...points];
+        newPoints[activeNodeDrag.nodeIndex] = { x: localX, y: localY };
+
+        onUpdate(draggedItem.instanceId, {
+          metadata: {
+            ...draggedItem.metadata,
+            points: newPoints,
+          },
+        });
+      }
+      return;
+    }
+
+    if (!dragState && !isPanning && !rotateState && !sliderDrag) return;
+    if (!surfaceRef.current) return;
 
     const rect = surfaceRef.current.getBoundingClientRect();
-    let nextX = clamp(event.clientX - rect.left - dragState.offsetX, 18, rect.width - 150);
-    let nextY = clamp(event.clientY - rect.top - dragState.offsetY, 18, rect.height - 142);
+    const zoom = rect.width / surfaceRef.current.offsetWidth;
 
-    // Smart Snapping Logic
-    const draggedItem = items.find((i) => i.instanceId === dragState.id);
+    if (sliderDrag && prePour) {
+      const dy = (event.clientY - sliderDrag.startY) / zoom;
+      const sliderHeight = 120; // pixels
+      // Dragging UP makes dy negative, so subtract to increase progress
+      const newProgress = clamp(sliderDrag.startProgress - dy / sliderHeight, 0, 1);
+
+      setPrePour({ ...prePour, progress: newProgress });
+
+      const draggedItem = items.find((i) => i.instanceId === prePour.itemId);
+      if (draggedItem && (draggedItem.state === "solid" || draggedItem.state === "liquid" || draggedItem.state === "gas" || draggedItem.state === "glassware")) {
+        const mode = draggedItem.state === "glassware"
+          ? (draggedItem.contents?.some(c => c.state === 'liquid') ? 'liquid' : (draggedItem.contents?.some(c => c.state === 'solid') ? 'solid' : 'liquid'))
+          : draggedItem.state;
+        // Calculate dynamic rotation: 0 to max tilt based on progress
+        const maxRotation = mode === "gas" ? -18 : -110;
+        const rot = newProgress * maxRotation;
+
+        onUpdate(prePour.itemId, {
+          rotation: rot,
+          x: prePour.startX,
+          y: prePour.startY
+        });
+
+        // Start pouring effect early when tilted enough
+        if (newProgress > 0.1 && !dispensing[prePour.itemId]) {
+          setDispensing(prev => ({ ...prev, [prePour.itemId]: mode }));
+        } else if (newProgress <= 0.1 && dispensing[prePour.itemId]) {
+          setDispensing(prev => {
+            const next = { ...prev };
+            delete next[prePour.itemId];
+            return next;
+          });
+        }
+
+
+      }
+
+      return;
+    }
+
+    if (rotateState) {
+      const angleRad = Math.atan2(
+        event.clientY - rotateState.centerY,
+        event.clientX - rotateState.centerX
+      );
+      const angleDeg = angleRad * (180 / Math.PI) + 90;
+      // Delta between last frame and this frame, normalized to (-180, 180]
+      let delta = angleDeg - rotateState.lastAngleDeg;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      let newRotation = rotateState.currentRotation + delta;
+      if (event.shiftKey) newRotation = Math.round(newRotation / 15) * 15;
+      rotateState.lastAngleDeg = angleDeg;
+      rotateState.currentRotation = newRotation;
+      onUpdate(rotateState.id, { rotation: newRotation });
+
+      const rotatingItem = items.find(i => i.instanceId === rotateState.id);
+      if (rotatingItem && rotatingItem.state === "glassware") {
+        let normalizedRot = newRotation % 360;
+        if (normalizedRot > 180) normalizedRot -= 360;
+        if (normalizedRot < -180) normalizedRot += 360;
+
+        if (rotatingItem.id === "gas-jar" && Math.abs(normalizedRot) >= 70) {
+          if (!rotatingItem.isOpen || (rotatingItem.contents && rotatingItem.contents.length > 0)) {
+            onUpdate(rotatingItem.instanceId, { isOpen: true, contents: [] });
+          }
+        }
+
+        let isClosed = false;
+        if (rotatingItem.id === "three-neck-flask") {
+          const leftOpen = rotatingItem.isOpenLeft !== false;
+          const middleOpen = rotatingItem.isOpenMiddle !== false;
+          const rightOpen = rotatingItem.isOpenRight !== false;
+
+          if (rotatingItem.hasRubberStopper) {
+            isClosed = true;
+          } else if (Math.abs(normalizedRot) > 130) {
+            isClosed = !leftOpen && !middleOpen && !rightOpen;
+          } else if (normalizedRot < -50) {
+            isClosed = !leftOpen && !middleOpen;
+          } else if (normalizedRot > 50) {
+            isClosed = !rightOpen && !middleOpen;
+          } else {
+            isClosed = !leftOpen && !middleOpen && !rightOpen;
+          }
+        } else {
+          isClosed = rotatingItem.isOpen === false || rotatingItem.hasRubberStopper || items.some(i => (i.id === "glass-stopper" || i.id === "cork-stopper" || i.id === "rubber-stopper" || i.id === "burner-cap") && i.note?.includes(rotatingItem.instanceId));
+        }
+
+        if (!isClosed) {
+
+          if (Math.abs(normalizedRot) >= 70 && Math.abs(normalizedRot) <= 180) {
+            const hasLiquid = rotatingItem.contents?.some(c => c.state === 'liquid');
+            const hasSolid = rotatingItem.contents?.some(c => c.state === 'solid');
+            const mode = hasLiquid ? 'liquid' : (hasSolid ? 'solid' : 'gas');
+            if (dispensing[rotateState.id] !== mode) {
+              setDispensing(prev => ({ ...prev, [rotateState.id]: mode }));
+            }
+
+            // Find target glassware below rotating vessel
+            const target = items.find(
+              (i) =>
+                i.instanceId !== rotatingItem.instanceId &&
+                i.state === "glassware" &&
+                i.y > rotatingItem.y &&
+                Math.abs(i.x - rotatingItem.x) < 150
+            );
+
+            const progressVal = clamp((Math.abs(normalizedRot) - 60) / 40, 0.2, 1.0);
+
+            setPrePour(prev => {
+              const currentTargetId = target ? target.instanceId : "table";
+              if (prev && prev.itemId === rotatingItem.instanceId) {
+                if (prev.targetId !== currentTargetId) {
+                  return {
+                    ...prev,
+                    targetId: currentTargetId,
+                    targetStartX: target ? target.x : undefined,
+                    targetStartY: target ? target.y : undefined,
+                    progress: progressVal,
+                    initialVolume: target ? getTotalVolume(target.contents || []) : getTotalVolume(rotatingItem.contents || []),
+                    isManual: true,
+                  };
+                }
+                return {
+                  ...prev,
+                  progress: progressVal,
+                  isManual: true,
+                };
+              } else {
+                return {
+                  itemId: rotatingItem.instanceId,
+                  targetId: currentTargetId,
+                  startX: rotatingItem.x,
+                  startY: rotatingItem.y,
+                  targetStartX: target ? target.x : undefined,
+                  targetStartY: target ? target.y : undefined,
+                  progress: progressVal,
+                  pouredVolume: 0,
+                  initialVolume: target ? getTotalVolume(target.contents || []) : getTotalVolume(rotatingItem.contents || []),
+                  isManual: true,
+                };
+              }
+            });
+          } else {
+            if (dispensing[rotateState.id]) {
+              setDispensing(prev => {
+                const next = { ...prev };
+                delete next[rotateState.id];
+                return next;
+              });
+            }
+            setPrePour(prev => {
+              if (prev && prev.itemId === rotateState.id) {
+                return null;
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
+      return;
+    }
+
+    if (isPanning) {
+      const dx = event.clientX - panStartRef.current.x;
+      const dy = event.clientY - panStartRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        didPanRef.current = true;
+      }
+      const deltaX = dx / zoom;
+      const deltaY = dy / zoom;
+      setPanOffset({
+        x: panStartRef.current.panX + deltaX,
+        y: panStartRef.current.panY + deltaY,
+      });
+      return;
+    }
+
+    if (!dragState) return;
+
+    let draggedItem = items.find((i) => i.instanceId === dragState.id);
+
+    if (dragState.isInitialCapDrag && draggedItem) {
+      const dx = event.clientX - (dragState.dragStartX ?? 0);
+      const dy = event.clientY - (dragState.dragStartY ?? 0);
+      if (Math.sqrt(dx * dx + dy * dy) > 5) {
+        // Mutate synchronously to prevent race conditions from high-frequency mousemove events
+        dragState.isInitialCapDrag = false;
+
+        const isCork = draggedItem.id === "sodium-carbonate" || draggedItem.id === "barium-hydroxide" || draggedItem.id === "calcium-hydroxide" || draggedItem.id === "potassium-hydroxide" || draggedItem.id === "sodium-bicarbonate" || draggedItem.id === "sodium-hydroxide-solid" || draggedItem.id === "potassium-carbonate" || draggedItem.id === "sodium-hydroxide-solution" || draggedItem.id === "clear-lime-water" || draggedItem.id === "barium-hydroxide-solution" || draggedItem.id === "potassium-hydroxide-solution" || draggedItem.id === "sodium-carbonate-solution" || draggedItem.id === "sodium-bicarbonate-solution" || draggedItem.id === "ammonia-water" || draggedItem.id === "potassium-carbonate-solution";
+        const isAmber = draggedItem.symbol === "KMnO4" || draggedItem.symbol === "AgNO3" || draggedItem.symbol === "HNO3" || draggedItem.symbol === "I2" || draggedItem.symbol === "H2O2" || draggedItem.symbol === "Cl2" || draggedItem.symbol === "Br2" || draggedItem.symbol === "Fuchsin" || draggedItem.symbol === "Methyl orange";
+        const isDropper = false;
+
+        const isBurner = draggedItem.id === "burner";
+
+        if (isBurner) {
+          const stopperInstanceId = `lab-${Math.random().toString(36).slice(2, 10)}`;
+          const snapX = draggedItem.x + 56;
+          const snapY = draggedItem.y;
+
+          onUpdate(draggedItem.instanceId, { isOpen: true });
+          playCapSound(true);
+
+          onDrop("burner-cap", snapX, snapY, {
+            instanceId: stopperInstanceId,
+            note: `from-${draggedItem.instanceId}`,
+            rotation: 0
+          });
+
+          onSelect(stopperInstanceId);
+          setDragState({
+            id: stopperInstanceId,
+            offsetX: 30,
+            offsetY: 30,
+          });
+          return;
+        } else if (!isDropper) {
+          const stopperInstanceId = `lab-${Math.random().toString(36).slice(2, 10)}`;
+          const stopperType = isCork ? "cork-stopper" : "glass-stopper";
+          const isTNF = draggedItem.id === "three-neck-flask";
+          const targetNeck = dragState.draggedNeck;
+
+          let snapX = draggedItem.x + 44;
+          let snapY = isCork ? draggedItem.y + 10 : draggedItem.y;
+          let snapRot = 0;
+
+          if (isTNF && targetNeck) {
+            if (targetNeck === "left") {
+              snapX = draggedItem.x + 20;
+              snapY = draggedItem.y + 8;
+              snapRot = -30;
+            } else if (targetNeck === "middle") {
+              snapX = draggedItem.x + 85;
+              snapY = draggedItem.y - 7;
+              snapRot = 0;
+            } else if (targetNeck === "right") {
+              snapX = draggedItem.x + 149;
+              snapY = draggedItem.y + 8;
+              snapRot = 30;
+            }
+          }
+
+          const updates: Partial<PlacedInorganicItem> = {};
+          if (isTNF && targetNeck) {
+            if (targetNeck === "left") updates.isOpenLeft = true;
+            else if (targetNeck === "middle") updates.isOpenMiddle = true;
+            else if (targetNeck === "right") updates.isOpenRight = true;
+            updates.isOpen = true;
+          } else {
+            updates.isOpen = true;
+          }
+
+          onUpdate(draggedItem.instanceId, updates);
+          playCapSound(true);
+
+          onDrop(stopperType, snapX, snapY, {
+            instanceId: stopperInstanceId,
+            note: `from-${draggedItem.instanceId}-${targetNeck || "middle"}${isAmber ? "-amber" : ""}`,
+            rotation: snapRot
+          });
+
+          onSelect(stopperInstanceId);
+          setDragState({
+            id: stopperInstanceId,
+            offsetX: 21,
+            offsetY: isTNF ? 24 : (isCork ? 11 : 24),
+          });
+          return;
+        } else {
+          onUpdate(draggedItem.instanceId, { isOpen: true });
+          playCapSound(true);
+          onSelect(draggedItem.instanceId);
+          setDragState({
+            id: draggedItem.instanceId,
+            offsetX: dragState.offsetX,
+            offsetY: dragState.offsetY,
+          });
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+    const layoutWidth = surfaceRef.current.offsetWidth;
+    const layoutHeight = surfaceRef.current.offsetHeight;
+
+    let minX = 18 - panOffset.x;
+    let maxX = layoutWidth - 150 - panOffset.x;
+    let minY = 18 - panOffset.y;
+    let maxY = layoutHeight - 142 - panOffset.y;
+
+    if (draggedItem) {
+      const dims = getItemUnscaledDims(draggedItem.id, draggedItem.state);
+      const scale = getItemCanvasScale(draggedItem.id, draggedItem.state);
+
+      minX = 18 - (1 - scale) * (dims.w / 2) - panOffset.x;
+      maxX = layoutWidth - 150 + (1 - scale) * (dims.w / 2) - panOffset.x;
+      minY = 18 - (1 - scale) * dims.h - panOffset.y;
+      maxY = layoutHeight - 142 + (1 - scale) * dims.h - panOffset.y;
+    }
+
+    const mouseX = (event.clientX - rect.left) / zoom;
+    const mouseY = (event.clientY - rect.top) / zoom;
+
+    let nextX = clamp(mouseX - dragState.offsetX, minX, maxX);
+    let nextY = clamp(mouseY - dragState.offsetY, minY, maxY);
+
+    if (draggedItem && (draggedItem.id === "glass-stopper" || draggedItem.id === "cork-stopper" || draggedItem.id === "burner-cap")) {
+      const match = draggedItem.note?.match(/^from-(lab-[a-z0-9]+)/);
+      const parentInstanceId = match ? match[1] : null;
+      const parentBottle = items.find((i) => i.instanceId === parentInstanceId);
+      if (draggedItem && (draggedItem.id === "glass-stopper" || draggedItem.id === "cork-stopper" || draggedItem.id === "burner-cap")) {
+        const isCork = draggedItem.id === "cork-stopper";
+        const isBurnerCap = draggedItem.id === "burner-cap";
+        const compatibleBottles = items.filter(
+          (i) =>
+            isBurnerCap ?
+              i.id === "burner" && i.isOpen
+              :
+              (i.state === "solid" || i.state === "liquid" || i.state === "gas" || i.id === "three-neck-flask") &&
+              (i.id.includes("bottle") || i.id.includes("jar") || i.id === "three-neck-flask" || i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
+              !isBottleDropper(i.id) &&
+              isBottleCork(i.id) === isCork
+        );
+
+        let nearestBottle: PlacedInorganicItem | null = null;
+        let minDistance = Infinity;
+        let matchedNeck: { name: string; snapX: number; snapY: number; rotation: number; open?: boolean } | null = null;
+
+        compatibleBottles.forEach((bottle) => {
+          if (bottle.id === "three-neck-flask") {
+            const necks = [
+              { name: "left", snapX: bottle.x + 20, snapY: bottle.y + 8, rotation: -30, open: bottle.isOpenLeft },
+              { name: "middle", snapX: bottle.x + 85, snapY: bottle.y - 7, rotation: 0, open: bottle.isOpenMiddle },
+              { name: "right", snapX: bottle.x + 149, snapY: bottle.y + 8, rotation: 30, open: bottle.isOpenRight },
+            ];
+            necks.forEach((neck) => {
+              if (neck.open) {
+                const neckCenterX = neck.snapX + 21;
+                const neckCenterY = neck.snapY + 24;
+
+                const currentCenterX = nextX + 21;
+                const currentCenterY = nextY + 24;
+
+                const dx = currentCenterX - neckCenterX;
+                const dy = currentCenterY - neckCenterY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  nearestBottle = bottle;
+                  matchedNeck = neck;
+                }
+              }
+            });
+          } else {
+            const snapX = isBurnerCap ? bottle.x + 56 : bottle.x + 44;
+            const snapY = isBurnerCap ? bottle.y : (isCork ? bottle.y + 10 : bottle.y);
+            const neckX = isBurnerCap ? snapX + 15 : snapX + 21;
+            const neckY = isBurnerCap ? snapY + 15 : snapY + (isCork ? 11 : 24);
+
+            const currentCenterX = nextX + (isBurnerCap ? 15 : 21);
+            const currentCenterY = nextY + (isBurnerCap ? 15 : (isCork ? 11 : 24));
+
+            const dx = currentCenterX - neckX;
+            const dy = currentCenterY - neckY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDistance) {
+              minDistance = dist;
+              nearestBottle = bottle;
+              matchedNeck = null;
+            }
+          }
+        });
+
+        const distance = nearestBottle ? minDistance : 100;
+        let rotation = 180;
+        if (distance < 30) {
+          rotation = matchedNeck ? (matchedNeck as any).rotation : 0;
+        } else if (distance < 60) {
+          const t = (distance - 30) / (60 - 30);
+          const targetRot = matchedNeck ? (matchedNeck as any).rotation : 0;
+          rotation = Math.round(targetRot + t * (180 - targetRot));
+        }
+        const prevRotation = draggedItem.rotation ?? 0;
+        if (Math.abs(prevRotation - rotation) > 1) {
+          onUpdate(draggedItem.instanceId, { rotation });
+        }
+      }
+    }
+
     if (draggedItem && draggedItem.state === "glassware") {
       const burner = items.find(
         (i) => i.id === "burner" && Math.abs(i.x - nextX) < 62 && Math.abs(i.y - (nextY + 104)) < 78
@@ -192,52 +1144,308 @@ export default function InorganicCanvas({
       }
     }
 
+    if (prePour) {
+      if (dragState.id === prePour.itemId) {
+        if (Math.abs(nextX - prePour.startX) > 15 || Math.abs(nextY - prePour.startY) > 15) {
+          // Break connection - reset rotation but keep bottle open (cap does not appear)
+          onUpdate(prePour.itemId, { rotation: 0 });
+          setPrePour(null);
+          setDispensing(prev => {
+            const next = { ...prev };
+            delete next[prePour.itemId];
+            return next;
+          });
+        }
+      } else if (dragState.id === prePour.targetId) {
+        const targetStartX = prePour.targetStartX ?? 0;
+        const targetStartY = prePour.targetStartY ?? 0;
+        if (Math.abs(nextX - targetStartX) > 15 || Math.abs(nextY - targetStartY) > 15) {
+          // Break connection - reset rotation but keep bottle open (cap does not appear)
+          onUpdate(prePour.itemId, { rotation: 0 });
+          setPrePour(null);
+          setDispensing(prev => {
+            const next = { ...prev };
+            delete next[prePour.itemId];
+            return next;
+          });
+        }
+      }
+    }
+
     onMove(dragState.id, nextX, nextY);
   };
 
   const handlePointerUp = () => {
+    if (activeNodeDrag) {
+      setActiveNodeDrag(null);
+      return;
+    }
+
+    if (sliderDrag && prePour) {
+      // Snap back the bottle
+      onUpdate(prePour.itemId, { rotation: 0, x: prePour.startX, y: prePour.startY });
+      setPrePour(p => p ? { ...p, progress: 0 } : null);
+
+      // Keep the stream falling for a very short delay (300ms) for visual smoothness
+      setTimeout(() => {
+        setDispensing((current) => {
+          const next = { ...current };
+          delete next[prePour.itemId];
+          return next;
+        });
+      }, 300);
+
+      setSliderDrag(null);
+      didPanRef.current = true;
+      return;
+    }
+
+    if (rotateState) {
+      // Do not reset rotation, prePour, or dispensing, so the vessel stays in its rotated position and continues pouring if tilted!
+      setRotateState(null);
+      return;
+    }
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
     if (!dragState) return;
-    
-    // Check for overlap with other items (pouring/combining)
+
     const draggedItem = items.find((i) => i.instanceId === dragState.id);
+    if (draggedItem && (draggedItem.id === "glass-stopper" || draggedItem.id === "cork-stopper" || draggedItem.id === "burner-cap")) {
+      const isCork = draggedItem.id === "cork-stopper";
+      const isBurnerCap = draggedItem.id === "burner-cap";
+      let matchedNeckName: "left" | "middle" | "right" | null = null;
+      const targetBottle = items.find(
+        (i) => {
+          if (isBurnerCap) {
+            return i.id === "burner" && i.isOpen && Math.abs((i.x + 85) - draggedItem.x) < 40 && Math.abs((i.y + 4) - draggedItem.y) < 40;
+          }
+          if (i.id === "three-neck-flask") {
+            const bottleEl = document.querySelector(`[data-instance-id="${i.instanceId}"]`);
+            const svgEl = bottleEl?.querySelector("svg");
+            const capEl = document.querySelector(`[data-instance-id="${draggedItem.instanceId}"]`);
+            if (svgEl && capEl) {
+              const svgRect = svgEl.getBoundingClientRect();
+              const capRect = capEl.getBoundingClientRect();
+              const capCenterX = capRect.left + capRect.width / 2;
+              const capCenterY = capRect.top + capRect.height / 2;
+
+              const scaleX = 220 / svgRect.width;
+              const scaleY = 220 / svgRect.height;
+              const localX = (capCenterX - svgRect.left) * scaleX;
+              const localY = (capCenterY - svgRect.top) * scaleY;
+
+              let neck: "left" | "middle" | "right" | null = null;
+              if (localY >= -10 && localY <= 50) {
+                if (localX >= 30 && localX <= 85) neck = "left";
+                else if (localX >= 85 && localX <= 135) neck = "middle";
+                else if (localX >= 135 && localX <= 190) neck = "right";
+              }
+
+              if (neck) {
+                const isNeckOpen = neck === "left" ? i.isOpenLeft
+                  : neck === "middle" ? i.isOpenMiddle
+                    : neck === "right" ? i.isOpenRight
+                      : false;
+                if (isNeckOpen) {
+                  matchedNeckName = neck;
+                  return true;
+                }
+              }
+              return false;
+            } else {
+              const necks = [
+                { name: "left" as const, snapX: i.x + 20, snapY: i.y + 8, open: i.isOpenLeft },
+                { name: "middle" as const, snapX: i.x + 85, snapY: i.y - 7, open: i.isOpenMiddle },
+                { name: "right" as const, snapX: i.x + 149, snapY: i.y + 8, open: i.isOpenRight },
+              ];
+              const foundNeck = necks.find(n => n.open && Math.abs(n.snapX - draggedItem.x) < 40 && Math.abs(n.snapY - draggedItem.y) < 40);
+              if (foundNeck) {
+                matchedNeckName = foundNeck.name;
+                return true;
+              }
+              return false;
+            }
+          }
+          return (
+            (i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
+            (i.id.includes("bottle") || i.id.includes("jar") || i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
+            i.isOpen &&
+            !isBottleDropper(i.id) &&
+            isBottleCork(i.id) === isCork &&
+            Math.abs((i.x + 44) - draggedItem.x) < 40 &&
+            Math.abs((isCork ? i.y + 10 : i.y) - draggedItem.y) < 40
+          );
+        }
+      );
+
+      if (targetBottle) {
+        if (targetBottle.id === "burner" && targetBottle.isLit) {
+          onUpdate(targetBottle.instanceId, { isLit: false });
+        }
+        playCapSound(false);
+
+        const isTNF = targetBottle.id === "three-neck-flask";
+        let targetX = targetBottle.x + 44;
+        let targetY = isCork ? targetBottle.y + 10 : targetBottle.y;
+        let targetRotation = 0;
+
+        if (isTNF && matchedNeckName) {
+          if (matchedNeckName === "left") {
+            targetX = targetBottle.x + 20;
+            targetY = targetBottle.y + 8;
+            targetRotation = -30;
+          } else if (matchedNeckName === "middle") {
+            targetX = targetBottle.x + 85;
+            targetY = targetBottle.y - 7;
+            targetRotation = 0;
+          } else if (matchedNeckName === "right") {
+            targetX = targetBottle.x + 149;
+            targetY = targetBottle.y + 8;
+            targetRotation = 30;
+          }
+        } else if (isBurnerCap) {
+          targetX = targetBottle.x + 56;
+          targetY = targetBottle.y;
+        }
+
+        if (isTNF && matchedNeckName) {
+          const updates: Partial<PlacedInorganicItem> = {};
+          if (matchedNeckName === "left") updates.isOpenLeft = false;
+          else if (matchedNeckName === "middle") updates.isOpenMiddle = false;
+          else if (matchedNeckName === "right") updates.isOpenRight = false;
+
+          const openLeft = matchedNeckName === "left" ? false : (targetBottle.isOpenLeft ?? false);
+          const openMiddle = matchedNeckName === "middle" ? false : (targetBottle.isOpenMiddle ?? false);
+          const openRight = matchedNeckName === "right" ? false : (targetBottle.isOpenRight ?? false);
+          updates.isOpen = openLeft || openMiddle || openRight;
+
+          onUpdate(targetBottle.instanceId, updates);
+        } else {
+          onUpdate(targetBottle.instanceId, { isOpen: false });
+        }
+        onRemove(draggedItem.instanceId);
+        setDragState(null);
+        return;
+      }
+    }
+
     if (draggedItem && draggedItem.state === "glassware") {
       const target = items.find(
         (i) =>
           i.instanceId !== dragState.id &&
           i.state === "glassware" &&
-          Math.abs(i.x - draggedItem.x) < 50 &&
-          Math.abs(i.y - (draggedItem.y + 60)) < 40
+          Math.abs(i.x + 50 - draggedItem.x) < 250 &&
+          Math.abs(i.y + 50 - draggedItem.y) < 250
       );
 
       if (target) {
-        // Trigger Pouring Action
-        onUpdate(draggedItem.instanceId, { rotation: 45 });
+        const dims = getItemUnscaledDims(target.id, target.state);
+        const scale = getItemCanvasScale(target.id, target.state);
+        const targetW = dims.w * scale;
+        const targetH = dims.h * scale;
+
+        const isNarrowNeck =
+          target.id.includes("flask") ||
+          target.id.includes("erlenmeyer") ||
+          target.id.includes("test-tube");
+
+        const targetCenterX = target.x + dims.w / 2;
+        const vesselVisualTop = target.y + dims.h - targetH;
+
+        const sourceDims = getItemUnscaledDims(draggedItem.id, draggedItem.state);
+
+        let newX = 0;
+        const newY = vesselVisualTop - 20;
+
+        if (isNarrowNeck) {
+          // Snap source center to the right of targetCenter so its left-mouth aligns perfectly with target neck center when tilted
+          newX = targetCenterX + 15 - sourceDims.w / 2;
+        } else {
+          // Snap source mouth to beaker's visual right rim
+          const vesselVisualRight = target.x + dims.w / 2 + targetW / 2;
+          newX = vesselVisualRight - 20 - sourceDims.w / 2;
+        }
+
+        onUpdate(draggedItem.instanceId, { x: newX, y: newY, rotation: 0 });
+        setPrePour({
+          itemId: draggedItem.instanceId,
+          targetId: target.instanceId,
+          startX: newX,
+          startY: newY,
+          targetStartX: target.x,
+          targetStartY: target.y,
+          progress: 0,
+          pouredVolume: 0,
+          initialVolume: getTotalVolume(target.contents || []),
+          isSnapping: true
+        });
+
         setTimeout(() => {
-          onCombine(draggedItem.instanceId, target.instanceId);
-          onUpdate(draggedItem.instanceId, { rotation: 0 });
-        }, 800);
+          setPrePour(p => p?.itemId === draggedItem.instanceId ? { ...p, isSnapping: false } : p);
+        }, 500);
+
+        setDragState(null);
+        return;
       }
     } else if (draggedItem) {
       const target = items.find(
         (i) =>
           i.instanceId !== dragState.id &&
           i.state === "glassware" &&
-          Math.abs(i.x - draggedItem.x) < 86 &&
-          Math.abs(i.y - draggedItem.y) < 86
+          Math.abs(i.x + 50 - draggedItem.x) < 250 &&
+          Math.abs(i.y + 50 - draggedItem.y) < 250
       );
 
-      if (target && draggedItem.state !== "glassware") {
-        const mode = draggedItem.state === "gas" ? "gas" : draggedItem.state === "solid" ? "solid" : "liquid";
-        setDispensing((current) => ({ ...current, [draggedItem.instanceId]: mode }));
-        onUpdate(draggedItem.instanceId, { rotation: mode === "gas" ? -18 : -42 });
+      if (target && (draggedItem.state === "solid" || draggedItem.state === "liquid" || draggedItem.state === "gas") && draggedItem.isOpen) {
+        const dims = getItemUnscaledDims(target.id, target.state);
+        const scale = getItemCanvasScale(target.id, target.state);
+        const targetW = dims.w * scale;
+        const targetH = dims.h * scale;
+
+        const isNarrowNeck =
+          target.id.includes("flask") ||
+          target.id.includes("erlenmeyer") ||
+          target.id.includes("test-tube");
+
+        const targetCenterX = target.x + dims.w / 2;
+        const vesselVisualTop = target.y + dims.h - targetH;
+
+        const bottleDims = getItemUnscaledDims(draggedItem.id, draggedItem.state);
+
+        let newX = 0;
+        const newY = vesselVisualTop - 20;
+
+        if (isNarrowNeck) {
+          // Snap bottle center to the right of targetCenter so its left-mouth aligns perfectly with target neck center when tilted
+          newX = targetCenterX + 15 - bottleDims.w / 2;
+        } else {
+          // Snap bottle mouth to beaker's visual right rim
+          const vesselVisualRight = target.x + dims.w / 2 + targetW / 2;
+          newX = vesselVisualRight - 20 - bottleDims.w / 2;
+        }
+
+        onUpdate(draggedItem.instanceId, { x: newX, y: newY, rotation: 0 });
+        setPrePour({
+          itemId: draggedItem.instanceId,
+          targetId: target.instanceId,
+          startX: newX,
+          startY: newY,
+          targetStartX: target.x,
+          targetStartY: target.y,
+          progress: 0,
+          pouredVolume: 0,
+          initialVolume: getTotalVolume(target.contents || []),
+          isSnapping: true
+        });
+
         setTimeout(() => {
-          onCombine(dragState.id, target.instanceId);
-          setDispensing((current) => {
-            const next = { ...current };
-            delete next[draggedItem.instanceId];
-            return next;
-          });
-        }, 720);
+          setPrePour(p => p?.itemId === draggedItem.instanceId ? { ...p, isSnapping: false } : p);
+        }, 500);
+
+        setDragState(null);
+        return;
       }
     }
 
@@ -279,8 +1487,9 @@ export default function InorganicCanvas({
     if (!itemId || !surfaceRef.current) return;
 
     const rect = surfaceRef.current.getBoundingClientRect();
-    const x = clamp(event.clientX - rect.left - 66, 18, rect.width - 150);
-    const y = clamp(event.clientY - rect.top - 71, 18, rect.height - 142);
+    const zoom = rect.width / surfaceRef.current.offsetWidth;
+    const x = clamp((event.clientX - rect.left) / zoom - 66, 18, surfaceRef.current.offsetWidth - 150);
+    const y = clamp((event.clientY - rect.top) / zoom - 71, 18, surfaceRef.current.offsetHeight - 142);
 
     onDrop(itemId, x, y);
   };
@@ -288,209 +1497,1018 @@ export default function InorganicCanvas({
   return (
     <div
       ref={surfaceRef}
-      className="relative h-full min-h-0 overflow-hidden bg-[#3a3f47]"
+      className={`relative h-full min-h-0 overflow-hidden bg-[#3a3f47] ${isPanning ? "cursor-grabbing" : "cursor-grab"
+        }`}
+      onMouseDown={handleBackgroundMouseDown}
       onMouseMove={handlePointerMove}
       onMouseUp={handlePointerUp}
       onMouseLeave={handlePointerUp}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onSelect(null);
+      onClick={() => {
+        if (didPanRef.current) {
+          didPanRef.current = false;
+          return;
+        }
+        onSelect(null);
+        setPopupItemId(null);
+        setMenuOpenId(null);
+        setPrePour(null);
       }}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div
+        className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] [background-size:42px_42px]"
+        style={{
+          backgroundPosition: `${panOffset.x}px ${panOffset.y}px`,
+        }}
+      />
 
-      {items.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="max-w-[680px] rounded-[28px] border border-dashed border-white/10 bg-black/8 px-6 py-8 text-center backdrop-blur lg:max-w-xl lg:rounded-[32px] lg:px-8 lg:py-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/55">Workspace ready</p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white/92 lg:text-3xl">Start an inorganic experiment</h3>
-            <p className="mt-4 text-sm leading-7 text-white/55 lg:text-base">
-              Add glassware, devices and reagents from the left library. You can drag every item around the bench and
-              use the inspector to duplicate or remove the selected piece.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {items.map((item) => {
-        const active = selectedId === item.instanceId;
-        const reactionState = item.state === "glassware" ? getLiveReactionState(item) : "idle";
-        const isPouring = (item.rotation || 0) !== 0;
-        const dispenseMode = dispensing[item.instanceId];
-        
-        return (
-          <div
-            key={item.instanceId}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-              onSelect(item.instanceId);
-
-              const rect = surfaceRef.current?.getBoundingClientRect();
-              if (!rect) return;
-
-              setDragState({
-                id: item.instanceId,
-                offsetX: event.clientX - rect.left - item.x,
-                offsetY: event.clientY - rect.top - item.y,
-              });
-            }}
-            className={`absolute cursor-grab active:cursor-grabbing transition-transform ${
-              active ? "z-50 scale-105" : "z-10"
-            }`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect(item.instanceId);
-              
-              // Interactive States
-              if (item.id === "burner") {
-                const burnerOpen = item.isOpen === true;
-                if (!burnerOpen) {
-                  onUpdate(item.instanceId, { isOpen: true });
-                } else if (!item.isLit) {
-                  onUpdate(item.instanceId, { isLit: true });
-                } else {
-                  onUpdate(item.instanceId, { isLit: false, isOpen: false });
-                }
-              } else if (item.id === "matchbox") {
-                if (item.showStick !== false && !item.isStriking) {
-                  strikeMatchbox(item);
-                }
-              } else if (item.id === "match") {
-                if (!item.isLit) {
-                  onUpdate(item.instanceId, { isLit: true });
-                  flashSpark(item.x + 58, item.y + 42, 280);
-                }
-              } else if (item.id.includes("bottle") || item.id.includes("jar") || item.id === "rubber-stopper") {
-                onUpdate(item.instanceId, { isOpen: !item.isOpen });
-              }
-            }}
-            style={{ left: item.x, top: item.y, transform: `rotate(${item.rotation || 0}deg)` }}
-          >
-            {/* High Fidelity Asset Rendering */}
-            <div className="relative select-none pointer-events-auto">
-              {item.id === "beaker" ? (
-                <BeakerIcon />
-              ) : item.id === "beaker-100" ? (
-                <Beaker100Icon />
-              ) : item.id === "beaker-250" ? (
-                <Beaker250Icon />
-              ) : item.id === "erlenmeyer-100" ? (
-                <ErlenmeyerFlaskIcon sizeText="100mL" />
-              ) : item.id === "erlenmeyer-250" ? (
-                <ErlenmeyerFlaskIcon sizeText="250mL" />
-              ) : item.id === "three-neck-flask" ? (
-                <ThreeNeckedFlaskIcon />
-              ) : item.id === "round-bottom-flask" ? (
-                <RoundBottomFlaskAsset />
-              ) : item.id === "separatory-funnel" ? (
-                <SeparatoryFunnelAsset />
-              ) : item.id === "gas-jar" ? (
-                <GasJarAsset isOpen={item.isOpen} />
-              ) : item.id === "measure-bottle" ? (
-                <MeasureBottleAsset isOpen={item.isOpen} />
-              ) : item.id === "glass-bottle" ? (
-                <GlassBottleAsset isOpen={item.isOpen} />
-              ) : item.id === "test-tube" ? (
-                <TestTubeAsset size="large" />
-              ) : item.id === "test-tube-small" ? (
-                <TestTubeAsset size="small" />
-              ) : item.id === "test-tube-mini" ? (
-                <TestTubeAsset size="mini" />
-              ) : item.id === "burner" ? (
-                <BurnerAsset lit={item.isLit} isOpen={item.isOpen} />
-              ) : item.id === "tripod" ? (
-                <StandAsset />
-              ) : item.id === "match" ? (
-                <MatchAsset lit={item.isLit} />
-              ) : item.id === "matchbox" ? (
-                <MatchboxAsset
-                  lit={item.isLit}
-                  showStick={item.showStick !== false}
-                  isStriking={item.isStriking === true}
-                />
-              ) : item.id === "dropper" ? (
-                <DropperAsset />
-              ) : item.id === "forceps" ? (
-                <ForcepsAsset />
-              ) : item.id === "clay-net" ? (
-                <ClayNetAsset />
-              ) : item.id === "retort-stand" ? (
-                <RetortStandAsset />
-              ) : item.id === "gauze" ? (
-                <GauzeAsset />
-              ) : item.id === "spatula" ? (
-                <SpatulaAsset />
-              ) : item.id === "glass-conduit" ? (
-                <GlassConduitAsset />
-              ) : item.id === "rubber-stopper" ? (
-                <RubberStopperAsset />
-              ) : item.state === "solid" || item.state === "liquid" || item.state === "gas" ? (
-                <ChemicalContainerAsset
-                  state={item.state}
-                  label={item.name}
-                  symbol={item.symbol}
-                  accent={item.accent}
-                />
-              ) : (
-                /* Fallback for other items */
-                <div
-                  className={`w-32 rounded-[28px] border px-4 py-4 transition ${
-                    active
-                      ? "border-white/20 bg-[#323840] text-white"
-                      : "border-white/6 bg-[#323840] text-white shadow-black/20"
-                  }`}
-                >
-                  <div
-                    className="inline-flex rounded-2xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em]"
-                    style={{
-                      color: active ? "#e0f2fe" : item.accent,
-                      borderColor: active ? "rgba(255,255,255,0.22)" : `${item.accent}33`,
-                      backgroundColor: active ? "rgba(255,255,255,0.08)" : `${item.accent}14`,
-                    }}
-                  >
-                    {item.symbol}
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold leading-5 text-white">{item.name}</h3>
-                </div>
-              )}
-
-              {/* Pouring Stream Effect */}
-              {isPouring && (
-                <DispenseEffect mode={dispenseMode ?? "liquid"} color={item.accent} />
-              )}
-
-              {item.state === "glassware" && (
-                <VesselContents item={item} heated={vesselHeat[item.instanceId]} reactionState={reactionState} />
-              )}
-
-              {/* Contents Label (only for vessels) */}
-              {item.state === "glassware" && item.contents && item.contents.length > 0 && (
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex max-w-56 items-center gap-1 bg-black/45 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 shadow-lg">
-                  {item.contents.map((c, i) => (
-                    <span key={i} className="text-[10px] font-bold" style={{ color: c.accent }}>{c.symbol}</span>
-                  ))}
-                </div>
-              )}
-              {item.note && (
-                <div className="absolute left-1/2 top-full mt-1 w-48 -translate-x-1/2 rounded-lg border border-white/10 bg-black/55 px-2 py-1 text-center text-[10px] leading-4 text-white/80 shadow-lg">
-                  {item.note}
-                </div>
-              )}
+      <div
+        style={{
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+          width: "100%",
+          height: "100%",
+          position: "absolute",
+          top: 0,
+          left: 0,
+        }}
+      >
+        {items.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="max-w-[680px] rounded-[28px] border border-dashed border-white/10 bg-black/8 px-6 py-8 text-center backdrop-blur lg:max-w-xl lg:rounded-[32px] lg:px-8 lg:py-10">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/55">Workspace ready</p>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white/92 lg:text-3xl">Start an inorganic experiment</h3>
+              <p className="mt-4 text-sm leading-7 text-white/55 lg:text-base">
+                Add glassware, devices and reagents from the left library. You can drag every item around the bench and
+                use the inspector to duplicate or remove the selected piece.
+              </p>
             </div>
           </div>
-        );
-      })}
+        )}
 
-      {/* Spark Burst Effect */}
-      {sparkPos && (
-        <div 
-          className="absolute z-[100] pointer-events-none"
-          style={{ left: sparkPos.x, top: sparkPos.y }}
-        >
-          <SparkEffect />
-        </div>
-      )}
+        {items.map((item) => {
+          const active = selectedId === item.instanceId;
+          const reactionState = item.state === "glassware" ? getLiveReactionState(item) : "idle";
+          const dispenseMode = dispensing[item.instanceId];
+          const isPouring = !!dispenseMode;
+          const isDragging = dragState?.id === item.instanceId;
+          const isRotating = rotateState?.id === item.instanceId;
+          const isSliderDragging = !!sliderDrag && prePour?.itemId === item.instanceId;
+
+          const dims = getItemUnscaledDims(item.id, item.state);
+          const scale = getItemCanvasScale(item.id, item.state);
+          const r = Math.max(dims.w, dims.h) / 2 + 16;
+          const centerX = dims.w / 2;
+          const centerY = dims.h / 2;
+          const btnSize = 36;
+          const rotateX = centerX + r * 0.707 - btnSize / 2;
+          const rotateY = centerY - r * 0.707 - btnSize / 2;
+          const dotsX = centerX - r * 0.707 - btnSize / 2;
+          const dotsY = centerY - r * 0.707 - btnSize / 2;
+
+          const isStopper = item.id === "glass-stopper" || item.id === "cork-stopper";
+          const isGlasswareBottle = item.id.includes("bottle") || item.id.includes("jar") || item.id === "three-neck-flask" || item.state === "solid" || item.state === "liquid" || item.state === "gas";
+          const isDropper = false;
+
+          let gasFlow: { color: string; reverse: boolean } | undefined;
+          if (item.id === "glass-pipe") {
+            const points = item.metadata?.points || [
+              { x: 20, y: 100 },
+              { x: 20, y: 20 },
+              { x: 100, y: 20 },
+            ];
+            if (points.length >= 2) {
+              const startP = { x: item.x + points[0].x, y: item.y + points[0].y };
+              const endP = { x: item.x + points[points.length - 1].x, y: item.y + points[points.length - 1].y };
+
+              const gasSource = items.find((i) => {
+                if (!i.isOpen) return false;
+                const iReactionState = i.state === "glassware" ? getLiveReactionState(i) : "idle";
+                if (i.state !== "gas" && iReactionState !== "gas") return false;
+
+                const neckX = i.x + 65;
+                const neckY = i.y + 25;
+                const distToStart = Math.hypot(startP.x - neckX, startP.y - neckY);
+                const distToEnd = Math.hypot(endP.x - neckX, endP.y - neckY);
+                return distToStart < 40 || distToEnd < 40;
+              });
+
+              if (gasSource) {
+                const neckX = gasSource.x + 65;
+                const neckY = gasSource.y + 25;
+                const distToStart = Math.hypot(startP.x - neckX, startP.y - neckY);
+                let color = gasSource.accent || "#ffffff";
+                if (gasSource.state === "glassware") color = "#ffffff";
+                gasFlow = { color, reverse: distToStart > 40 };
+              }
+            }
+          }
+
+          let pipeConnected = false;
+          if ((item.state === "gas") && item.isOpen) {
+            const neckX = item.x + 65;
+            const neckY = item.y + 25;
+            pipeConnected = items.some((pipe) => {
+              if (pipe.id !== "glass-pipe") return false;
+              const pts = pipe.metadata?.points || [
+                { x: 20, y: 100 },
+                { x: 20, y: 20 },
+                { x: 100, y: 20 },
+              ];
+              if (pts.length < 2) return false;
+              const startP = { x: pipe.x + pts[0].x, y: pipe.y + pts[0].y };
+              const endP = { x: pipe.x + pts[pts.length - 1].x, y: pipe.y + pts[pts.length - 1].y };
+              return Math.hypot(startP.x - neckX, startP.y - neckY) < 40 || Math.hypot(endP.x - neckX, endP.y - neckY) < 40;
+            });
+          }
+
+          const isHoveringCap =
+            (isGlasswareBottle && item.id !== "three-neck-flask" && hoveringCapId === item.instanceId && !item.isOpen && !dragState) ||
+            (item.id === "three-neck-flask" && hoveringCapId === item.instanceId && hoveringNeck && !dragState);
+          const cursorClass = isHoveringCap ? "cursor-alias" : (active ? "cursor-grabbing" : "cursor-grab");
+
+          return (
+            <div
+              key={item.instanceId}
+              data-instance-id={item.instanceId}
+              onMouseMove={(event) => {
+                const isFlaskClosed = item.id === "three-neck-flask"
+                  ? (!item.isOpenLeft || !item.isOpenMiddle || !item.isOpenRight)
+                  : !item.isOpen;
+                if ((isGlasswareBottle || item.id === "burner") && isFlaskClosed) {
+                  const svgEl = event.currentTarget.querySelector("svg");
+                  if (svgEl) {
+                    const rect = svgEl.getBoundingClientRect();
+                    const isBurner = item.id === "burner";
+                    let isOverCap = false;
+                    if (isBurner) {
+                      const scaleX = 220 / rect.width;
+                      const scaleY = 190 / rect.height;
+                      const localX = (event.clientX - rect.left) * scaleX;
+                      const localY = (event.clientY - rect.top) * scaleY;
+                      isOverCap = localY >= 0 && localY <= 80 && localX >= 60 && localX <= 160;
+                    } else if (item.id === "three-neck-flask") {
+                      const scaleX = 220 / rect.width;
+                      const scaleY = 220 / rect.height;
+                      const localX = (event.clientX - rect.left) * scaleX;
+                      const localY = (event.clientY - rect.top) * scaleY;
+
+                      let neck: "left" | "middle" | "right" | null = null;
+                      if (localY >= 0 && localY <= 40) {
+                        if (localX >= 35 && localX <= 80) neck = "left";
+                        else if (localX >= 90 && localX <= 130) neck = "middle";
+                        else if (localX >= 140 && localX <= 185) neck = "right";
+                      }
+
+                      const isNeckClosed = neck === "left" ? !item.isOpenLeft
+                        : neck === "middle" ? !item.isOpenMiddle
+                          : neck === "right" ? !item.isOpenRight
+                            : false;
+
+                      if (isNeckClosed) {
+                        isOverCap = true;
+                        if (hoveringNeck !== neck) {
+                          setHoveringNeck(neck);
+                        }
+                      } else {
+                        if (hoveringNeck) {
+                          setHoveringNeck(null);
+                        }
+                      }
+                    } else {
+                      const scaleX = 130 / rect.width;
+                      const scaleY = 160 / rect.height;
+                      const localX = (event.clientX - rect.left) * scaleX;
+                      const localY = (event.clientY - rect.top) * scaleY;
+                      isOverCap = localY >= 0 && localY <= 48 && localX >= 40 && localX <= 90;
+                    }
+
+                    if (isOverCap) {
+                      if (hoveringCapId !== item.instanceId) {
+                        setHoveringCapId(item.instanceId);
+                      }
+                    } else {
+                      if (hoveringCapId === item.instanceId) {
+                        setHoveringCapId(null);
+                      }
+                    }
+                  }
+                }
+              }}
+              onMouseLeave={() => {
+                if (hoveringCapId === item.instanceId) {
+                  setHoveringCapId(null);
+                }
+              }}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+                let clickedNeck: "left" | "middle" | "right" | null = null;
+                onSelect(item.instanceId);
+                if (selectedId !== item.instanceId) {
+                  setPopupItemId(null);
+                  setMenuOpenId(null);
+                }
+
+                const rect = surfaceRef.current?.getBoundingClientRect();
+                if (!rect || !surfaceRef.current) return;
+
+                const zoom = rect.width / surfaceRef.current.offsetWidth;
+
+                const isFlaskClosed = item.id === "three-neck-flask"
+                  ? (!item.isOpenLeft || !item.isOpenMiddle || !item.isOpenRight)
+                  : !item.isOpen;
+                if ((isGlasswareBottle || item.id === "burner") && isFlaskClosed) {
+                  const svgEl = event.currentTarget.querySelector("svg");
+                  if (svgEl) {
+                    const svgRect = svgEl.getBoundingClientRect();
+                    const isBurner = item.id === "burner";
+                    let isOverCap = false;
+                    if (isBurner) {
+                      const scaleX = 220 / svgRect.width;
+                      const scaleY = 190 / svgRect.height;
+                      const localX = (event.clientX - svgRect.left) * scaleX;
+                      const localY = (event.clientY - svgRect.top) * scaleY;
+                      isOverCap = localY >= 0 && localY <= 80 && localX >= 60 && localX <= 160;
+                    } else if (item.id === "three-neck-flask") {
+                      const scaleX = 220 / svgRect.width;
+                      const scaleY = 220 / svgRect.height;
+                      const localX = (event.clientX - svgRect.left) * scaleX;
+                      const localY = (event.clientY - svgRect.top) * scaleY;
+
+                      let neck: "left" | "middle" | "right" | null = null;
+                      if (localY >= 0 && localY <= 40) {
+                        if (localX >= 35 && localX <= 80) neck = "left";
+                        else if (localX >= 90 && localX <= 130) neck = "middle";
+                        else if (localX >= 140 && localX <= 185) neck = "right";
+                      }
+
+                      const isNeckClosed = neck === "left" ? !item.isOpenLeft
+                        : neck === "middle" ? !item.isOpenMiddle
+                          : neck === "right" ? !item.isOpenRight
+                            : false;
+
+                      if (isNeckClosed) {
+                        isOverCap = true;
+                        clickedNeck = neck;
+                      }
+                    } else {
+                      const scaleX = 130 / svgRect.width;
+                      const scaleY = 160 / svgRect.height;
+                      const localX = (event.clientX - svgRect.left) * scaleX;
+                      const localY = (event.clientY - svgRect.top) * scaleY;
+                      isOverCap = localY >= 0 && localY <= 48 && localX >= 40 && localX <= 90;
+                    }
+
+                    if (isOverCap) {
+                      setDragState({
+                        id: item.instanceId,
+                        offsetX: (event.clientX - rect.left) / zoom - item.x,
+                        offsetY: (event.clientY - rect.top) / zoom - item.y,
+                        isInitialCapDrag: true,
+                        dragStartX: event.clientX,
+                        dragStartY: event.clientY,
+                        draggedNeck: clickedNeck ?? undefined,
+                      });
+                      return;
+                    }
+                  }
+                }
+
+                setDragState({
+                  id: item.instanceId,
+                  offsetX: (event.clientX - rect.left) / zoom - item.x,
+                  offsetY: (event.clientY - rect.top) / zoom - item.y,
+                });
+              }}
+              className={`absolute ${cursorClass} transition-transform ${active ? "z-50 scale-105" : "z-10"}`}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                if (item.state === "glassware") {
+                  setMenuOpenId(item.instanceId);
+                }
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(item.instanceId);
+
+                // Interactive States
+                if (item.id === "burner") {
+                  const burnerOpen = item.isOpen === true;
+                  if (burnerOpen) {
+                    if (!item.isLit) {
+                      onUpdate(item.instanceId, { isLit: true });
+                    } else {
+                      onUpdate(item.instanceId, { isLit: false });
+                    }
+                  }
+                } else if (item.id === "matchbox") {
+                  if (item.showStick !== false && !item.isStriking) {
+                    strikeMatchbox(item);
+                  }
+                } else if (item.id === "match") {
+                  if (!item.isLit) {
+                    onUpdate(item.instanceId, { isLit: true });
+                    flashSpark(item.x + 58, item.y + 42, 280);
+                  }
+                } else if (item.id === "dropper") {
+                  if (item.isStriking) return;
+                  const currentlyFilled = item.isOpen;
+
+                  if (!currentlyFilled) {
+                    const isNearContainer = items.some(i => {
+                      if (i.instanceId === item.instanceId) return false;
+                      const ignoreIds = ["burner", "matchbox", "match", "forceps", "dropper", "clay-net", "tripod", "wire-gauze", "rubber-stopper", "cork-stopper", "glass-stopper", "burner-cap"];
+                      if (ignoreIds.includes(i.id)) return false;
+
+                      const dx = Math.abs(i.x - item.x);
+                      const dy = Math.abs(i.y - item.y);
+                      return dx < 120 && dy < 180;
+                    });
+                    if (!isNearContainer) return;
+                  }
+
+                  onUpdate(item.instanceId, { isStriking: true });
+                  setTimeout(() => {
+                    onUpdate(item.instanceId, { isStriking: false, isOpen: !currentlyFilled });
+                  }, 400);
+                } else if (
+                  item.id.includes("bottle") ||
+                  item.id.includes("jar") ||
+                  item.id === "rubber-stopper" ||
+                  item.state === "solid" ||
+                  item.state === "liquid" ||
+                  item.state === "gas"
+                ) {
+                  if (isGlasswareBottle && !isDropper) {
+                    return; // Disable clicking entirely for bottles with standalone stoppers!
+                  }
+                  const nextOpen = !item.isOpen;
+                  if (nextOpen) {
+                    return; // Disable opening on click!
+                  }
+
+                  if (isDropper || !isGlasswareBottle) {
+                    onUpdate(item.instanceId, { isOpen: nextOpen });
+                    playCapSound(nextOpen);
+                  } else {
+                    const isCork = isBottleCork(item.id);
+                    if (nextOpen) {
+                      onUpdate(item.instanceId, { isOpen: true });
+                      playCapSound(true);
+                      const isAmber = item.symbol === "KMnO4" || item.symbol === "AgNO3" || item.symbol === "HNO3" || item.symbol === "I2" || item.symbol === "H2O2" || item.symbol === "Cl2" || item.symbol === "Br2" || item.symbol === "Fuchsin" || item.symbol === "Methyl orange";
+                      const stopperType = isCork ? "cork-stopper" : "glass-stopper";
+                      onDrop(stopperType, item.x + 44, isCork ? item.y + 10 : item.y, {
+                        note: `from-${item.instanceId}${isAmber ? "-amber" : ""}`,
+                        rotation: 0
+                      });
+                    } else {
+                      const matchingStopper = items.find(i => i.note?.startsWith(`from-${item.instanceId}`));
+                      if (matchingStopper) {
+                        const targetX = item.x + 44;
+                        const targetY = isCork ? item.y + 10 : item.y;
+                        onUpdate(matchingStopper.instanceId, { isStriking: true, x: targetX, y: targetY, rotation: 0 });
+                        playCapSound(false);
+                        setTimeout(() => {
+                          onUpdate(item.instanceId, { isOpen: false });
+                          onRemove(matchingStopper.instanceId);
+                          if (item.instanceId === prePour?.itemId) setPrePour(null);
+                        }, 450);
+                      } else {
+                        onUpdate(item.instanceId, { isOpen: false });
+                        playCapSound(false);
+                        if (item.instanceId === prePour?.itemId) setPrePour(null);
+                      }
+                    }
+                  }
+                }
+              }}
+              style={{
+                left: item.x,
+                top: item.y,
+                transform: `rotate(${item.rotation || 0}deg)`,
+                transformOrigin: (item.instanceId === prePour?.itemId && !isRotating) ? "50% 10%" : "center center",
+                cursor: isHoveringCap ? "alias" : undefined,
+                ...((item.instanceId === prePour?.itemId && prePour.isSnapping) || item.isStriking ? {
+                  transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                } : (!isDragging && !isRotating && !isSliderDragging ? {
+                  transition: 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)'
+                } : {}))
+              }}
+            >
+              {/* High Fidelity Asset Rendering */}
+              <div
+                className="relative select-none pointer-events-auto origin-bottom [&>svg]:w-full [&>svg]:h-full [&>svg]:object-contain"
+                style={{
+                  width: `${dims.w}px`,
+                  height: `${dims.h}px`,
+                  transform: `scale(${scale})`
+                }}
+              >
+                {item.id === "beaker" ? (
+                  <BeakerIcon />
+                ) : item.id === "beaker-100" ? (
+                  <Beaker100Icon />
+                ) : item.id === "beaker-250" ? (
+                  <Beaker250Icon />
+                ) : item.id === "erlenmeyer-100" ? (
+                  <ErlenmeyerFlaskIcon sizeText="100mL" />
+                ) : item.id === "erlenmeyer-250" ? (
+                  <ErlenmeyerFlaskIcon sizeText="250mL" />
+                ) : item.id === "three-neck-flask" ? (
+                  <ThreeNeckedFlaskIcon
+                    isOpenLeft={item.isOpenLeft}
+                    isOpenMiddle={item.isOpenMiddle}
+                    isOpenRight={item.isOpenRight}
+                  />
+                ) : item.id === "funnel" ? (
+                  <FunnelIcon />
+                ) : item.id === "funnel-100" ? (
+                  <Funnel100Icon />
+                ) : item.id === "round-bottom-flask" ? (
+                  <RoundBottomFlaskAsset />
+                ) : item.id === "separatory-funnel" ? (
+                  <SeparatoryFunnelAsset />
+                ) : item.id === "gas-jar" ? (
+                  <GasJarAsset isOpen={item.isOpen} />
+                ) : item.id === "measure-bottle" ? (
+                  <MeasureBottleAsset isOpen={item.isOpen} />
+                ) : item.id === "glass-bottle" ? (
+                  <GlassBottleAsset isOpen={item.isOpen} />
+                ) : item.id === "test-tube" ? (
+                  <TestTubeAsset size="large" />
+                ) : item.id === "test-tube-small" ? (
+                  <TestTubeAsset size="small" />
+                ) : item.id === "test-tube-mini" ? (
+                  <TestTubeAsset size="mini" />
+                ) : item.id === "burner" ? (
+                  <BurnerAsset lit={item.isLit} isOpen={item.isOpen} />
+                ) : item.id === "tripod" ? (
+                  <StandAsset />
+                ) : item.id === "match" ? (
+                  <MatchAsset lit={item.isLit} />
+                ) : item.id === "matchbox" ? (
+                  <MatchboxAsset
+                    lit={item.isLit}
+                    showStick={item.showStick !== false}
+                    isStriking={item.isStriking === true}
+                  />
+                ) : item.id === "dropper" ? (
+                  <DropperAsset isFilled={item.isOpen} isSqueezed={item.isStriking} />
+                ) : item.id === "forceps" ? (
+                  <ForcepsAsset />
+                ) : item.id === "clay-net" ? (
+                  <ClayNetAsset />
+                ) : item.id === "retort-stand" ? (
+                  <RetortStandAsset />
+                ) : item.id === "gauze" ? (
+                  <GauzeAsset />
+                ) : item.id === "spatula" ? (
+                  <SpatulaAsset />
+                ) : item.id === "glass-conduit" ? (
+                  <GlassConduitAsset />
+                ) : item.id === "glass-pipe" ? (
+                  <DynamicGlassPipe
+                    points={item.metadata?.points || [
+                      { x: 20, y: 100 },
+                      { x: 20, y: 20 },
+                      { x: 100, y: 20 },
+                    ]}
+                    isSelected={selectedId === item.instanceId}
+                    gasFlow={gasFlow}
+                    onNodeMouseDown={(e, index, nodeX, nodeY) => {
+                      e.stopPropagation();
+                      onSelect(item.instanceId);
+                      if (surfaceRef.current) {
+                        const canvasRect = surfaceRef.current.getBoundingClientRect();
+                        const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
+                        const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
+                        const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
+                        const itemAbsX = item.x + nodeX;
+                        const itemAbsY = item.y + nodeY;
+                        setActiveNodeDrag({
+                          id: item.instanceId,
+                          nodeIndex: index,
+                          offsetX: pointerX - itemAbsX,
+                          offsetY: pointerY - itemAbsY,
+                        });
+                      }
+                    }}
+                    onNodeDoubleClick={(index) => {
+                      const points = item.metadata?.points || [
+                        { x: 20, y: 100 },
+                        { x: 20, y: 20 },
+                        { x: 100, y: 20 },
+                      ];
+                      if (points.length <= 2) return;
+                      const newPoints = [...points];
+                      newPoints.splice(index, 1);
+                      onUpdate(item.instanceId, { metadata: { ...item.metadata, points: newPoints } });
+                    }}
+                    onPathDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(item.instanceId);
+                      if (surfaceRef.current) {
+                        const canvasRect = surfaceRef.current.getBoundingClientRect();
+                        const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
+                        const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
+                        const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
+
+                        const localX = pointerX - item.x;
+                        const localY = pointerY - item.y;
+
+                        const points = item.metadata?.points || [
+                          { x: 20, y: 100 },
+                          { x: 20, y: 20 },
+                          { x: 100, y: 20 },
+                        ];
+
+                        // Find the closest segment to insert the new point
+                        let bestIndex = 1;
+                        let minDistance = Infinity;
+
+                        for (let i = 0; i < points.length - 1; i++) {
+                          const p1 = points[i];
+                          const p2 = points[i + 1];
+                          // Distance to line segment
+                          const l2 = Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2);
+                          let t = 0;
+                          if (l2 !== 0) {
+                            t = Math.max(0, Math.min(1, ((localX - p1.x) * (p2.x - p1.x) + (localY - p1.y) * (p2.y - p1.y)) / l2));
+                          }
+                          const proj = { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+                          const dist = Math.sqrt(Math.pow(localX - proj.x, 2) + Math.pow(localY - proj.y, 2));
+
+                          if (dist < minDistance) {
+                            minDistance = dist;
+                            bestIndex = i + 1;
+                          }
+                        }
+
+                        const newPoints = [...points];
+                        newPoints.splice(bestIndex, 0, { x: localX, y: localY });
+                        onUpdate(item.instanceId, { metadata: { ...item.metadata, points: newPoints } });
+                      }
+                    }}
+                  />
+                ) : item.id === "scissor" ? (
+                  <ScissorAsset />
+                ) : item.id === "knife" ? (
+                  <KnifeAsset />
+                ) : item.id === "crucible-tongs" ? (
+                  <CrucibleTongsAsset />
+                ) : item.id === "thermometer" ? (
+                  <ThermometerAsset />
+                ) : item.id === "ring-stand" ? (
+                  <RingStandAsset />
+                ) : item.id === "clamp" ? (
+                  <ClampAsset />
+                ) : item.id === "rubber-stopper" ? (
+                  <RubberStopperAsset />
+                ) : item.id === "glass-stopper" ? (
+                  <GlassStopperStandaloneAsset
+                    isAmber={item.note?.includes("-amber")}
+                    isClosing={item.isStriking}
+                    isDragging={dragState?.id === item.instanceId}
+                  />
+                ) : item.id === "cork-stopper" ? (
+                  <CorkStopperStandaloneAsset
+                    isClosing={item.isStriking}
+                    isDragging={dragState?.id === item.instanceId}
+                  />
+                ) : item.id === "burner-cap" ? (
+                  <BurnerCapStandaloneAsset
+                    isClosing={item.isStriking}
+                    isDragging={dragState?.id === item.instanceId}
+                  />
+                ) : item.id === "sandpaper" ? (
+                  <SandpaperAsset />
+                ) : item.id === "wooden-box" ? (
+                  <WoodenBoxAsset />
+                ) : item.id === "balloon" ? (
+                  <BalloonAsset />
+                ) : item.id === "towel" ? (
+                  <TowelAsset />
+                ) : item.id === "cotton" ? (
+                  <CottonAsset />
+                ) : item.id === "filter-paper" ? (
+                  <FilterPaperAsset />
+                ) : item.id === "copper-wire" ? (
+                  <CopperWireAsset />
+                ) : item.state === "solid" || item.state === "liquid" || item.state === "gas" ? (
+                  <ChemicalContainerAsset
+                    id={item.id}
+                    state={item.state}
+                    label={item.name}
+                    symbol={item.symbol}
+                    accent={item.accent}
+                    isOpen={item.isOpen}
+                    pipeConnected={pipeConnected}
+                  />
+                ) : (
+                  /* Fallback for other items */
+                  <div
+                    className={`w-32 rounded-[28px] border px-4 py-4 transition ${active
+                      ? "border-white/20 bg-[#323840] text-white"
+                      : "border-white/6 bg-[#323840] text-white shadow-black/20"
+                      }`}
+                  >
+                    <div
+                      className="inline-flex rounded-2xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em]"
+                      style={{
+                        color: active ? "#e0f2fe" : item.accent,
+                        borderColor: active ? "rgba(255,255,255,0.22)" : `${item.accent}33`,
+                        backgroundColor: active ? "rgba(255,255,255,0.08)" : `${item.accent}14`,
+                      }}
+                    >
+                      {item.symbol}
+                    </div>
+                    <h3 className="mt-4 text-sm font-semibold leading-5 text-white">{item.name}</h3>
+                  </div>
+                )}
+
+
+
+                {item.state === "glassware" && (
+                  <VesselContents
+                    item={item}
+                    heated={vesselHeat[item.instanceId]}
+                    reactionState={reactionState}
+                    isActivelyPouring={prePour?.targetId === item.instanceId && prePour.progress > 0.1}
+                  />
+                )}
+
+                {/* Rubber Stopper */}
+                {item.state === "glassware" && item.hasRubberStopper && (
+                  <VesselRubberStopper id={item.id} />
+                )}
+
+                {/* Label Sticker on the vessel */}
+                {item.state === "glassware" && (item.label1 || item.label2) && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-20">
+                    <div className="bg-white/95 border border-black/20 rounded px-2 py-1 shadow-[0_1px_4px_rgba(0,0,0,0.25)] max-w-[85px] overflow-hidden text-center scale-[0.75] transform translate-y-3">
+                      {item.label1 && (
+                        <div className="text-[9px] font-bold text-slate-800 uppercase tracking-wider truncate leading-tight">
+                          {item.label1}
+                        </div>
+                      )}
+                      {item.label2 && (
+                        <div className="text-[7px] font-bold text-slate-500 uppercase tracking-wide truncate leading-none mt-0.5">
+                          {item.label2}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Selection & Rotation Overlays */}
+                {menuOpenId === item.instanceId && item.state === "glassware" && (
+                  <div className="absolute inset-0 pointer-events-none select-none z-40">
+                    {/* Dotted Circle */}
+                    <div
+                      className="absolute border border-dashed border-white/40 rounded-full animate-pulse"
+                      style={{
+                        left: `${centerX - r}px`,
+                        top: `${centerY - r}px`,
+                        width: `${r * 2}px`,
+                        height: `${r * 2}px`,
+                      }}
+                    />
+
+                    {/* Tooltip Angle display at top of the circle */}
+                    <div
+                      className="absolute bg-zinc-950/95 border border-white/10 px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-lg pointer-events-auto flex items-center justify-center whitespace-nowrap"
+                      style={{
+                        left: `${centerX}px`,
+                        top: `${centerY - r - 12}px`,
+                        transform: `translate(-50%, -50%) rotate(${-(item.rotation || 0)}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      {((item.rotation ?? 0) % 360 + 360) % 360 | 0}°
+                    </div>
+
+                    {/* Blue Rotate Handle */}
+                    <div
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                        event.preventDefault();
+                        const surf = surfaceRef.current;
+                        if (!surf) return;
+                        const sr = surf.getBoundingClientRect();
+                        const z = sr.width / surf.offsetWidth;
+                        const cx = sr.left + (item.x + dims.w / 2 + panOffset.x) * z;
+                        const cy = sr.top + (item.y + dims.h / 2 + panOffset.y) * z;
+                        // Compute the angle offset so vessel doesn't jump on mousedown
+                        const initialAngleRad = Math.atan2(event.clientY - cy, event.clientX - cx);
+                        const initialAngleDeg = initialAngleRad * (180 / Math.PI) + 90;
+                        setRotateState({
+                          id: item.instanceId,
+                          centerX: cx,
+                          centerY: cy,
+                          lastAngleDeg: initialAngleDeg,
+                          currentRotation: item.rotation ?? 0,
+                        });
+                      }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
+                      className="absolute bg-[#0ea5e9] hover:bg-sky-400 hover:scale-110 active:scale-95 transition cursor-pointer pointer-events-auto rounded-full w-9 h-9 flex items-center justify-center shadow-lg shadow-sky-500/30 border border-white/20 text-white"
+                      style={{
+                        left: `${rotateX}px`,
+                        top: `${rotateY}px`,
+                        transform: `scale(${1 / scale}) rotate(${-(item.rotation || 0)}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                      </svg>
+                    </div>
+
+                    {/* 3-dots inspector button */}
+                    <div
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPopupItemId(popupItemId === item.instanceId ? null : item.instanceId);
+                      }}
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                      className="absolute bg-zinc-900/95 border border-white/10 hover:bg-zinc-800 hover:scale-110 active:scale-95 transition cursor-pointer pointer-events-auto rounded-full w-9 h-9 flex items-center justify-center shadow-lg text-white"
+                      style={{
+                        left: `${dotsX}px`,
+                        top: `${dotsY}px`,
+                        transform: `scale(${1 / scale}) rotate(${-(item.rotation || 0)}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Contents Label (only for vessels) */}
+                {item.state === "glassware" && item.contents && item.contents.length > 0 && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none select-none">
+                    {(() => {
+                      const rawSymbols = item.contents.map(c => c.symbol);
+                      const splitSymbols = rawSymbols.flatMap(sym =>
+                        sym.split("+").map(part => part.trim())
+                      ).filter(Boolean);
+                      const uniqueSymbols = Array.from(new Set(splitSymbols));
+                      const combinedText = uniqueSymbols.join(" + ");
+
+                      return (
+                        <div
+                          className="bg-slate-950/90 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-[8px] font-black text-white px-3 py-1 whitespace-nowrap tracking-wide"
+                          style={{ minWidth: "36px", height: "36px" }}
+                        >
+                          {combinedText}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Spark Burst Effect */}
+        {sparkPos && (
+          <div
+            className="absolute z-[100] pointer-events-none"
+            style={{ left: sparkPos.x, top: sparkPos.y }}
+          >
+            <SparkEffect />
+          </div>
+        )}
+
+        {/* Volume Increment/Sum Display Overlay */}
+        {prePour && prePour.progress > 0.1 && (() => {
+          const targetItem = items.find(i => i.instanceId === prePour.targetId);
+          const sourceItem = items.find(i => i.instanceId === prePour.itemId);
+          if (!sourceItem) return null;
+
+          let visualLeft = 0;
+          let lineY = 0;
+
+          if (targetItem) {
+            const dims = getItemUnscaledDims(targetItem.id, targetItem.state);
+            const scale = getItemCanvasScale(targetItem.id, targetItem.state);
+            const targetW = dims.w * scale;
+            visualLeft = targetItem.x + dims.w / 2 - targetW / 2;
+            lineY = getLiquidCanvasY(targetItem);
+          } else {
+            // Position relative to source
+            const dims = getItemUnscaledDims(sourceItem.id, sourceItem.state);
+            const scale = getItemCanvasScale(sourceItem.id, sourceItem.state);
+            const sourceW = dims.w * scale;
+            visualLeft = sourceItem.x + dims.w / 2 - sourceW / 2;
+            lineY = sourceItem.y + dims.h / 2;
+          }
+
+          const firstContent = sourceItem.contents?.[0];
+          const unit = firstContent?.state === "solid" || sourceItem.state === "solid" ? "g" : "mL";
+          const showRemaining = !targetItem; // Pouring to table shows remaining volume
+
+          return (
+            <div
+              className="absolute pointer-events-none select-none"
+              style={{
+                left: visualLeft - 170,
+                top: lineY - 24,
+                width: 170,
+                height: 48,
+                zIndex: 50,
+              }}
+            >
+              {/* Dashed line connecting box to vessel */}
+              <div className="absolute right-0 top-6 w-[50px] border-t-2 border-dashed border-sky-400/80" />
+
+              {/* Glassmorphic display box */}
+              <div className="absolute left-0 top-0 bg-slate-950/85 backdrop-blur border border-sky-500/30 rounded-xl p-2.5 shadow-lg shadow-black/40 flex flex-col justify-center min-w-[110px]">
+                <div className="text-[10px] font-semibold text-emerald-400 tracking-wider flex justify-between gap-3">
+                  <span>INCREMENT</span>
+                  <span>{showRemaining ? "-" : "+"}{prePour.pouredVolume.toFixed(1)} {unit}</span>
+                </div>
+                {showRemaining ? (
+                  <div className="text-[11px] font-bold text-sky-100 tracking-wider flex justify-between gap-3 mt-0.5">
+                    <span>REMAINING</span>
+                    <span>{Math.max(0, prePour.initialVolume - prePour.pouredVolume).toFixed(1)} {unit}</span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] font-bold text-sky-100 tracking-wider flex justify-between gap-3 mt-0.5">
+                    <span>SUM</span>
+                    <span>{(prePour.initialVolume + prePour.pouredVolume).toFixed(1)} {unit}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* PrePour Slider UI */}
+        {prePour && !prePour.isManual && !rotateState && menuOpenId !== prePour.itemId && (() => {
+          const sourceItem = items.find(i => i.instanceId === prePour.itemId);
+          if (!sourceItem) return null;
+
+          const sourceDims = getItemUnscaledDims(sourceItem.id, sourceItem.state);
+          const sourceScale = getItemCanvasScale(sourceItem.id, sourceItem.state);
+          const sourceW = sourceDims.w * sourceScale;
+          const leftOffset = sourceW + 15;
+
+          return (
+            <div className="absolute z-[60]" style={{ left: prePour.startX + leftOffset, top: prePour.startY }}>
+              {/* Dotted line */}
+              <div className="absolute left-[19px] top-5 h-[120px] border-l-2 border-dashed border-white/40" />
+
+              {/* Handle */}
+              <div
+                className={`absolute w-10 h-10 -ml-[1px] rounded-full flex items-center justify-center cursor-ns-resize shadow-lg transition-colors pointer-events-auto ${prePour.progress > 0 ? "bg-[#0ea5e9] text-white shadow-blue-500/30" : "bg-white text-slate-800 hover:bg-slate-100"
+                  }`}
+                style={{ top: 120 - prePour.progress * 120 }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  setSliderDrag({ startY: e.clientY, startProgress: prePour.progress });
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Beaker className="w-5 h-5 ml-0.5 mt-0.5" style={{ transform: "rotate(-15deg)" }} />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Pouring Stream Effect - liquid/solid falling from bottle to vessel */}
+        {prePour && prePour.progress > 0.1 && (() => {
+          const sourceItem = items.find(i => i.instanceId === prePour.itemId);
+          if (!sourceItem) return null;
+
+          const targetItem = items.find(i => i.instanceId === prePour.targetId);
+
+          if (sourceItem.state === "glassware" && getTotalVolume(sourceItem.contents || []) <= 0) {
+            return null;
+          }
+
+          const sourceDims = getItemUnscaledDims(sourceItem.id, sourceItem.state);
+          const sourceScale = getItemCanvasScale(sourceItem.id, sourceItem.state);
+
+          const centerX = sourceItem.x + sourceDims.w / 2;
+          const centerY = sourceItem.y + sourceDims.h / 2;
+
+          let streamStartX = sourceItem.x + sourceDims.w / 2 + 10;
+          let streamStartY = sourceItem.y + 20;
+
+          if (sourceItem.state === "glassware") {
+            const rot = sourceItem.rotation ?? 0;
+            const rad = (rot - 90) * Math.PI / 180;
+            streamStartX = centerX + Math.cos(rad) * (sourceDims.h / 2) * sourceScale;
+            streamStartY = centerY + Math.sin(rad) * (sourceDims.h / 2) * sourceScale;
+          } else {
+            if (targetItem) {
+              const isNarrowNeck =
+                targetItem.id.includes("flask") ||
+                targetItem.id.includes("erlenmeyer") ||
+                targetItem.id.includes("test-tube");
+              if (isNarrowNeck) {
+                const targetDims = getItemUnscaledDims(targetItem.id, targetItem.state);
+                streamStartX = targetItem.x + targetDims.w / 2;
+                streamStartY = sourceItem.y + sourceDims.h - 10;
+              }
+            }
+          }
+
+          let targetCenterX = streamStartX;
+          let targetTopY = streamStartY + 250;
+
+          if (targetItem) {
+            const targetDims = getItemUnscaledDims(targetItem.id, targetItem.state);
+            const targetScale = getItemCanvasScale(targetItem.id, targetItem.state);
+            targetCenterX = targetItem.x + targetDims.w / 2;
+            targetTopY = targetItem.y + targetDims.h - targetDims.h * targetScale + 10;
+          }
+
+          const firstContent = sourceItem.contents?.[0];
+          const streamColor = sourceItem.accent || (firstContent ? firstContent.accent : undefined) || "#67e8f9";
+          const streamH = Math.max(20, targetTopY - streamStartY);
+          const isSolid = sourceItem.state === "solid" || (firstContent?.state === "solid");
+
+          return (
+            <svg
+              className="absolute inset-0 pointer-events-none overflow-visible"
+              style={{ zIndex: 55 }}
+            >
+              {isSolid ? (
+                /* Solid particles falling */
+                <>
+                  {Array.from({ length: 8 }).map((_, i) => {
+                    const offsetX = (i % 3 - 1) * 4;
+                    return (
+                      <circle
+                        key={`solid-drop-${i}`}
+                        cx={streamStartX + offsetX}
+                        cy={streamStartY}
+                        r={2.5 + (i % 2)}
+                        fill={streamColor}
+                        opacity="0"
+                      >
+                        <animate attributeName="cy" values={`${streamStartY};${streamStartY + streamH}`} dur={`${0.5 + (i % 3) * 0.15}s`} repeatCount="indefinite" begin={`${i * 0.12}s`} />
+                        <animate attributeName="opacity" values="0;0.9;0.7;0" dur={`${0.5 + (i % 3) * 0.15}s`} repeatCount="indefinite" begin={`${i * 0.12}s`} />
+                      </circle>
+                    );
+                  })}
+                </>
+              ) : (
+                /* Liquid stream */
+                <>
+                  {/* Droplets along the stream */}
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <ellipse
+                      key={`liq-drop-${i}`}
+                      cx={streamStartX + (targetCenterX - streamStartX) * (i / 5)}
+                      cy={streamStartY}
+                      rx={2 + prePour.progress * 2}
+                      ry={3 + prePour.progress * 2}
+                      fill={streamColor}
+                      opacity="0"
+                    >
+                      <animate attributeName="cy" values={`${streamStartY};${streamStartY + streamH + 10}`} dur={`${0.6 + i * 0.1}s`} repeatCount="indefinite" begin={`${i * 0.12}s`} />
+                      <animate attributeName="opacity" values="0;0.8;0.5;0" dur={`${0.6 + i * 0.1}s`} repeatCount="indefinite" begin={`${i * 0.12}s`} />
+                    </ellipse>
+                  ))}
+                  {/* Splash at impact point */}
+                  <circle cx={targetCenterX} cy={streamStartY + streamH} r="4" fill={streamColor} opacity="0">
+                    <animate attributeName="r" values="2;12" dur="0.8s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.5;0" dur="0.8s" repeatCount="indefinite" />
+                  </circle>
+                </>
+              )}
+            </svg>
+          );
+        })()}
+
+        {/* Render Popup next to the active item */}
+        {items.map((item) => {
+          if (popupItemId !== item.instanceId) return null;
+          const dims = getItemUnscaledDims(item.id, item.state);
+          const scale = getItemCanvasScale(item.id, item.state);
+          const w = dims.w * scale;
+
+          return (
+            <VesselPopup
+              key={`popup-${item.instanceId}`}
+              item={item}
+              left={item.x + w + 16}
+              top={item.y}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+              onClose={() => setPopupItemId(null)}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -502,104 +2520,308 @@ function mixContentColor(contents: PlacedInorganicItem["contents"]) {
   return liquid?.accent ?? gas?.accent ?? solid?.accent ?? "#67e8f9";
 }
 
-function DispenseEffect({ mode, color }: { mode: DispenseMode; color: string }) {
-  if (mode === "gas") {
-    return (
-      <div className="pointer-events-none absolute left-[86px] top-[44px] h-20 w-28 chemistry-gas-transfer">
-        <span style={{ backgroundColor: color }} />
-        <span style={{ backgroundColor: color }} />
-        <span style={{ backgroundColor: color }} />
-      </div>
-    );
-  }
-
-  if (mode === "solid") {
-    return (
-      <div className="pointer-events-none absolute left-[76px] top-[70px] h-24 w-20 chemistry-solid-transfer">
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
-          <span
-            key={index}
-            style={{
-              backgroundColor: color,
-              left: 8 + (index % 4) * 10,
-              animationDelay: `${index * 0.06}s`,
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="pointer-events-none absolute left-[82px] top-[58px] h-28 w-2 origin-top chemistry-liquid-transfer"
-      style={{
-        background: `linear-gradient(180deg, ${color}, ${color}55, transparent)`,
-        boxShadow: `0 0 12px ${color}99`,
-      }}
-    >
-      <div className="mx-auto h-full w-px bg-white/35" />
-    </div>
-  );
-}
 
 function VesselContents({
   item,
   heated,
   reactionState,
+  isActivelyPouring = false,
 }: {
   item: PlacedInorganicItem;
   heated?: boolean;
   reactionState: NonNullable<PlacedInorganicItem["reactionState"]>;
+  isActivelyPouring?: boolean;
 }) {
   const contents = item.contents ?? [];
-  if (contents.length === 0 && !heated) return null;
-
   const color = mixContentColor(contents);
   const hasLiquid = contents.some((content) => content.state === "liquid");
   const solids = contents.filter((content) => content.state === "solid");
+  const solidColor = solids[solids.length - 1]?.accent ?? "#d97706";
   const hasGas = contents.some((content) => content.state === "gas");
-  let shape = "left-[52px] top-[102px] h-[42px] w-[72px] rounded-b-full";
-  if (item.id === "test-tube" || item.id === "test-tube-small" || item.id === "test-tube-mini") {
-    shape = "left-[73px] top-[94px] h-[50px] w-[30px] rounded-b-[18px]";
-  } else if (item.id === "gas-jar") {
-    shape = "left-[62px] top-[70px] h-[72px] w-[48px] rounded-b-[18px]";
-  } else if (item.id === "separatory-funnel") {
-    shape = "left-[57px] top-[56px] h-[42px] w-[60px] rounded-full";
-  } else if (item.id.includes("beaker")) {
-    shape = "left-[50px] top-[50px] h-[86px] w-[78px] rounded-b-[8px]";
-  } else if (item.id.includes("erlenmeyer")) {
-    shape = "left-[54px] top-[93px] h-[48px] w-[68px] rounded-b-[10px] [clip-path:polygon(20%_0%,80%_0%,100%_100%,0%_100%)]";
-  } else if (item.id === "three-neck-flask") {
-    shape = "left-[53px] top-[100px] h-[35px] w-[70px] rounded-b-full";
-  }
+
+  const capacity = getVesselCapacity(item.id);
+  const totalVolume = getTotalVolume(contents);
+  const fillPercent = Math.min((totalVolume / capacity) * 100, 100);
+  const isOverflow = fillPercent >= 100;
+
+  const [sloshOffset, setSloshOffset] = useState(0);
+  const prevVolumeRef = useRef(totalVolume);
+
+  useEffect(() => {
+    if (hasLiquid && totalVolume > prevVolumeRef.current) {
+      let startTime = Date.now();
+      const duration = 1500;
+      let animationFrameId: number;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed >= duration) {
+          setSloshOffset(0);
+        } else {
+          const t = elapsed / duration;
+          const amplitude = 12 * Math.exp(-3.5 * t);
+          const offset = amplitude * Math.sin(t * Math.PI * 8);
+          setSloshOffset(offset);
+          animationFrameId = requestAnimationFrame(animate);
+        }
+      };
+
+      animationFrameId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(animationFrameId);
+    }
+    prevVolumeRef.current = totalVolume;
+  }, [totalVolume, hasLiquid]);
+
+  if (contents.length === 0 && !heated) return null;
+
+  // Per-vessel geometry matching actual SVG viewBox coordinates
+  type VesselGeo = { x: number; y: number; w: number; h: number; rx?: number; shape?: "round" | "cone" | "beaker" };
+  const geo: VesselGeo = (() => {
+    // Beaker viewBox="0 0 494 534" — body path fills most of it
+    if (item.id.includes("beaker")) return { x: 14, y: 50, w: 466, h: 484, shape: "beaker" };
+    // Erlenmeyer viewBox="0 0 220 220"
+    if (item.id.includes("erlenmeyer")) return { x: 40, y: 100, w: 140, h: 90, rx: 10, shape: "cone" };
+    // Three-neck flask viewBox="0 0 220 220"
+    if (item.id === "three-neck-flask") return { x: 45, y: 100, w: 130, h: 80, rx: 40, shape: "round" };
+    // Round-bottom flask viewBox="0 0 200 280" — bulb cx=100 cy=196 r=76
+    if (item.id === "round-bottom-flask") return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
+    // Gas jar viewBox="0 0 220 300"
+    if (item.id === "gas-jar") return { x: 50, y: 72, w: 120, h: 196, rx: 18 };
+    // Separatory funnel viewBox="0 0 220 660"
+    if (item.id === "separatory-funnel") return { x: 47, y: 94, w: 126, h: 210, rx: 63, shape: "round" };
+    // Test tubes viewBox="0 0 100 200"
+    if (item.id === "test-tube") return { x: 36, y: 10, w: 28, h: 170, rx: 14 };
+    if (item.id === "test-tube-small") return { x: 40, y: 15, w: 20, h: 140, rx: 10 };
+    if (item.id === "test-tube-mini") return { x: 44, y: 40, w: 12, h: 100, rx: 6 };
+    // Funnel viewBox="0 0 420 520"
+    if (item.id.includes("funnel")) return { x: 95, y: 58, w: 230, h: 422, rx: 0 };
+    return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
+  })();
+
+  const liquidH = (geo.h * fillPercent) / 100;
+  const liquidY = geo.y + geo.h - liquidH;
+
+  const svgViewBox = (() => {
+    if (item.id === "beaker" || item.id === "beaker-100" || item.id === "beaker-250") return "0 0 494 534";
+    if (item.id.includes("erlenmeyer") || item.id === "three-neck-flask") return "0 0 220 220";
+    if (item.id === "round-bottom-flask") return "0 0 200 280";
+    if (item.id === "gas-jar") return "0 0 220 300";
+    if (item.id === "separatory-funnel") return "0 0 220 660";
+    if (item.id.includes("test-tube")) return "0 0 100 200";
+    if (item.id.includes("funnel")) return "0 0 420 520";
+    return "0 0 200 280";
+  })();
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">
-      {hasLiquid && (
-        <div
-          className={`absolute ${shape} opacity-75 mix-blend-screen`}
-          style={{
-            background: `linear-gradient(180deg, ${color}88, ${color}dd)`,
-            boxShadow: `0 0 22px ${color}40 inset, 0 0 18px ${color}22`,
-          }}
+      {(hasLiquid || solids.length > 0) && (
+        <svg
+          viewBox={svgViewBox}
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="none"
         >
-          <div className="absolute -top-1 left-1/2 h-2 w-[86%] -translate-x-1/2 rounded-full bg-white/35" />
-        </div>
-      )}
+          <defs>
+            <clipPath id={`vessel-clip-${item.instanceId}`}>
+              {item.id.includes("beaker") ? (
+                <path d="M14 50 V479 C22 498 53 514 104 523 C129 528 161 531 200 533 C217 533 274 533 290 533 C354 530 395 524 429 513 C436 511 450 505 455 502 C467 495 475 487 480 479 V50 Z" />
+              ) : item.id === "round-bottom-flask" ? (
+                <path d="M 84 18 V 122 A 76 76 0 1 0 116 122 V 18 Z" />
+              ) : item.id === "three-neck-flask" ? (
+                <path d="M 95 20 V 80 A 65 65 0 1 0 125 80 V 20 Z" />
+              ) : item.id === "separatory-funnel" ? (
+                <path d="M110 94 C74 94 47 122 47 159 C47 200 69 230 92 257 C101 268 106 281 110 301 C114 281 119 268 128 257 C151 230 173 200 173 159 C173 122 146 94 110 94 Z M101 298 C102 313 104 327 105 342 H115 C116 327 118 313 119 298 Z M106 364 H114 V624 H106 Z" />
+              ) : item.id.includes("funnel") ? (
+                <path d="M 95 58 H 325 L 240 240 V 445 C 240 460 232 472 210 480 C 188 472 180 460 180 445 V 240 L 95 58 Z" />
+              ) : item.id === "gas-jar" ? (
+                <path d="M84 72 C60 72 48 90 48 120 V250 C48 262 58 272 72 272 H148 C162 272 172 262 172 250 V120 C172 90 160 72 136 72 H84 Z" />
+              ) : item.id.includes("test-tube") ? (
+                <path d={`M${geo.x} ${geo.y} V${geo.y + geo.h - geo.rx!} A${geo.rx} ${geo.rx} 0 0 0 ${geo.x + geo.w} ${geo.y + geo.h - geo.rx!} V${geo.y} Z`} />
+              ) : geo.shape === "cone" ? (
+                <polygon points={`${geo.x + geo.w * 0.2},${geo.y} ${geo.x + geo.w * 0.8},${geo.y} ${geo.x + geo.w},${geo.y + geo.h} ${geo.x},${geo.y + geo.h}`} />
+              ) : (
+                <rect x={geo.x} y={geo.y} width={geo.w} height={geo.h} rx={geo.rx ?? 0} />
+              )}
+            </clipPath>
+            {/* Dynamic high-fidelity powder pattern with real solid grain/texture for each solid */}
+            {solids.map((solid) => (
+              <pattern
+                key={`powder-pattern-${item.instanceId}-${solid.id}`}
+                id={`powder-pattern-${item.instanceId}-${solid.id}`}
+                width="14"
+                height="14"
+                patternUnits="userSpaceOnUse"
+              >
+                {/* Background solid color with high opacity */}
+                <rect width="14" height="14" fill={solid.accent || "#d97706"} fillOpacity="0.94" />
+                {/* Granular speckles to show solid/powder texture as circles */}
+                <circle cx="2" cy="3" r="0.85" fill="#000000" fillOpacity="0.28" />
+                <circle cx="7" cy="9" r="0.75" fill="#000000" fillOpacity="0.32" />
+                <circle cx="11" cy="4" r="0.95" fill="#000000" fillOpacity="0.24" />
 
-      {solids.map((solid, index) => (
-        <div
-          key={`${solid.id}-${index}`}
-          className="absolute h-2.5 w-2.5 rounded-full shadow-sm"
-          style={{
-            left: 69 + (index % 5) * 9,
-            top: item.id === "test-tube" ? 128 - Math.floor(index / 5) * 7 : 132 - Math.floor(index / 5) * 8,
-            background: solid.accent,
-            boxShadow: `0 0 8px ${solid.accent}70`,
-          }}
-        />
-      ))}
+                <circle cx="5" cy="6" r="0.75" fill="#ffffff" fillOpacity="0.2" />
+                <circle cx="9" cy="12" r="0.85" fill="#ffffff" fillOpacity="0.16" />
+                <circle cx="13" cy="8" r="0.65" fill="#ffffff" fillOpacity="0.24" />
+              </pattern>
+            ))}
+          </defs>
+
+          {/* Liquid fill — rises from bottom */}
+          {hasLiquid && fillPercent > 0.01 && (() => {
+            const tiltRad = ((item.rotation || 0) * Math.PI) / 180;
+            const rxValue = (geo.w * 0.42) / Math.max(0.1, Math.abs(Math.cos(tiltRad)));
+
+            return (
+              <g clipPath={`url(#vessel-clip-${item.instanceId})`}>
+                <g transform={`rotate(${-(item.rotation || 0)}, ${geo.x + geo.w / 2}, ${liquidY}) translate(0, ${sloshOffset})`}>
+                  <rect
+                    x={geo.x - geo.w}
+                    y={liquidY}
+                    width={geo.w * 3}
+                    height={liquidH + geo.h * 2}
+                    fill={color}
+                    fillOpacity="0.72"
+                    style={{ transition: "y 0.6s cubic-bezier(0.4,0,0.2,1), height 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                  />
+                  {/* Meniscus highlight */}
+                  <ellipse
+                    cx={geo.x + geo.w / 2}
+                    cy={liquidY}
+                    rx={rxValue}
+                    ry={3}
+                    fill="#ffffff"
+                    fillOpacity="0.35"
+                    style={{ transition: "cy 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                  />
+                </g>
+              </g>
+            );
+          })()}
+
+          {/* Solids fill */}
+          {solids.length > 0 && (
+            <g clipPath={`url(#vessel-clip-${item.instanceId})`}>
+              {(() => {
+                let runningVolume = 0;
+                const accumulatedSolids = solids.map((solid) => {
+                  const sVol = solid.volume ?? 10;
+                  runningVolume += sVol;
+                  return {
+                    solid,
+                    accumVolume: runningVolume
+                  };
+                });
+
+                // Render in reverse order (top layer first, bottom layer last)
+                return accumulatedSolids.slice().reverse().map(({ solid, accumVolume }) => {
+                  const solidFillPercent = Math.min((accumVolume / capacity) * 100, 100);
+                  const solidH = (geo.h * solidFillPercent) / 100;
+                  const solidY = geo.y + geo.h - solidH;
+                  const sColor = solid.accent || "#d97706";
+
+                  // Powder path with a beautiful curved central mound/heap
+                  const powderPath = `M ${geo.x - 200} ${geo.y + geo.h + 200} L ${geo.x - 200} ${solidY} Q ${geo.x + geo.w / 2} ${solidY - 18} ${geo.x + geo.w + 200} ${solidY} L ${geo.x + geo.w + 200} ${geo.y + geo.h + 200} Z`;
+
+                  return (
+                    <g key={`solid-layer-${solid.id}`} transform={`rotate(${-(item.rotation || 0)}, ${geo.x + geo.w / 2}, ${solidY})`}>
+                      <path
+                        d={powderPath}
+                        fill={`url(#powder-pattern-${item.instanceId}-${solid.id})`}
+                        style={{ transition: "all 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                      />
+                      {/* Powder surface texture dots scattered along the curved mound */}
+                      {Array.from({ length: 35 }).map((_, i) => {
+                        const hash = (n: number) => {
+                          let h = Math.sin(n * 12.9898) * 43758.5453;
+                          return h - Math.floor(h);
+                        };
+                        const t = hash(i); // Normalized position: 0 to 1
+                        const dotX = t * geo.w;
+
+                        // Calculate Y coordinate on the quadratic curve
+                        const y0 = solidY;
+                        const y1 = solidY - 18;
+                        const y2 = solidY;
+                        const curveY = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * y1 + t * t * y2;
+
+                        const dotY = curveY + (hash(i + 50) - 0.5) * 8;
+                        const r = 1.0 + hash(i + 100) * 1.8;
+                        return (
+                          <circle
+                            key={`solid-surface-dot-${solid.id}-${i}`}
+                            cx={geo.x + dotX}
+                            cy={dotY}
+                            r={r}
+                            fill={sColor}
+                            opacity="0.95"
+                          />
+                        );
+                      })}
+                    </g>
+                  );
+                });
+              })()}
+            </g>
+          )}
+
+          {/* Overflow drip — shows when full */}
+          {hasLiquid && isOverflow && (
+            <g>
+              {/* Left drip */}
+              {isActivelyPouring && (
+                <ellipse cx={geo.x - 4} cy={geo.y + 8} rx={4} ry={6} fill={color} fillOpacity="0.7">
+                  <animate attributeName="cy" values={`${geo.y};${geo.y + geo.h + 30}`} dur="1.2s" repeatCount="indefinite" />
+                  <animate attributeName="fillOpacity" values="0.7;0" dur="1.2s" repeatCount="indefinite" />
+                </ellipse>
+              )}
+              {/* Right drip */}
+              {isActivelyPouring && (
+                <ellipse cx={geo.x + geo.w + 4} cy={geo.y + 14} rx={3} ry={5} fill={color} fillOpacity="0.6">
+                  <animate attributeName="cy" values={`${geo.y + 10};${geo.y + geo.h + 30}`} dur="1.5s" repeatCount="indefinite" />
+                  <animate attributeName="fillOpacity" values="0.6;0" dur="1.5s" repeatCount="indefinite" />
+                </ellipse>
+              )}
+              {/* Overflow pool below vessel */}
+              <ellipse
+                cx={geo.x + geo.w / 2}
+                cy={geo.y + geo.h + 36}
+                rx={geo.w * 0.55}
+                ry={5}
+                fill={color}
+                fillOpacity="0.35"
+              />
+            </g>
+          )}
+
+          {/* Solids spill when overflowing */}
+          {solids.length > 0 && isOverflow && (
+            <g>
+              {/* Left solid spill particles */}
+              {isActivelyPouring && Array.from({ length: 4 }).map((_, i) => (
+                <circle key={`left-solid-spill-${i}`} cx={geo.x - 3} cy={geo.y + 6} r={1.5 + i * 0.5} fill={solidColor} opacity="0.8">
+                  <animate attributeName="cy" values={`${geo.y};${geo.y + geo.h + 20}`} dur={`${0.8 + i * 0.2}s`} repeatCount="indefinite" begin={`${i * 0.15}s`} />
+                  <animate attributeName="opacity" values="0.8;0" dur={`${0.8 + i * 0.2}s`} repeatCount="indefinite" begin={`${i * 0.15}s`} />
+                </circle>
+              ))}
+              {/* Right solid spill particles */}
+              {isActivelyPouring && Array.from({ length: 4 }).map((_, i) => (
+                <circle key={`right-solid-spill-${i}`} cx={geo.x + geo.w + 3} cy={geo.y + 6} r={1.5 + i * 0.5} fill={solidColor} opacity="0.8">
+                  <animate attributeName="cy" values={`${geo.y};${geo.y + geo.h + 20}`} dur={`${0.9 + i * 0.15}s`} repeatCount="indefinite" begin={`${i * 0.1}s`} />
+                  <animate attributeName="opacity" values="0.8;0" dur={`${0.9 + i * 0.15}s`} repeatCount="indefinite" begin={`${i * 0.1}s`} />
+                </circle>
+              ))}
+              {/* Overflow pool/heap below vessel */}
+              <ellipse
+                cx={geo.x + geo.w / 2}
+                cy={geo.y + geo.h + 36}
+                rx={geo.w * 0.55}
+                ry={5}
+                fill={solidColor}
+                fillOpacity="0.4"
+              />
+            </g>
+          )}
+        </svg>
+      )}
 
       {(hasGas || reactionState === "gas") && (
         <div className="absolute left-[54px] top-[36px] h-24 w-24 rounded-full bg-slate-100/14 blur-sm chemistry-gas-cloud" />
@@ -613,10 +2835,6 @@ function VesselContents({
         </div>
       )}
 
-      {reactionState === "burst" && <BurstEffect />}
-      {reactionState === "precipitate" && (
-        <div className="absolute left-[64px] top-[120px] h-7 w-14 rounded-full bg-orange-500/80 blur-[1px] chemistry-settle" />
-      )}
       {reactionState === "reduction" && (
         <div className="absolute left-[55px] top-[98px] h-12 w-16 rounded-full border border-orange-300/40 bg-orange-500/35 chemistry-heat-glow" />
       )}
@@ -624,17 +2842,313 @@ function VesselContents({
   );
 }
 
-function BurstEffect() {
+function VesselRubberStopper({ id }: { id: string }) {
+  let stopperStyle: React.CSSProperties = {};
+
+  if (id === "round-bottom-flask") {
+    stopperStyle = { left: "42%", top: "0%", width: "16%", height: "16%" };
+  } else if (id === "glass-bottle" || id === "measure-bottle") {
+    stopperStyle = { left: "39%", top: "5%", width: "22%", height: "15%" };
+  } else if (id === "gas-jar") {
+    stopperStyle = { left: "38%", top: "5%", width: "24%", height: "15%" };
+  } else if (id === "separatory-funnel") {
+    stopperStyle = { left: "44%", top: "3%", width: "12%", height: "10%" };
+  } else if (id.includes("erlenmeyer")) {
+    stopperStyle = { left: "41%", top: "5%", width: "18%", height: "15%" };
+  } else if (id === "three-neck-flask") {
+    stopperStyle = { left: "43%", top: "5%", width: "14%", height: "15%" };
+  } else if (id === "test-tube") {
+    stopperStyle = { left: "36%", top: "2%", width: "28%", height: "15%" };
+  } else if (id === "test-tube-small") {
+    stopperStyle = { left: "40%", top: "4%", width: "20%", height: "15%" };
+  } else if (id === "test-tube-mini") {
+    stopperStyle = { left: "44%", top: "16%", width: "12%", height: "12%" };
+  } else {
+    return null;
+  }
+
   return (
-    <div className="absolute left-[34px] top-[34px] h-32 w-32 chemistry-burst">
-      <div className="absolute inset-8 rounded-full bg-amber-300/75 blur-md" />
-      {[0, 35, 70, 110, 150, 205, 250, 300].map((angle) => (
-        <span
-          key={angle}
-          className="absolute left-1/2 top-1/2 h-1.5 w-14 origin-left rounded-full bg-orange-300"
-          style={{ transform: `rotate(${angle}deg)` }}
-        />
-      ))}
+    <div className="absolute z-30 pointer-events-none" style={stopperStyle}>
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        <path d="M25 20 L75 20 L65 80 L35 80 Z" fill="#475569" stroke="#1e293b" strokeWidth="4" />
+      </svg>
+    </div>
+  );
+}
+
+interface VesselPopupProps {
+  item: PlacedInorganicItem;
+  left: number;
+  top: number;
+  onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
+  onRemove: (id: string) => void;
+  onClose: () => void;
+}
+
+function VesselPopup({ item, left, top, onUpdate, onRemove, onClose }: VesselPopupProps) {
+  const [activeParam, setActiveParam] = useState<string>("Temperature");
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const liquidContent = item.state === "glassware"
+    ? item.contents?.find(c => c.state === "liquid" || c.state === "gas")
+    : null;
+  const volumeValue = item.state === "glassware"
+    ? (liquidContent ? (liquidContent.volume ?? 0) : 0)
+    : (item.volume ?? (item.id.includes("100") ? 100 : item.id.includes("250") ? 250 : 1000));
+
+  const solidContent = item.state === "glassware"
+    ? item.contents?.find(c => c.state === "solid")
+    : null;
+  const massValue = item.state === "glassware"
+    ? (solidContent ? (solidContent.mass ?? solidContent.volume ?? 0) : 0)
+    : (item.mass ?? 10);
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value);
+    if (item.state === "glassware") {
+      let newContents = [...(item.contents || [])];
+      if (liquidContent) {
+        newContents = newContents.map(c =>
+          c.id === liquidContent.id ? { ...c, volume: val } : c
+        ).filter(c => (c.volume ?? 0) > 0.01 || (c.mass ?? 0) > 0.01);
+      } else if (val > 0) {
+        newContents.push({
+          id: "water",
+          module: "inorganic",
+          category: "liquids",
+          name: "Water",
+          symbol: "H2O",
+          state: "liquid",
+          accent: "#38bdf8",
+          volume: val,
+          description: "Pure water."
+        });
+      }
+      const reaction = resolveReaction(newContents);
+      onUpdate(item.instanceId, {
+        contents: reaction.contents,
+        reactionState: reaction.state ?? "idle",
+        note: reaction.note
+      });
+    } else {
+      onUpdate(item.instanceId, { volume: val });
+    }
+  };
+
+  const handleMassChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value);
+    if (item.state === "glassware") {
+      let newContents = [...(item.contents || [])];
+      if (solidContent) {
+        newContents = newContents.map(c =>
+          c.id === solidContent.id ? { ...c, mass: val, volume: val } : c
+        ).filter(c => (c.volume ?? 0) > 0.01 || (c.mass ?? 0) > 0.01);
+      } else if (val > 0) {
+        newContents.push({
+          id: "iron",
+          module: "inorganic",
+          category: "solids",
+          name: "Iron Powder",
+          symbol: "Fe",
+          state: "solid",
+          accent: "#94a3b8",
+          mass: val,
+          volume: val,
+          description: "Pure iron powder."
+        });
+      }
+      const reaction = resolveReaction(newContents);
+      onUpdate(item.instanceId, {
+        contents: reaction.contents,
+        reactionState: reaction.state ?? "idle",
+        note: reaction.note
+      });
+    } else {
+      onUpdate(item.instanceId, { mass: val });
+    }
+  };
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute z-[100] w-[320px] bg-[#181c24] border border-[#2e3746] rounded-2xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.55)] text-white pointer-events-auto select-none"
+      style={{ left, top }}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-white text-base">{item.name}</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-white transition text-xs font-semibold px-1 py-0.5"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        {["Temperature", "Volume", "AoS", "Equation", "Concentration", "Mass"].map((param) => {
+          const isActive = activeParam === param;
+          return (
+            <button
+              key={param}
+              type="button"
+              onClick={() => setActiveParam(param)}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${isActive
+                ? "bg-blue-500/20 border-blue-500 text-white"
+                : "bg-[#2b313c]/60 border-[#3a4250] text-slate-300 hover:bg-[#2b313c]"
+                }`}
+            >
+              {param}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 bg-[#1e2330] rounded-xl p-3 border border-[#2e3746]">
+        {activeParam === "Temperature" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Temperature (°C)</label>
+            <input
+              type="number"
+              value={item.temperature ?? 25}
+              onChange={(e) => onUpdate(item.instanceId, { temperature: Number(e.target.value) })}
+              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
+            />
+          </div>
+        )}
+        {activeParam === "Volume" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+              {liquidContent ? `Volume of ${liquidContent.name} (mL)` : "Volume (mL)"}
+            </label>
+            <input
+              type="number"
+              value={volumeValue}
+              onChange={handleVolumeChange}
+              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
+            />
+          </div>
+        )}
+        {activeParam === "AoS" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">State of Matter / Contents</label>
+            <div className="flex flex-wrap gap-1 bg-[#181c24] border border-[#2e3746] rounded-lg p-2 min-h-8">
+              {item.contents && item.contents.length > 0 ? (
+                item.contents.map((c, idx) => (
+                  <span key={idx} className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[10px] font-mono" style={{ color: c.accent }}>
+                    {c.name} ({c.symbol})
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-500 italic">Empty vessel</span>
+              )}
+            </div>
+          </div>
+        )}
+        {activeParam === "Equation" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Reaction Equation & Details</label>
+            <div className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-2.5 text-xs text-slate-200 select-all leading-relaxed whitespace-pre-wrap">
+              {item.note || "No reaction active"}
+            </div>
+          </div>
+        )}
+        {activeParam === "Concentration" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Concentration (M)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={item.concentration ?? 0.1}
+              onChange={(e) => onUpdate(item.instanceId, { concentration: Number(e.target.value) })}
+              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
+            />
+          </div>
+        )}
+        {activeParam === "Mass" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+              {solidContent ? `Mass of ${solidContent.name} (g)` : "Mass (g)"}
+            </label>
+            <input
+              type="number"
+              value={massValue}
+              onChange={handleMassChange}
+              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className={`mt-4 bg-[#1e2330] rounded-xl p-3 border ${
+        item.note ? "border-emerald-500/30" : "border-[#2e3746]"
+      }`}>
+        <label className={`text-[10px] uppercase tracking-wider font-bold ${
+          item.note ? "text-emerald-400" : "text-slate-400"
+        }`}>
+          Reaction Result
+        </label>
+        <div className="text-xs text-slate-200 mt-1.5 leading-relaxed select-all whitespace-pre-wrap">
+          {item.note || "No reaction active"}
+        </div>
+      </div>
+
+      {!item.id.includes("beaker") && !item.id.includes("funnel") && (
+        <div className="flex items-center justify-between border-t border-white/8 pt-4 mt-4">
+          <span className="text-sm font-medium text-white/90 select-none">Rubber stopper</span>
+          <button
+            type="button"
+            onClick={() => onUpdate(item.instanceId, { hasRubberStopper: !item.hasRubberStopper })}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${item.hasRubberStopper ? "bg-blue-600" : "bg-zinc-700"
+              }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.hasRubberStopper ? "translate-x-5" : "translate-x-0"
+                }`}
+            />
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-3 mt-4 border-t border-white/8 pt-4">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-slate-400 w-14 select-none">Label 1</span>
+          <input
+            type="text"
+            placeholder="e.g. Acid"
+            value={item.label1 ?? ""}
+            onChange={(e) => onUpdate(item.instanceId, { label1: e.target.value })}
+            className="flex-1 bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold text-slate-400 w-14 select-none">Label 2</span>
+          <input
+            type="text"
+            placeholder="e.g. Dilute"
+            value={item.label2 ?? ""}
+            onChange={(e) => onUpdate(item.instanceId, { label2: e.target.value })}
+            className="flex-1 bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-white/8 pt-4 mt-4">
+        <button
+          type="button"
+          onClick={() => {
+            onRemove(item.instanceId);
+            onClose();
+          }}
+          className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/35 hover:bg-red-500/20 active:scale-95 text-red-400 text-sm font-semibold transition cursor-pointer"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }

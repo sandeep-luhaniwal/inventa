@@ -200,33 +200,83 @@ export default function ChemistryPage() {
 
   const handleAddInorganicItem = (item: InorganicLibraryItem) => {
     const offset = inorganicItems.length % 6;
+    const isBottle =
+      item.id.includes("bottle") ||
+      item.id.includes("jar") ||
+      item.id === "three-neck-flask" ||
+      item.state === "solid" ||
+      item.state === "liquid" ||
+      item.state === "gas";
     const placedItem: PlacedInorganicItem = {
       ...item,
       instanceId: createId("lab"),
       x: 90 + offset * 34,
       y: 90 + offset * 26,
+      isOpen: isBottle ? false : undefined,
+      ...(item.id === "three-neck-flask" ? {
+        isOpenLeft: false,
+        isOpenMiddle: false,
+        isOpenRight: false,
+      } : {}),
     };
 
     setInorganicItems((current) => [...current, placedItem]);
     setSelectedInorganicId(placedItem.instanceId);
   };
 
-  const handleInorganicCombine = (sourceId: string, targetId: string) => {
+  const handleInorganicCombine = (sourceId: string, targetId: string, volume?: number) => {
     setInorganicItems((current) => {
       const source = current.find((i) => i.instanceId === sourceId);
       const target = current.find((i) => i.instanceId === targetId);
 
       if (!source || !target || target.state !== "glassware") return current;
 
-      const sourceContents =
-        source.state === "glassware" && source.contents?.length ? source.contents : [source];
-      const updatedContents = [...(target.contents || []), ...sourceContents];
-      
-      // Resolve any reactions
+      let sourceContents: InorganicLibraryItem[] = [];
+
+      if (source.state === "glassware") {
+        sourceContents = source.contents?.length ? source.contents : [];
+      } else {
+        const defaultVolume = source.state === "solid" ? 10 : (source.state === "gas" ? 50 : 30);
+        const resolvedVolume = volume ?? defaultVolume;
+        
+        sourceContents = [{
+          ...source,
+          volume: resolvedVolume,
+          mass: source.state === "solid" ? resolvedVolume : undefined
+        }];
+      }
+
+      let updatedContents = [...(target.contents || [])];
+      sourceContents.forEach((sourceItem) => {
+        const existingIndex = updatedContents.findIndex(item => item.id === sourceItem.id);
+        if (existingIndex !== -1) {
+          const existing = updatedContents[existingIndex];
+          
+          const existingVol = existing.volume ?? (existing.state === "solid" ? 10 : (existing.state === "gas" ? 50 : 30));
+          const sourceVol = sourceItem.volume ?? (sourceItem.state === "solid" ? 10 : (sourceItem.state === "gas" ? 50 : 30));
+          
+          const existingMass = existing.mass ?? (existing.state === "solid" ? 10 : undefined);
+          const sourceMass = sourceItem.mass ?? (sourceItem.state === "solid" ? 10 : undefined);
+
+          updatedContents[existingIndex] = {
+            ...existing,
+            volume: existingVol + sourceVol,
+            mass: existingMass !== undefined || sourceMass !== undefined 
+              ? (existingMass ?? 0) + (sourceMass ?? 0)
+              : undefined
+          };
+        } else {
+          updatedContents.push(sourceItem);
+        }
+      });
+
       const reaction = resolveReaction(updatedContents);
 
+      // Only remove source if it's glassware (pouring vessel), keep solid/liquid/gas bottles
+      const shouldRemoveSource = source.state === "glassware";
+
       return current
-        .filter((i) => i.instanceId !== sourceId) // Remove the added chemical from canvas
+        .filter((i) => shouldRemoveSource ? i.instanceId !== sourceId : true)
         .map((i) =>
           i.instanceId === targetId
             ? { ...i, contents: reaction.contents, reactionState: reaction.state ?? "idle", note: reaction.note }
@@ -245,6 +295,14 @@ export default function ChemistryPage() {
     const item = library.find((i) => i.id === itemId);
     if (!item) return;
 
+    const isBottle =
+      item.id.includes("bottle") ||
+      item.id.includes("jar") ||
+      item.id === "three-neck-flask" ||
+      item.state === "solid" ||
+      item.state === "liquid" ||
+      item.state === "gas";
+
     const placedItem: PlacedInorganicItem = {
       ...item,
       instanceId: createId("lab"),
@@ -253,6 +311,12 @@ export default function ChemistryPage() {
       showStick: item.id === "matchbox" ? true : undefined,
       isStriking: item.id === "matchbox" ? false : undefined,
       isLit: item.id === "match", // Auto-light matches when spawned
+      isOpen: isBottle ? false : undefined,
+      ...(item.id === "three-neck-flask" ? {
+        isOpenLeft: false,
+        isOpenMiddle: false,
+        isOpenRight: false,
+      } : {}),
       ...overrides,
     };
 
@@ -265,6 +329,82 @@ export default function ChemistryPage() {
       current.map((item) => (item.instanceId === id ? { ...item, ...updates } : item))
     );
   };
+
+  React.useEffect(() => {
+    const timers: NodeJS.Timeout[] = [];
+
+    inorganicItems.forEach((item) => {
+      if (item.state !== "glassware") return;
+      if (!item.contents || item.contents.length < 2) return;
+
+      const contentsKey = item.contents
+        .map((c) => `${c.id}:${c.volume ?? c.mass ?? 0}`)
+        .sort()
+        .join(",");
+
+      if (item.metadata?.aiReactionKey === contentsKey || item.note === "AI is analyzing reaction...") {
+        return;
+      }
+
+      // Check if there is a static reaction rule that matches (e.g. sodium + water, iron + cuso4)
+      const hasStaticReaction =
+        ["sodium", "water"].every(rId => item.contents?.some(c => c.id === rId)) ||
+        ["iron", "cuso4-solution"].every(rId => item.contents?.some(c => c.id === rId));
+      if (hasStaticReaction) {
+        return;
+      }
+
+      // Debounce the API call by 600ms to avoid flooding on ticks
+      const timer = setTimeout(() => {
+        // Mark as analyzing
+        handleInorganicUpdate(item.instanceId, {
+          note: "AI is analyzing reaction...",
+          metadata: {
+            ...item.metadata,
+            aiReactionKey: contentsKey,
+          },
+        });
+
+        fetch("/api/reactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reactants: item.contents }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("API call failed");
+            return res.json();
+          })
+          .then((data) => {
+            const productsKey = data.products
+              .map((p: any) => `${p.id}:${p.volume ?? p.mass ?? 0}`)
+              .sort()
+              .join(",");
+
+            handleInorganicUpdate(item.instanceId, {
+              contents: data.products,
+              reactionState: data.state,
+              note: data.note,
+              metadata: {
+                ...item.metadata,
+                aiReactionKey: productsKey,
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("AI Reaction Error:", err);
+            handleInorganicUpdate(item.instanceId, {
+              note: `AI Reaction Error: ${err.message || err}`,
+            });
+          });
+      }, 600);
+
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [inorganicItems]);
 
   const handleInorganicRemove = (id: string) => {
     setInorganicItems((current) => current.filter((item) => item.instanceId !== id));
