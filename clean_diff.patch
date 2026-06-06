@@ -1,0 +1,930 @@
+﻿diff --git a/src/simulator/components/circuit/canvas/ComponentNode.tsx b/src/simulator/components/circuit/canvas/ComponentNode.tsx
+index c3b25d1..270eda7 100644
+--- a/src/simulator/components/circuit/canvas/ComponentNode.tsx
++++ b/src/simulator/components/circuit/canvas/ComponentNode.tsx
+@@ -163,6 +163,582 @@ const BatteryDischargeOverlay = ({ isSimulating, w, h }: { isSimulating: boolean
+   );
+ };
+ 
++export function traceRay(
++  rayGlobalStartX: number,
++  rayGlobalStartY: number,
++  rayGlobalAngle: number,
++  sourceCompId: string,
++  allComponents: PlacedComponent[],
++  maxBounces = 8,
++  prismBendDegrees = 12
++): { path: { x: number; y: number }[], virtualPaths: { x: number; y: number }[][] } {
++  const points = [{ x: rayGlobalStartX, y: rayGlobalStartY }];
++  const virtualPaths: { x: number; y: number }[][] = [];
++  let currentX = rayGlobalStartX;
++  let currentY = rayGlobalStartY;
++  let currentAngle = rayGlobalAngle;
++  let currentSourceId = sourceCompId;
++
++  for (let bounce = 0; bounce < maxBounces; bounce++) {
++    let hit: { tHit: number, comp: PlacedComponent, hitLocalX: number, hitLocalY: number, isMirror: boolean, focalLength: number, dX_local: number, dY_local: number, scaleX: number, scaleY: number, rad: number, opticKind?: "prism" | "slab", prismExitLocalX?: number, prismExitLocalY?: number, nx?: number, ny?: number } | null = null;
++    let minDist = 4000;
++
++    const P0x = currentX;
++    const P0y = currentY;
++    const Dx = Math.cos(currentAngle);
++    const Dy = Math.sin(currentAngle);
++
++    for (const c of allComponents) {
++      if (c.id === currentSourceId) continue;
++      const def = STATIC_COMPONENTS.find(sc => sc.id === c.componentId);
++      const cw = c.width || (def?.viewBoxW || 100);
++      const ch = c.height || (def?.viewBoxH || 100);
++      const cx = c.x;
++      const cy = c.y;
++
++      const centerX = cx + cw / 2;
++      const centerY = cy + ch / 2;
++
++      const rad = -(c.rotation || 0) * Math.PI / 180;
++      const scaleX = c.mirrored ? -1 : 1;
++      const scaleY = c.flipped ? -1 : 1;
++
++      const pX_translated = P0x - centerX;
++      const pY_translated = P0y - centerY;
++
++      const pX_rot = pX_translated * Math.cos(rad) - pY_translated * Math.sin(rad);
++      const pY_rot = pX_translated * Math.sin(rad) + pY_translated * Math.cos(rad);
++
++      const dX_rot = Dx * Math.cos(rad) - Dy * Math.sin(rad);
++      const dY_rot = Dx * Math.sin(rad) + Dy * Math.cos(rad);
++
++      const pX_local = pX_rot * scaleX;
++      const pY_local = pY_rot * scaleY;
++      const dX_local = dX_rot * scaleX;
++      const dY_local = dY_rot * scaleY;
++
++      if (c.componentId === 'triangular_glass_prism') {
++        const prismTriangle = [
++          { x: 0, y: -ch / 2 + (8 / 130) * ch },
++          { x: -cw / 2 + (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
++          { x: cw / 2 - (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
++        ];
++        const prismHits: { t: number; x: number; y: number }[] = [];
++
++        for (let i = 0; i < prismTriangle.length; i++) {
++          const a = prismTriangle[i];
++          const b = prismTriangle[(i + 1) % prismTriangle.length];
++          const edgeX = b.x - a.x;
++          const edgeY = b.y - a.y;
++          const denom = dX_local * edgeY - dY_local * edgeX;
++          if (Math.abs(denom) < 1e-6) continue;
++
++          const relX = a.x - pX_local;
++          const relY = a.y - pY_local;
++          const t = (relX * edgeY - relY * edgeX) / denom;
++          const u = (relX * dY_local - relY * dX_local) / denom;
++
++          if (t > 0.1 && u >= -1e-4 && u <= 1 + 1e-4) {
++            prismHits.push({
++              t,
++              x: pX_local + t * dX_local,
++              y: pY_local + t * dY_local,
++            });
++          }
++        }
++
++        prismHits.sort((a, b) => a.t - b.t);
++        const entry = prismHits[0];
++        
++        if (entry && entry.t < minDist) {
++          minDist = entry.t;
++          
++          const inwardBendRadians = (prismBendDegrees * Math.PI / 180) * 0.5 * (dX_local >= 0 ? 1 : -1);
++          const thetaInside = Math.atan2(dY_local, dX_local) + inwardBendRadians;
++          const dX_inside = Math.cos(thetaInside);
++          const dY_inside = Math.sin(thetaInside);
++          
++          let exit: { x: number, y: number } | undefined;
++          
++          for (let i = 0; i < prismTriangle.length; i++) {
++            const a = prismTriangle[i];
++            const b = prismTriangle[(i + 1) % prismTriangle.length];
++            const edgeX = b.x - a.x;
++            const edgeY = b.y - a.y;
++            const denom = dX_inside * edgeY - dY_inside * edgeX;
++            if (Math.abs(denom) < 1e-6) continue;
++            
++            const relX = a.x - entry.x;
++            const relY = a.y - entry.y;
++            const tInside = (relX * edgeY - relY * edgeX) / denom;
++            const uInside = (relX * dY_inside - relY * dX_inside) / denom;
++            
++            if (tInside > 0.1 && uInside >= -1e-4 && uInside <= 1 + 1e-4) {
++               exit = { x: entry.x + tInside * dX_inside, y: entry.y + tInside * dY_inside };
++               break;
++            }
++          }
++          
++          hit = {
++            tHit: entry.t,
++            comp: c,
++            hitLocalX: entry.x,
++            hitLocalY: entry.y,
++            isMirror: false,
++            focalLength: Infinity,
++            dX_local,
++            dY_local,
++            scaleX,
++            scaleY,
++            rad,
++            opticKind: "prism",
++            prismExitLocalX: exit?.x,
++            prismExitLocalY: exit?.y,
++          };
++        }
++        continue;
++      } else if (c.componentId === 'rectangular_glass_slab') {
++        let hitBoxMinX = (10 / 160) * cw - cw / 2;
++        let hitBoxMaxX = (110 / 160) * cw - cw / 2;
++        let hitBoxMinY = (30 / 120) * ch - ch / 2;
++        let hitBoxMaxY = (110 / 120) * ch - ch / 2;
++        
++        let tMinX = -Infinity, tMaxX = Infinity;
++        if (Math.abs(dX_local) > 1e-6) {
++           tMinX = Math.min((hitBoxMinX - pX_local) / dX_local, (hitBoxMaxX - pX_local) / dX_local);
++           tMaxX = Math.max((hitBoxMinX - pX_local) / dX_local, (hitBoxMaxX - pX_local) / dX_local);
++        } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) { continue; }
++        
++        let tMinY = -Infinity, tMaxY = Infinity;
++        if (Math.abs(dY_local) > 1e-6) {
++           tMinY = Math.min((hitBoxMinY - pY_local) / dY_local, (hitBoxMaxY - pY_local) / dY_local);
++           tMaxY = Math.max((hitBoxMinY - pY_local) / dY_local, (hitBoxMaxY - pY_local) / dY_local);
++        } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) { continue; }
++        
++        const tMin = Math.max(tMinX, tMinY);
++        const tMax = Math.min(tMaxX, tMaxY);
++        
++        if (tMax >= tMin && tMax >= 0) {
++           const tHit = tMin > 0 ? tMin : tMax;
++           if (tHit > 0 && tHit < minDist) {
++              minDist = tHit;
++              const hitLocalX = pX_local + tHit * dX_local;
++              const hitLocalY = pY_local + tHit * dY_local;
++              
++              let nx = 0, ny = 0;
++              if (Math.abs(hitLocalX - hitBoxMinX) < 1e-4) nx = -1;
++              else if (Math.abs(hitLocalX - hitBoxMaxX) < 1e-4) nx = 1;
++              else if (Math.abs(hitLocalY - hitBoxMinY) < 1e-4) ny = -1;
++              else if (Math.abs(hitLocalY - hitBoxMaxY) < 1e-4) ny = 1;
++
++              hit = {
++                 tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local, dY_local, scaleX, scaleY, rad, opticKind: "slab", nx, ny
++              };
++           }
++        }
++        continue;
++      }
++
++      let hitBoxMinX = -cw / 2;
++      let hitBoxMaxX = cw / 2;
++      let hitBoxMinY = -ch / 2;
++      let hitBoxMaxY = ch / 2;
++      
++      let isOptics = false;
++      let isMirror = false;
++      
++      let radiusCm = c.opticsRadiusValue ?? 15;
++      if (c.opticsRadiusUnit === 'm') radiusCm *= 100;
++      const baseFocalLengthPx = radiusCm * 10;
++      
++      let focalLength = baseFocalLengthPx;
++
++      if (c.componentId === 'plane_mirror') {
++         hitBoxMinX = -6; hitBoxMaxX = 6;
++         hitBoxMinY = -ch / 2 + 10; hitBoxMaxY = ch / 2 - 10;
++         isOptics = true;
++         isMirror = true;
++         focalLength = Infinity;
++      } else if (c.componentId === 'convex_lens') {
++         hitBoxMinX = -12; hitBoxMaxX = 12;
++         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++         isOptics = true;
++         isMirror = false;
++         focalLength = baseFocalLengthPx;
++      } else if (c.componentId === 'concave_lens') {
++         hitBoxMinX = -12; hitBoxMaxX = 12;
++         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++         isOptics = true;
++         isMirror = false;
++         focalLength = -baseFocalLengthPx;
++      } else if (c.componentId === 'concave_mirror') {
++         hitBoxMinX = 5; hitBoxMaxX = 30;
++         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++         isOptics = true;
++         isMirror = true;
++         focalLength = baseFocalLengthPx;
++      } else if (c.componentId === 'convex_mirror') {
++         hitBoxMinX = -20; hitBoxMaxX = 10;
++         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++         isOptics = true;
++         isMirror = true;
++         focalLength = -baseFocalLengthPx;
++      } else if (c.componentId === 'laser_stand') {
++         const standLengthCm = c.opticsStandLength || 14;
++         const standLengthPx = standLengthCm * 10;
++         const totalW = 54 + standLengthPx;
++
++         hitBoxMinX = (30 / totalW) * cw - cw / 2;
++         hitBoxMaxX = ((30 + standLengthPx) / totalW) * cw - cw / 2;
++         hitBoxMinY = (27 / 80) * ch - ch / 2;
++         hitBoxMaxY = (53 / 80) * ch - ch / 2;
++      } else if (c.componentId.startsWith('led')) {
++         hitBoxMinX = -cw / 3; hitBoxMaxX = cw / 3;
++         hitBoxMinY = -ch / 3; hitBoxMaxY = ch / 3;
++      }
++
++      let tMinX = -Infinity, tMaxX = Infinity;
++      if (Math.abs(dX_local) > 1e-6) {
++         const t1 = (hitBoxMinX - pX_local) / dX_local;
++         const t2 = (hitBoxMaxX - pX_local) / dX_local;
++         tMinX = Math.min(t1, t2);
++         tMaxX = Math.max(t1, t2);
++      } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) {
++         continue;
++      }
++
++      let tMinY = -Infinity, tMaxY = Infinity;
++      if (Math.abs(dY_local) > 1e-6) {
++         const t1 = (hitBoxMinY - pY_local) / dY_local;
++         const t2 = (hitBoxMaxY - pY_local) / dY_local;
++         tMinY = Math.min(t1, t2);
++         tMaxY = Math.max(t1, t2);
++      } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) {
++         continue;
++      }
++
++      const tMin = Math.max(tMinX, tMinY);
++      const tMax = Math.min(tMaxX, tMaxY);
++
++      if (tMax >= tMin && tMax >= 0) {
++         const tHit = tMin > 0 ? tMin : tMax;
++         if (tHit > 0 && tHit < minDist) {
++            minDist = tHit;
++            const hitLocalY = pY_local + tHit * dY_local;
++            const hitLocalX = pX_local + tHit * dX_local;
++            if (isOptics) {
++              hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror, focalLength, dX_local, dY_local, scaleX, scaleY, rad };
++            } else {
++              hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local: 0, dY_local: 0, scaleX: 1, scaleY: 1, rad: 0 };
++            }
++         }
++      }
++    }
++
++    if (hit) {
++       const hitGlobalX = currentX + Dx * hit.tHit;
++       const hitGlobalY = currentY + Dy * hit.tHit;
++       points.push({ x: hitGlobalX, y: hitGlobalY });
++
++       if (hit.opticKind === "prism") {
++          let prismOutputPoint = { x: hitGlobalX, y: hitGlobalY };
++          if (hit.prismExitLocalX !== undefined && hit.prismExitLocalY !== undefined) {
++             const unrotX = hit.prismExitLocalX / hit.scaleX;
++             const unrotY = hit.prismExitLocalY / hit.scaleY;
++             const pX_translated = unrotX * Math.cos(-hit.rad) - unrotY * Math.sin(-hit.rad);
++             const pY_translated = unrotX * Math.sin(-hit.rad) + unrotY * Math.cos(-hit.rad);
++             const def = STATIC_COMPONENTS.find(sc => sc.id === hit.comp.componentId);
++             const cw = hit.comp.width || (def?.viewBoxW || 100);
++             const ch = hit.comp.height || (def?.viewBoxH || 100);
++             const centerX = hit.comp.x + cw / 2;
++             const centerY = hit.comp.y + ch / 2;
++             prismOutputPoint = { x: centerX + pX_translated, y: centerY + pY_translated };
++          }
++          points.push(prismOutputPoint);
++
++          const bendRadians = (prismBendDegrees * Math.PI / 180) * (hit.dX_local >= 0 ? 1 : -1);
++          const theta2_local = Math.atan2(hit.dY_local, hit.dX_local) + bendRadians;
++          const dX_new_rot = Math.cos(theta2_local) * hit.scaleX;
++          const dY_new_rot = Math.sin(theta2_local) * hit.scaleY;
++          const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
++          const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
++
++          currentAngle = Math.atan2(Dy_new, Dx_new);
++          currentX = prismOutputPoint.x + Dx_new * 0.1;
++          currentY = prismOutputPoint.y + Dy_new * 0.1;
++          currentSourceId = hit.comp.id;
++       } else if (hit.opticKind === "slab") {
++          const globalAngleDeg = Math.round(Math.abs(currentAngle * 180 / Math.PI)) % 360;
++          const is42Deg = Math.abs(globalAngleDeg - 42) <= 1 || Math.abs(globalAngleDeg - (180 - 42)) <= 1 || Math.abs(globalAngleDeg - (360 - 42)) <= 1 || Math.abs(globalAngleDeg - (180 + 42)) <= 1;
++          
++          let curLx = hit.hitLocalX;
++          let curLy = hit.hitLocalY;
++          let angleInside = Math.atan2(hit.dY_local, hit.dX_local);
++          let nx = hit.nx || 0;
++          let ny = hit.ny || 0;
++          
++          if (nx === -1) angleInside *= 0.6;
++          else if (nx === 1) angleInside = Math.PI - (Math.PI - angleInside) * 0.6;
++          else if (ny === -1) angleInside = Math.PI/2 - (Math.PI/2 - angleInside) * 0.6;
++          else angleInside = -Math.PI/2 - (-Math.PI/2 - angleInside) * 0.6;
++
++          let dX_in = Math.cos(angleInside);
++          let dY_in = Math.sin(angleInside);
++
++          const def = STATIC_COMPONENTS.find(sc => sc.id === hit!.comp.componentId);
++          const cw = hit.comp.width || (def?.viewBoxW || 100);
++          const ch = hit.comp.height || (def?.viewBoxH || 100);
++          const centerX = hit.comp.x + cw / 2;
++          const centerY = hit.comp.y + ch / 2;
++          
++          const minX = (10 / 160) * cw - cw / 2;
++          const maxX = (110 / 160) * cw - cw / 2;
++          const minY = (30 / 120) * ch - ch / 2;
++          const maxY = (110 / 120) * ch - ch / 2;
++
++          if (is42Deg) {
++             for (let b = 0; b < 25; b++) {
++                 let tX = Infinity;
++                 if (dX_in > 1e-6) tX = (maxX - curLx) / dX_in;
++                 else if (dX_in < -1e-6) tX = (minX - curLx) / dX_in;
++                 
++                 let tY = Infinity;
++                 if (dY_in > 1e-6) tY = (maxY - curLy) / dY_in;
++                 else if (dY_in < -1e-6) tY = (minY - curLy) / dY_in;
++
++                 if (tX < 1e-4) tX = Infinity;
++                 if (tY < 1e-4) tY = Infinity;
++                 
++                 let tHitIn = Math.min(tX, tY);
++                 if (tHitIn === Infinity) break;
++                 
++                 let hitNormX = 0, hitNormY = 0;
++                 if (tX < tY) hitNormX = dX_in > 0 ? -1 : 1;
++                 else hitNormY = dY_in > 0 ? -1 : 1;
++                 
++                 curLx += dX_in * tHitIn;
++                 curLy += dY_in * tHitIn;
++                 
++                 const pX_translated = curLx / hit.scaleX;
++                 const pY_translated = curLy / hit.scaleY;
++                 const rotGlobalX = pX_translated * Math.cos(-hit.rad) - pY_translated * Math.sin(-hit.rad);
++                 const rotGlobalY = pX_translated * Math.sin(-hit.rad) + pY_translated * Math.cos(-hit.rad);
++                 
++                 points.push({ x: centerX + rotGlobalX, y: centerY + rotGlobalY });
++                 
++                 if (hitNormX !== 0) dX_in = -dX_in;
++                 if (hitNormY !== 0) dY_in = -dY_in;
++             }
++             break;
++          } else {
++             let tX = Infinity;
++             if (dX_in > 1e-6) tX = (maxX - curLx) / dX_in;
++             else if (dX_in < -1e-6) tX = (minX - curLx) / dX_in;
++             
++             let tY = Infinity;
++             if (dY_in > 1e-6) tY = (maxY - curLy) / dY_in;
++             else if (dY_in < -1e-6) tY = (minY - curLy) / dY_in;
++
++             if (tX < 1e-4) tX = Infinity;
++             if (tY < 1e-4) tY = Infinity;
++             
++             let tHitIn = Math.min(tX, tY);
++
++             if (tHitIn !== Infinity) {
++                 curLx += dX_in * tHitIn;
++                 curLy += dY_in * tHitIn;
++                 
++                 let hitNormX = 0, hitNormY = 0;
++                 if (tX < tY) hitNormX = dX_in > 0 ? -1 : 1;
++                 else hitNormY = dY_in > 0 ? -1 : 1;
++                 
++                 const pX_translated = curLx / hit.scaleX;
++                 const pY_translated = curLy / hit.scaleY;
++                 const rotGlobalX = pX_translated * Math.cos(-hit.rad) - pY_translated * Math.sin(-hit.rad);
++                 const rotGlobalY = pX_translated * Math.sin(-hit.rad) + pY_translated * Math.cos(-hit.rad);
++                 
++                 points.push({ x: centerX + rotGlobalX, y: centerY + rotGlobalY });
++
++                 let angleOut = angleInside;
++                 if (hitNormX !== 0) {
++                     if (hitNormX === -1) angleOut = Math.PI - (Math.PI - angleOut) / 0.6;
++                     else angleOut /= 0.6;
++                 } else {
++                     if (hitNormY === -1) angleOut = -Math.PI/2 - (-Math.PI/2 - angleOut) / 0.6;
++                     else angleOut = Math.PI/2 - (Math.PI/2 - angleOut) / 0.6;
++                 }
++
++                 const dX_out_local = Math.cos(angleOut) * hit.scaleX;
++                 const dY_out_local = Math.sin(angleOut) * hit.scaleY;
++                 const Dx_new = dX_out_local * Math.cos(-hit.rad) - dY_out_local * Math.sin(-hit.rad);
++                 const Dy_new = dX_out_local * Math.sin(-hit.rad) + dY_out_local * Math.cos(-hit.rad);
++
++                 currentAngle = Math.atan2(Dy_new, Dx_new);
++                 currentX = centerX + rotGlobalX + Dx_new * 0.1;
++                 currentY = centerY + rotGlobalY + Dy_new * 0.1;
++                 currentSourceId = hit.comp.id;
++             } else {
++                 break;
++             }
++          }
++       } else if (hit.isMirror || hit.focalLength !== Infinity || hit.comp.componentId === 'plane_mirror') {
++          // Refract or reflect
++          const theta1_local = Math.atan2(hit.dY_local, hit.dX_local);
++          const signX = hit.dX_local >= 0 ? 1 : -1;
++          
++          let theta2_local = theta1_local;
++
++          if (isFinite(hit.focalLength)) {
++             const F_x = hit.isMirror ? -hit.focalLength * signX : hit.focalLength * signX;
++             const bend = Math.atan(hit.hitLocalY / (F_x - hit.hitLocalX));
++             if (hit.isMirror) {
++               theta2_local = Math.PI - theta1_local - bend;
++             } else {
++               theta2_local = theta1_local - bend;
++             }
++          } else if (hit.isMirror) {
++             theta2_local = Math.PI - theta1_local;
++          }
++
++          const dX_new_local = Math.cos(theta2_local);
++          const dY_new_local = Math.sin(theta2_local);
++
++          const dX_new_rot = dX_new_local * hit.scaleX;
++          const dY_new_rot = dY_new_local * hit.scaleY;
++
++          const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
++          const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
++
++          if (hit.focalLength !== Infinity && Math.abs(dY_new_local) > 1e-4) {
++             const t_virtual = -hit.hitLocalY / dY_new_local;
++             if (t_virtual < -1) {
++                virtualPaths.push([
++                   { x: hitGlobalX, y: hitGlobalY },
++                   { x: hitGlobalX + t_virtual * Dx_new, y: hitGlobalY + t_virtual * Dy_new }
++                ]);
++             }
++          }
++
++          currentAngle = Math.atan2(Dy_new, Dx_new);
++          currentX = hitGlobalX + Dx_new * 0.1; // offset slightly to avoid self-intersection
++          currentY = hitGlobalY + Dy_new * 0.1;
++          currentSourceId = hit.comp.id;
++       } else {
++          break; // Stop at non-optics
++       }
++    } else {
++       points.push({ x: currentX + Dx * 4000, y: currentY + Dy * 4000 });
++       break;
++    }
++  }
++  return { path: points, virtualPaths };
++}
++
++function getRayCastDistance(
++  rayGlobalStartX: number,
++  rayGlobalStartY: number,
++  rayGlobalAngle: number,
++  comp: PlacedComponent,
++  allComponents: PlacedComponent[]
++): number {
++  let minDist = 4000;
++  const P0x = rayGlobalStartX;
++  const P0y = rayGlobalStartY;
++  const Dx = Math.cos(rayGlobalAngle);
++  const Dy = Math.sin(rayGlobalAngle);
++
++  for (const c of allComponents) {
++    if (c.id === comp.id) continue;
++    const cw = c.width || 100;
++    const ch = c.height || 100;
++    const cx = c.x;
++    const cy = c.y;
++
++    const centerX = cx + cw / 2;
++    const centerY = cy + ch / 2;
++
++    const rad = -(c.rotation || 0) * Math.PI / 180;
++    const scaleX = c.mirrored ? -1 : 1;
++    const scaleY = c.flipped ? -1 : 1;
++
++    const pX_translated = P0x - centerX;
++    const pY_translated = P0y - centerY;
++
++    const pX_rot = pX_translated * Math.cos(rad) - pY_translated * Math.sin(rad);
++    const pY_rot = pX_translated * Math.sin(rad) + pY_translated * Math.cos(rad);
++
++    const dX_rot = Dx * Math.cos(rad) - Dy * Math.sin(rad);
++    const dY_rot = Dx * Math.sin(rad) + Dy * Math.cos(rad);
++
++    const pX_local = pX_rot * scaleX;
++    const pY_local = pY_rot * scaleY;
++    const dX_local = dX_rot * scaleX;
++    const dY_local = dY_rot * scaleY;
++
++    let hitBoxMinX = -cw / 2;
++    let hitBoxMaxX = cw / 2;
++    let hitBoxMinY = -ch / 2;
++    let hitBoxMaxY = ch / 2;
++
++    if (c.componentId === 'laser_stand') {
++       const standLengthCm = c.opticsStandLength || 14;
++       const standLengthPx = standLengthCm * 10;
++       const totalW = 54 + standLengthPx;
++
++       hitBoxMinX = (30 / totalW) * cw - cw / 2;
++       hitBoxMaxX = ((30 + standLengthPx) / totalW) * cw - cw / 2;
++       hitBoxMinY = (27 / 80) * ch - ch / 2;
++       hitBoxMaxY = (53 / 80) * ch - ch / 2;
++    } else if (c.componentId === 'plane_mirror') {
++       hitBoxMinX = -6; hitBoxMaxX = 6;
++       hitBoxMinY = -ch / 2 + 10; hitBoxMaxY = ch / 2 - 10;
++    } else if (c.componentId === 'convex_lens' || c.componentId === 'concave_lens') {
++       hitBoxMinX = -12; hitBoxMaxX = 12;
++       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++    } else if (c.componentId === 'concave_mirror') {
++       hitBoxMinX = 5; hitBoxMaxX = 30;
++       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++    } else if (c.componentId === 'convex_mirror') {
++       hitBoxMinX = -20; hitBoxMaxX = 10;
++       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
++    } else if (c.componentId.startsWith('led')) {
++       hitBoxMinX = -cw / 3; hitBoxMaxX = cw / 3;
++       hitBoxMinY = -ch / 3; hitBoxMaxY = ch / 3;
++    }
++
++    let tMinX = -Infinity, tMaxX = Infinity;
++    if (Math.abs(dX_local) > 1e-6) {
++       const t1 = (hitBoxMinX - pX_local) / dX_local;
++       const t2 = (hitBoxMaxX - pX_local) / dX_local;
++       tMinX = Math.min(t1, t2);
++       tMaxX = Math.max(t1, t2);
++    } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) {
++       continue;
++    }
++
++    let tMinY = -Infinity, tMaxY = Infinity;
++    if (Math.abs(dY_local) > 1e-6) {
++       const t1 = (hitBoxMinY - pY_local) / dY_local;
++       const t2 = (hitBoxMaxY - pY_local) / dY_local;
++       tMinY = Math.min(t1, t2);
++       tMaxY = Math.max(t1, t2);
++    } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) {
++       continue;
++    }
++
++    const tMin = Math.max(tMinX, tMinY);
++    const tMax = Math.min(tMaxX, tMaxY);
++
++    if (tMax >= tMin && tMax >= 0) {
++       const tHit = tMin > 0 ? tMin : tMax;
++       if (tHit > 0 && tHit < minDist) {
++          minDist = tHit;
++       }
++    }
++  }
++  return minDist;
++}
++
+ const ComponentNode = ({
+   comp,
+   imageSrc,
+@@ -195,6 +771,62 @@ const ComponentNode = ({
+   const resolvedLitSrc = activeLitSrc ?? comp.litImageSrc;
+   let activeSrc = (isLit && resolvedLitSrc) ? resolvedLitSrc : (activeImageSrc ?? "");
+ 
++  if (comp.componentId === 'laser_stand') {
++    const standLengthCm = comp.opticsStandLength || 14;
++    const standLengthPx = standLengthCm * 10;
++    const totalW = 20 + 10 + standLengthPx + 24;
++    const totalH = 80;
++    
++    let ticks = '';
++    for (let i = 0; i <= standLengthCm; i++) {
++      const x = 30 + i * 10;
++      const isMajor = i % 5 === 0;
++      const tickH = isMajor ? 10 : 5;
++      ticks += `<line x1="${x}" y1="27" x2="${x}" y2="${27 + tickH}" stroke="white" stroke-width="1.5" />`;
++      if (isMajor) {
++         ticks += `<text x="${x}" y="45" fill="white" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">${i}</text>`;
++      }
++    }
++
++    const modifiedSvg = `
++      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}">
++        <defs>
++          <linearGradient id="stand_body" x1="0" y1="0" x2="0" y2="1">
++            <stop offset="0%" stop-color="#e63946" />
++            <stop offset="20%" stop-color="#ff4d4d" />
++            <stop offset="50%" stop-color="#cc0000" />
++            <stop offset="80%" stop-color="#990000" />
++            <stop offset="100%" stop-color="#660000" />
++          </linearGradient>
++          <linearGradient id="stand_cap" x1="0" y1="0" x2="0" y2="1">
++            <stop offset="0%" stop-color="#444" />
++            <stop offset="50%" stop-color="#111" />
++            <stop offset="100%" stop-color="#000" />
++          </linearGradient>
++          <linearGradient id="stand_head" x1="0" y1="0" x2="1" y2="0">
++            <stop offset="0%" stop-color="#333" />
++            <stop offset="50%" stop-color="#111" />
++            <stop offset="100%" stop-color="#000" />
++          </linearGradient>
++        </defs>
++        <rect x="20" y="25" width="10" height="30" rx="3" fill="url(#stand_cap)" />
++        <rect x="30" y="27" width="${standLengthPx}" height="26" fill="url(#stand_body)" />
++        ${ticks}
++        <g transform="translate(${standLengthPx - 140}, 0)">
++          <path d="M 160 15 L 160 65 A 12 6 0 0 0 184 65 L 184 15 A 12 6 0 0 1 160 15 Z" fill="url(#stand_head)" />
++          <ellipse cx="172" cy="15" rx="12" ry="6" fill="#333" />
++          <ellipse cx="172" cy="65" rx="12" ry="6" fill="#111" />
++          <ellipse cx="172" cy="65" rx="6" ry="3" fill="#000" />
++        </g>
++      </svg>
++    `;
++    activeSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(modifiedSvg)}`;
++  }
++
++  if (comp.componentId === "laser" && comp.powerEnabled) {
++    activeSrc = resolvedLitSrc || activeSrc;
++  }
++
+   // Hide the static gear in the SVG when we're going to overlay a live one
+   if (isLit && comp.componentId === "dc_motor" && activeSrc.startsWith("data:image/svg+xml")) {
+     const decoded = decodeURIComponent(activeSrc.replace("data:image/svg+xml;charset=utf-8,", ""));
+@@ -502,6 +1347,55 @@ const ComponentNode = ({
+               opacity={comp.componentId === "ac_bulb" && isSnapped ? 0 : (isBurned ? 0.4 : 1)}
+             />
+           )}
++
++          {['concave_lens', 'convex_lens', 'plane_mirror', 'concave_mirror', 'convex_mirror'].includes(comp.componentId) && comp.opticsStatus === "Active" && (() => {
++            let radiusCm = comp.opticsRadiusValue ?? 15;
++            if (comp.opticsRadiusUnit === 'm') radiusCm *= 100;
++            const fPx = radiusCm * 10;
++            const showFocalPoints = comp.componentId !== 'plane_mirror';
++
++            const isCurvedMirror = comp.componentId === 'concave_mirror' || comp.componentId === 'convex_mirror';
++            const label2F = isCurvedMirror ? "C" : "2F";
++            const offset2F = isCurvedMirror ? 7 : 10;
++
++            return (
++              <>
++                <Line
++                  points={[-2000, h / 2, 2000 + w, h / 2]}
++                  stroke="black"
++                  strokeWidth={1.5}
++                  opacity={0.5}
++                  listening={false}
++                />
++                <Circle
++                  x={w / 2}
++                  y={h / 2}
++                  radius={4}
++                  fill="black"
++                  listening={false}
++                />
++                {showFocalPoints && (
++                  <>
++                    {/* 2F1 */}
++                    <Circle x={w / 2 - 2 * fPx} y={h / 2} radius={8} fill="red" listening={false} />
++                    <Text text={label2F} x={w / 2 - 2 * fPx - offset2F} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
++                    
++                    {/* F1 */}
++                    <Circle x={w / 2 - fPx} y={h / 2} radius={8} fill="red" listening={false} />
++                    <Text text="F" x={w / 2 - fPx - 6} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
++                    
++                    {/* F2 */}
++                    <Circle x={w / 2 + fPx} y={h / 2} radius={8} fill="red" listening={false} />
++                    <Text text="F" x={w / 2 + fPx - 6} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
++                    
++                    {/* 2F2 */}
++                    <Circle x={w / 2 + 2 * fPx} y={h / 2} radius={8} fill="red" listening={false} />
++                    <Text text={label2F} x={w / 2 + 2 * fPx - offset2F} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
++                  </>
++                )}
++              </>
++            );
++          })()}
+           {comp.componentId === "bulb_holder" && isSnapped && (
+             <BulbSeatedInHolderOverlay width={w} height={h} isLit={isLit} />
+           )}
+@@ -555,6 +1449,223 @@ const ComponentNode = ({
+               color={SPHERE_CHARGE_WAVE_COLOR}
+             />
+           )}
++          {comp.componentId === 'laser' && comp.powerEnabled && (() => {
++             const rad = (comp.rotation || 0) * Math.PI / 180;
++             const scaleXDir = comp.mirrored ? -1 : 1;
++             const scaleYDir = comp.flipped ? -1 : 1;
++
++             const localX = (178 / 240) * w - w / 2;
++             const localYRed = (32 / 80) * h - h / 2;
++             const localYGreen = (48 / 80) * h - h / 2;
++             const localYWhite = (40 / 80) * h - h / 2;
++
++             const globalRedX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYRed * scaleYDir * Math.sin(rad));
++             const globalRedY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYRed * scaleYDir * Math.cos(rad));
++
++             const globalGreenX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYGreen * scaleYDir * Math.sin(rad));
++             const globalGreenY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYGreen * scaleYDir * Math.cos(rad));
++
++             const globalWhiteX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYWhite * scaleYDir * Math.sin(rad));
++             const globalWhiteY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYWhite * scaleYDir * Math.cos(rad));
++
++             const rayAngle = Math.atan2(scaleXDir * Math.sin(rad), scaleXDir * Math.cos(rad));
++             
++             const greenAngleRad = (comp.opticsGreenLaserAngle || 0) * Math.PI / 180;
++             const dX_scaled = Math.cos(greenAngleRad) * scaleXDir;
++             const dY_scaled = Math.sin(greenAngleRad) * scaleYDir;
++             const globalGreenDx = dX_scaled * Math.cos(rad) - dY_scaled * Math.sin(rad);
++             const globalGreenDy = dX_scaled * Math.sin(rad) + dY_scaled * Math.cos(rad);
++             const greenRayAngle = Math.atan2(globalGreenDy, globalGreenDx);
++
++             const redResult = traceRay(globalRedX, globalRedY, rayAngle, comp.id, allComponents, 8, 12);
++             const greenResult = traceRay(globalGreenX, globalGreenY, greenRayAngle, comp.id, allComponents, 8, 18);
++             const whiteGuideResult = traceRay(globalWhiteX, globalWhiteY, rayAngle, comp.id, allComponents, 8, 12);
++             const spectrumResults = [
++               { key: "red", color: "#ff1f1f", bend: 10 },
++               { key: "orange", color: "#ff7a00", bend: 12 },
++               { key: "yellow", color: "#ffe600", bend: 14 },
++               { key: "green", color: "#28ff28", bend: 16 },
++               { key: "blue", color: "#1996ff", bend: 18 },
++               { key: "indigo", color: "#3145ff", bend: 20 },
++               { key: "violet", color: "#8b2cff", bend: 22 },
++             ].map((ray) => ({
++               ...ray,
++               result: traceRay(globalWhiteX, globalWhiteY, rayAngle, comp.id, allComponents, 8, ray.bend),
++             }));
++
++             const redPointsGlobal = redResult.path;
++             const greenPointsGlobal = greenResult.path;
++             const whiteGuidePointsGlobal = whiteGuideResult.path.length >= 3
++               ? whiteGuideResult.path.slice(0, 3)
++               : whiteGuideResult.path;
++
++             const startXOffset = (178 / 240) * w;
++             const yRedOffset = (32 / 80) * h;
++             const yGreenOffset = (48 / 80) * h;
++             const yWhiteOffset = (40 / 80) * h;
++
++             const toLocalPoint = (globalX: number, globalY: number) => {
++               const outerX = globalX - comp.x;
++               const outerY = globalY - comp.y;
++               const cx = w / 2;
++               const cy = h / 2;
++               const dx = outerX - cx;
++               const dy = outerY - cy;
++               const unrotX = dx * Math.cos(-rad) - dy * Math.sin(-rad);
++               const unrotY = dx * Math.sin(-rad) + dy * Math.cos(-rad);
++               return [unrotX * scaleXDir + cx, unrotY * scaleYDir + cy];
++             };
++
++             const redLinePoints = redPointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
++             const greenLinePoints = greenPointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
++             const whiteLinePoints = whiteGuidePointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
++             const spectrumLines = spectrumResults
++               .map((ray) => ({
++                 ...ray,
++                 points: ray.result.path.length >= 4
++                   ? ray.result.path.slice(2).flatMap(p => toLocalPoint(p.x, p.y))
++                   : [],
++               }))
++               .filter((ray) => ray.points.length >= 4);
++
++             const redVirtualLines = redResult.virtualPaths.map(vp => vp.flatMap(p => toLocalPoint(p.x, p.y)));
++             const greenVirtualLines = greenResult.virtualPaths.map(vp => vp.flatMap(p => toLocalPoint(p.x, p.y)));
++
++             // Replace the start point with the precise local start point for clean visual connection
++             if (redLinePoints.length >= 2) {
++               redLinePoints[0] = startXOffset;
++               redLinePoints[1] = yRedOffset;
++             }
++             if (greenLinePoints.length >= 2) {
++               greenLinePoints[0] = startXOffset;
++               greenLinePoints[1] = yGreenOffset;
++             }
++             if (whiteLinePoints.length >= 2) {
++               whiteLinePoints[0] = startXOffset;
++               whiteLinePoints[1] = yWhiteOffset;
++             }
++
++             const laserMode = comp.opticsLaserMode || (comp.powerEnabled ? "Both" : "Off");
++             const showRed = laserMode === "Both" || laserMode === "Red";
++             const showGreen = laserMode === "Both" || laserMode === "Green";
++             const showWhite = laserMode === "White";
++
++             return (
++              <>
++                {/* White Light Prism Spectrum */}
++                {showWhite && (
++                  <>
++                    <Line
++                      name="animated-laser"
++                      points={whiteLinePoints}
++                      stroke="#ffffff"
++                      strokeWidth={3}
++                      dash={[25, 10]}
++                      shadowColor="#ffffff"
++                      shadowBlur={12}
++                      opacity={0.95}
++                      listening={false}
++                    />
++                    <Line
++                      name="animated-laser"
++                      points={whiteLinePoints}
++                      stroke="#dbeafe"
++                      strokeWidth={1}
++                      dash={[25, 10]}
++                      opacity={0.9}
++                      listening={false}
++                    />
++                    {spectrumLines.map((ray) => (
++                      <Line
++                        key={`white-spectrum-${ray.key}`}
++                        name="animated-laser"
++                        points={ray.points}
++                        stroke={ray.color}
++                        strokeWidth={2.4}
++                        dash={[25, 10]}
++                        shadowColor={ray.color}
++                        shadowBlur={10}
++                        opacity={0.95}
++                        listening={false}
++                      />
++                    ))}
++                  </>
++                )}
++
++                {/* Top Red Beam */}
++                {showRed && (
++                  <>
++                    <Line
++                      name="animated-laser"
++                      points={redLinePoints}
++                      stroke="#ff4444"
++                      strokeWidth={2.5}
++                      dash={[25, 10]}
++                      shadowColor="#ff4444"
++                      shadowBlur={10}
++                      opacity={0.9}
++                      listening={false}
++                    />
++                    <Line
++                      name="animated-laser"
++                      points={redLinePoints}
++                      stroke="#ffffff"
++                      strokeWidth={1}
++                      dash={[25, 10]}
++                      opacity={0.8}
++                      listening={false}
++                    />
++                    {redVirtualLines.map((pts, i) => (
++                      <Line
++                        key={`red-vp-${i}`}
++                        points={pts}
++                        stroke="#ff4444"
++                        strokeWidth={1}
++                        dash={[5, 5]}
++                        listening={false}
++                      />
++                    ))}
++                  </>
++                )}
++
++                {/* Bottom Green Beam */}
++                {showGreen && (
++                  <>
++                    <Line
++                      name="animated-laser"
++                      points={greenLinePoints}
++                      stroke="#44ff44"
++                      strokeWidth={2.5}
++                      dash={[25, 10]}
++                      shadowColor="#44ff44"
++                      shadowBlur={10}
++                      opacity={0.9}
++                      listening={false}
++                    />
++                    <Line
++                      name="animated-laser"
++                      points={greenLinePoints}
++                      stroke="#ffffff"
++                      strokeWidth={1}
++                      dash={[25, 10]}
++                      opacity={0.8}
++                      listening={false}
++                    />
++                    {greenVirtualLines.map((pts, i) => (
++                      <Line
++                        key={`green-vp-${i}`}
++                        points={pts}
++                        stroke="#44ff44"
++                        strokeWidth={1}
++                        dash={[5, 5]}
++                        listening={false}
++                      />
++                    ))}
++                  </>
++                )}
++              </>
++             );
++          })()}
+ 
+ 
+           {/* Visual Effects (Glow/Animations) driven by AI/Simulation state */}

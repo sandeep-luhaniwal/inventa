@@ -473,8 +473,18 @@ export function traceRay(
           
           let curLx = hit.hitLocalX;
           let curLy = hit.hitLocalY;
-          let nx = hit.nx || 0;
-          let ny = hit.ny || 0;
+          let rawNx = hit.nx || 0;
+          let rawNy = hit.ny || 0;
+          
+          const tilt = 38 * Math.PI / 180;
+          const cosTilt = Math.cos(tilt);
+          const sinTilt = Math.sin(tilt);
+          let nx = rawNx, ny = rawNy;
+          if (rawNx === -1) { nx = -cosTilt; ny = -sinTilt; }
+          else if (rawNx === 1) { nx = cosTilt; ny = sinTilt; }
+          else if (rawNy === -1) { nx = sinTilt; ny = -cosTilt; }
+          else if (rawNy === 1) { nx = -sinTilt; ny = cosTilt; }
+
           const I_x = hit.dX_local;
           const I_y = hit.dY_local;
           
@@ -579,12 +589,21 @@ export function traceRay(
                  points.push({ x: centerX + rotGlobalX, y: centerY + rotGlobalY });
 
                  // Determine hit normal pointing OUT of the glass
-                 let N_out_x = 0, N_out_y = 0;
+                 let raw_N_out_x = 0, raw_N_out_y = 0;
                  if (tX < tY) {
-                     N_out_x = dX_in > 0 ? 1 : -1;
+                     raw_N_out_x = dX_in > 0 ? 1 : -1;
                  } else {
-                     N_out_y = dY_in > 0 ? 1 : -1;
+                     raw_N_out_y = dY_in > 0 ? 1 : -1;
                  }
+                 
+                 const tilt = 38 * Math.PI / 180;
+                 const cosTilt = Math.cos(tilt);
+                 const sinTilt = Math.sin(tilt);
+                 let N_out_x = raw_N_out_x, N_out_y = raw_N_out_y;
+                 if (raw_N_out_x === -1) { N_out_x = -cosTilt; N_out_y = -sinTilt; }
+                 else if (raw_N_out_x === 1) { N_out_x = cosTilt; N_out_y = sinTilt; }
+                 else if (raw_N_out_y === -1) { N_out_x = sinTilt; N_out_y = -cosTilt; }
+                 else if (raw_N_out_y === 1) { N_out_x = -sinTilt; N_out_y = cosTilt; }
 
                  // For refraction, the normal should point INTO the medium of incidence (the glass)
                  const N_glass_x = -N_out_x;
