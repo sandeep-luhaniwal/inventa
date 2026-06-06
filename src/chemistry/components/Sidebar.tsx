@@ -193,7 +193,6 @@ export default function Sidebar({
                         </div>
                       )}
                     </div>
-
                     <h3 className="line-clamp-2 text-sm font-medium leading-4 text-white text-center">{title}</h3>
                     <p className="mt-px text-[10px] uppercase tracking-[0.16em] text-white/34 lg:text-xs">{meta}</p>
                   </button>
