@@ -52,6 +52,17 @@ import {
   CorkStopperStandaloneAsset,
   GlassPlateStandaloneAsset,
   BurnerCapStandaloneAsset,
+  HeatingMantleAsset,
+  EvaporationChamberAsset,
+  GraduatedCylinderAsset,
+  StirringRodAsset,
+  VacuumChamberAsset,
+  GasInletValveAsset,
+  ChinaDishAsset,
+  MortarPestleAsset,
+  SafetyGlovesAsset,
+  CrucibleAsset,
+  FurnaceAsset,
 } from "./LabAssets";
 
 interface InorganicCanvasProps {
@@ -122,11 +133,23 @@ const getItemUnscaledDims = (id: string, state: string) => {
     if (id === "towel") return { w: 103, h: 104 };
     if (id === "cotton") return { w: 120, h: 86 };
     if (id === "filter-paper") return { w: 120, h: 144 };
+    if (id === "heating-mantle") return { w: 180, h: 140 };
+    if (id === "stirring-rod") return { w: 30, h: 240 };
+    if (id === "gas-inlet-valve") return { w: 60, h: 60 };
+    if (id === "safety-gloves") return { w: 100, h: 80 };
+    if (id === "tongs") return { w: 160, h: 80 };
+    if (id === "furnace") return { w: 220, h: 220 };
     if (state === "solid" || state === "liquid" || state === "gas") {
       return { w: 130, h: 160 };
     }
     return { w: 128, h: 128 };
   }
+  if (id === "evaporation-chamber") return { w: 200, h: 250 };
+  if (id === "graduated-cylinder") return { w: 100, h: 280 };
+  if (id === "vacuum-chamber") return { w: 200, h: 220 };
+  if (id === "china-dish") return { w: 160, h: 80 };
+  if (id === "mortar-pestle") return { w: 140, h: 100 };
+  if (id === "crucible") return { w: 100, h: 100 };
   if (id.includes("beaker")) return { w: 222, h: 240 };
   if (id.includes("funnel")) return { w: 194, h: 240 };
   if (id.includes("erlenmeyer") || id === "three-neck-flask") return { w: 120, h: 120 };
@@ -139,6 +162,8 @@ const getItemUnscaledDims = (id: string, state: string) => {
 };
 
 const getItemCanvasScale = (id: string, state: string) => {
+  if (id === "heating-mantle") return 1.0;
+  if (id === "evaporation-chamber") return 1.0;
   if (id === "copper-wire") return 0.25;
   if (id === "wooden-box") return 0.5;
   if (id === "balloon") return 1.0;
@@ -153,6 +178,13 @@ const getItemCanvasScale = (id: string, state: string) => {
   if (id === "erlenmeyer-250" || id === "three-neck-flask") return 1.76;
   if (id === "round-bottom-flask") return 1.056;
   if (id === "separatory-funnel" || id === "gas-jar") return 0.96;
+  if (id === "graduated-cylinder") return 0.9;
+  if (id === "vacuum-chamber") return 1.0;
+  if (id === "china-dish") return 1.0;
+  if (id === "mortar-pestle") return 1.0;
+  if (id === "crucible") return 1.0;
+  if (id === "furnace") return 1.0;
+  if (id === "tongs") return 0.75;
   if (id === "measure-bottle" || id === "glass-bottle") return 1.76;
   return 2.112; // test-tube etc.
 };
@@ -296,6 +328,12 @@ export function getVesselCapacity(id: string): number {
   if (id === "round-bottom-flask") return 250;
   if (id === "gas-jar") return 250;
   if (id === "separatory-funnel") return 250;
+  if (id === "evaporation-chamber") return 500;
+  if (id === "graduated-cylinder") return 100;
+  if (id === "vacuum-chamber") return 500;
+  if (id === "china-dish") return 150;
+  if (id === "mortar-pestle") return 200;
+  if (id === "crucible") return 100;
   if (id === "test-tube") return 50;
   if (id === "test-tube-small") return 30;
   if (id === "test-tube-mini") return 15;
@@ -333,6 +371,12 @@ function getLiquidCanvasY(item: PlacedInorganicItem): number {
     if (item.id === "test-tube-small") return { x: 40, y: 15, w: 20, h: 140, rx: 10 };
     if (item.id === "test-tube-mini") return { x: 44, y: 40, w: 12, h: 100, rx: 6 };
     if (item.id.includes("funnel")) return { x: 95, y: 58, w: 230, h: 422, rx: 0 };
+    if (item.id === "evaporation-chamber") return { x: 40, y: 40, w: 120, h: 160, rx: 20 };
+    if (item.id === "graduated-cylinder") return { x: 35, y: 20, w: 30, h: 240, rx: 0 };
+    if (item.id === "china-dish") return { x: 20, y: 25, w: 120, h: 57, rx: 12 };
+    if (item.id === "mortar-pestle") return { x: 25, y: 30, w: 90, h: 55, rx: 12 };
+    if (item.id === "vacuum-chamber") return { x: 40, y: 120, w: 120, h: 70, rx: 20 };
+    if (item.id === "crucible") return { x: 25, y: 15, w: 50, h: 70, rx: 10 };
     return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
   })();
 
@@ -344,6 +388,12 @@ function getLiquidCanvasY(item: PlacedInorganicItem): number {
     if (item.id === "separatory-funnel") return "0 0 220 660";
     if (item.id.includes("test-tube")) return "0 0 100 200";
     if (item.id.includes("funnel")) return "0 0 420 520";
+    if (item.id === "evaporation-chamber") return "0 0 200 250";
+    if (item.id === "graduated-cylinder") return "0 0 100 280";
+    if (item.id === "china-dish") return "0 0 160 100";
+    if (item.id === "mortar-pestle") return "0 0 140 100";
+    if (item.id === "vacuum-chamber") return "0 0 200 220";
+    if (item.id === "crucible") return "0 0 100 100";
     return "0 0 200 280";
   })();
 
@@ -375,6 +425,27 @@ export function isVesselHeatedByBurner(v: PlacedInorganicItem, b: PlacedInorgani
   return Math.abs(bCenterX - vCenterX) < 95 && v.y <= b.y + 20 && dy < 220;
 }
 
+export function isVesselHeatedByMantle(v: PlacedInorganicItem, m: PlacedInorganicItem) {
+  if (!m.isLit) return false;
+
+  const mDims = getItemUnscaledDims(m.id, m.state);
+  const mScale = getItemCanvasScale(m.id, m.state);
+  const mWidth = mDims.w * mScale;
+  const mCenterX = m.x + mWidth / 2;
+
+  const vDims = getItemUnscaledDims(v.id, v.state);
+  const vScale = getItemCanvasScale(v.id, v.state);
+  const vWidth = vDims.w * vScale;
+  const vHeight = vDims.h * vScale;
+  const vCenterX = v.x + vWidth / 2;
+
+  const dx = Math.abs(mCenterX - vCenterX);
+  const dy = (v.y + vHeight) - m.y; // bottom of vessel relative to top of mantle
+
+  // Sit inside mantle
+  return dx < 60 && dy > 40 && dy < 160;
+}
+
 export default function InorganicCanvas({
   items,
   selectedId,
@@ -386,6 +457,7 @@ export default function InorganicCanvas({
   onRemove,
 }: InorganicCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const hasGloves = items.some(i => i.id === "safety-gloves");
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [sparkPos, setSparkPos] = useState<{ x: number; y: number } | null>(null);
   const [dispensing, setDispensing] = useState<Record<string, DispenseMode>>({});
@@ -451,14 +523,17 @@ export default function InorganicCanvas({
 
       // Compute local vessel heat
       const burners = currentItems.filter((i) => i.id === "burner");
+      const mantles = currentItems.filter((i) => i.id === "heating-mantle");
       const localVesselHeat: Record<string, boolean> = {};
       currentItems.forEach((v) => {
         if (v.state === "glassware") {
           const heatedByBurner = burners.some((b) => isVesselHeatedByBurner(v, b));
-          if (heatedByBurner) {
+          const heatedByMantle = mantles.some((m) => isVesselHeatedByMantle(v, m));
+          const isHeated = heatedByBurner || heatedByMantle;
+          if (isHeated) {
             lastHeatedTimesRef.current[v.instanceId] = Date.now();
           }
-          const isWarm = heatedByBurner || (Date.now() - (lastHeatedTimesRef.current[v.instanceId] || 0) < 10000);
+          const isWarm = isHeated || (Date.now() - (lastHeatedTimesRef.current[v.instanceId] || 0) < 10000);
           localVesselHeat[v.instanceId] = isWarm;
         }
       });
@@ -605,7 +680,7 @@ export default function InorganicCanvas({
               });
             }
 
-            const reaction = resolveReaction(updatedTargetContents);
+            const reaction = resolveReaction(updatedTargetContents, targetVessel.id, hasGloves, vesselHeat[targetVessel.instanceId]);
             onUpdate(targetVessel.instanceId, {
               contents: reaction.contents,
               reactionState: reaction.state ?? "idle",
@@ -700,7 +775,7 @@ export default function InorganicCanvas({
                 onUpdate(gasSource.instanceId, { contents: updatedSourceContents });
               }
 
-              const reaction = resolveReaction(updatedContents);
+              const reaction = resolveReaction(updatedContents, targetVessel.id, hasGloves, vesselHeat[targetVessel.instanceId]);
               onUpdate(targetVessel.instanceId, {
                 contents: reaction.contents,
                 reactionState: reaction.state ?? "idle",
@@ -764,6 +839,65 @@ export default function InorganicCanvas({
 
               onUpdate(v.instanceId, { contents: updatedContents });
             }
+          }
+        }
+      });
+
+      // Sublimate camphor if heated
+      currentItems.forEach((v) => {
+        if (v.state === "glassware" && localVesselHeat[v.instanceId] && v.contents) {
+          const camphorSolid = v.contents.find(c => c.id === "camphor" && c.state === "solid");
+          if (camphorSolid && (camphorSolid.mass ?? 0) > 0.01) {
+            const sublimateAmt = 0.5; // 0.5 g per tick
+            const actualAmt = Math.min(sublimateAmt, camphorSolid.mass ?? 10);
+
+            // Deduct from solid camphor
+            let updatedContents = v.contents.map(c => {
+              if (c.id === "camphor" && c.state === "solid") {
+                return {
+                  ...c,
+                  mass: Math.max(0, (c.mass ?? 0) - actualAmt),
+                  volume: Math.max(0, (c.volume ?? 0) - actualAmt)
+                };
+              }
+              return c;
+            }).filter(c => (c.mass ?? 0) > 0.01 || c.state !== "solid");
+
+            const isVOpen = v.id === "three-neck-flask"
+              ? (v.isOpenLeft !== false || v.isOpenMiddle !== false || v.isOpenRight !== false)
+              : (v.isOpen !== false && !v.hasRubberStopper);
+
+            // If closed/sealed, keep the vapor inside!
+            if (!isVOpen || isPipeConnected(v)) {
+              // Find or add camphor-vapor
+              const existingVaporIdx = updatedContents.findIndex(c => c.id === "camphor-vapor" && c.state === "gas");
+              if (existingVaporIdx !== -1) {
+                const existing = updatedContents[existingVaporIdx];
+                updatedContents[existingVaporIdx] = {
+                  ...existing,
+                  volume: (existing.volume ?? 0) + actualAmt
+                };
+              } else {
+                updatedContents.push({
+                  id: "camphor-vapor",
+                  module: "inorganic",
+                  category: "gases",
+                  name: "Camphor Vapor",
+                  symbol: "C10H16O (g)",
+                  state: "gas",
+                  accent: "#cbd5e1",
+                  description: "Colorless aromatic sublimated camphor vapor.",
+                  volume: actualAmt
+                });
+              }
+            }
+
+            const reaction = resolveReaction(updatedContents, v.id, hasGloves, vesselHeat[v.instanceId]);
+            onUpdate(v.instanceId, {
+              contents: reaction.contents,
+              reactionState: reaction.state ?? "idle",
+              note: reaction.note
+            });
           }
         }
       });
@@ -885,6 +1019,22 @@ export default function InorganicCanvas({
         if (currentPrePour.targetId !== "table") {
           const targetItem = currentItems.find(i => i.instanceId === currentPrePour.targetId);
           if (targetItem && targetItem.state === "glassware") {
+            // Vacuum chamber valve constraints
+            if (targetItem.id === "vacuum-chamber") {
+              const isSourceGas = sourceContent.state === "gas";
+              if (isSourceGas) {
+                const gasInletValve = currentItems.find(i => i.id === "gas-inlet-valve" && i.note === targetItem.instanceId);
+                if (!gasInletValve) {
+                  onUpdate(targetItem.instanceId, { note: "No gas inlet valve attached! Please attach the Gas Inlet Valve to the vacuum chamber to introduce gas." });
+                  return;
+                }
+                if (!gasInletValve.isOpen) {
+                  onUpdate(targetItem.instanceId, { note: "The Gas Inlet Valve is closed! Click the valve to open it and introduce gas." });
+                  return;
+                }
+              }
+            }
+
             const targetCapacity = getVesselCapacity(targetItem.id);
             const targetTotalVolume = getTotalVolume(targetItem.contents || []);
 
@@ -911,7 +1061,7 @@ export default function InorganicCanvas({
                 }
 
                 // Resolve reaction in target
-                const reaction = resolveReaction(updatedTargetContents);
+                const reaction = resolveReaction(updatedTargetContents, targetItem.id, hasGloves, vesselHeat[targetItem.instanceId]);
                 onUpdate(targetItem.instanceId, {
                   contents: reaction.contents,
                   reactionState: reaction.state ?? "idle",
@@ -1726,7 +1876,8 @@ export default function InorganicCanvas({
         const isNarrowNeck =
           target.id.includes("flask") ||
           target.id.includes("erlenmeyer") ||
-          target.id.includes("test-tube");
+          target.id.includes("test-tube") ||
+          target.id.includes("cylinder");
 
         const targetCenterX = target.x + dims.w / 2;
         const vesselVisualTop = target.y + dims.h - targetH;
@@ -1784,7 +1935,8 @@ export default function InorganicCanvas({
         const isNarrowNeck =
           target.id.includes("flask") ||
           target.id.includes("erlenmeyer") ||
-          target.id.includes("test-tube");
+          target.id.includes("test-tube") ||
+          target.id.includes("cylinder");
 
         const targetCenterX = target.x + dims.w / 2;
         const vesselVisualTop = target.y + dims.h - targetH;
@@ -1826,15 +1978,134 @@ export default function InorganicCanvas({
       }
     }
 
+    if (draggedItem && draggedItem.id === "gas-inlet-valve") {
+      const targetChamber = items.find(
+        (i) =>
+          i.instanceId !== draggedItem.instanceId &&
+          i.id === "vacuum-chamber" &&
+          Math.abs(i.x + 100 - draggedItem.x) < 160 &&
+          Math.abs(i.y + 110 - draggedItem.y) < 180
+      );
+      if (targetChamber) {
+        const newX = targetChamber.x + 130;
+        const newY = targetChamber.y + 160;
+
+        onUpdate(draggedItem.instanceId, {
+          x: newX,
+          y: newY,
+          rotation: 0,
+          note: targetChamber.instanceId
+        });
+        setDragState(null);
+        return;
+      }
+    }
+
+    if (draggedItem && draggedItem.id === "crucible") {
+      const targetFurnace = items.find(
+        (i) =>
+          i.instanceId !== draggedItem.instanceId &&
+          i.id === "furnace" &&
+          Math.abs((i.x + 110) - (draggedItem.x + 50)) < 120 &&
+          Math.abs((i.y + 110) - (draggedItem.y + 50)) < 120
+      );
+      if (targetFurnace) {
+        const newX = targetFurnace.x + 60;
+        const newY = targetFurnace.y + 40;
+        onUpdate(draggedItem.instanceId, {
+          x: newX,
+          y: newY,
+          rotation: 0
+        });
+        setDragState(null);
+        return;
+      }
+    }
+
+    if (draggedItem && draggedItem.id === "tongs") {
+      const targetCrucible = items.find(
+        (i) =>
+          i.instanceId !== draggedItem.instanceId &&
+          i.id === "crucible" &&
+          Math.abs((i.x + 50) - (draggedItem.x + 80)) < 120 &&
+          Math.abs((i.y + 50) - (draggedItem.y + 40)) < 120
+      );
+      if (targetCrucible) {
+        const newX = targetCrucible.x - 30;
+        const newY = targetCrucible.y - 10;
+        onUpdate(draggedItem.instanceId, {
+          x: newX,
+          y: newY,
+          rotation: 0,
+          note: targetCrucible.instanceId
+        });
+        setDragState(null);
+        return;
+      }
+    }
+
+    if (draggedItem && draggedItem.id === "stirring-rod") {
+      const targetVessel = items.find(
+        (i) =>
+          i.instanceId !== draggedItem.instanceId &&
+          i.state === "glassware" &&
+          Math.abs(i.x + 50 - draggedItem.x) < 150 &&
+          Math.abs(i.y + 50 - draggedItem.y) < 180
+      );
+      if (targetVessel) {
+        const vDims = getItemUnscaledDims(targetVessel.id, targetVessel.state);
+        const vScale = getItemCanvasScale(targetVessel.id, targetVessel.state);
+        const vWidth = vDims.w * vScale;
+        const vHeight = vDims.h * vScale;
+
+        let newX = targetVessel.x + vWidth / 2 - 15;
+        let newY = targetVessel.y - 40;
+        let rotation = 15;
+
+        if (targetVessel.id.includes("beaker")) {
+          newX = targetVessel.x + vWidth / 2 - 25;
+          newY = targetVessel.y - 20;
+        } else if (targetVessel.id === "graduated-cylinder") {
+          newX = targetVessel.x + vWidth / 2 - 18;
+          newY = targetVessel.y - 50;
+          rotation = 8;
+        } else if (targetVessel.id.includes("test-tube")) {
+          newX = targetVessel.x + vWidth / 2 - 15;
+          newY = targetVessel.y - 80;
+          rotation = 5;
+        }
+
+        onUpdate(draggedItem.instanceId, { x: newX, y: newY, rotation });
+        setDragState(null);
+        return;
+      }
+    }
+
     setDragState(null);
   };
 
   const vesselHeat = useMemo(() => {
     const burners = items.filter((i) => i.id === "burner");
+    const mantles = items.filter((i) => i.id === "heating-mantle");
+    const furnaces = items.filter((i) => i.id === "furnace");
     const vessels = items.filter((i) => i.state === "glassware");
 
     return vessels.reduce<Record<string, boolean>>((acc, v) => {
-      acc[v.instanceId] = burners.some((b) => isVesselHeatedByBurner(v, b));
+      const isHeatedByBurner = burners.some((b) => isVesselHeatedByBurner(v, b));
+      const isHeatedByMantle = mantles.some((m) => isVesselHeatedByMantle(v, m));
+      const isHeatedByFurnace = furnaces.some((f) => {
+        if (!f.isLit) return false;
+        const vDims = getItemUnscaledDims(v.id, v.state);
+        const vScale = getItemCanvasScale(v.id, v.state);
+        const vWidth = vDims.w * vScale;
+        const vHeight = vDims.h * vScale;
+        const vCenterX = v.x + vWidth / 2;
+        const vCenterY = v.y + vHeight / 2;
+        const fCenterX = f.x + 110;
+        const fCenterY = f.y + 110;
+        return Math.abs(vCenterX - fCenterX) < 70 && Math.abs(vCenterY - fCenterY) < 70;
+      });
+      acc[v.instanceId] = isHeatedByBurner || isHeatedByMantle || isHeatedByFurnace;
       return acc;
     }, {});
   }, [items]);
@@ -2190,6 +2461,20 @@ export default function InorganicCanvas({
                   offsetX: (event.clientX - rect.left) / zoom - item.x,
                   offsetY: (event.clientY - rect.top) / zoom - item.y,
                 });
+
+                if (item.id === "gas-inlet-valve") {
+                  onUpdate(item.instanceId, { note: undefined });
+                }
+                if (item.id === "tongs") {
+                  onUpdate(item.instanceId, { note: undefined });
+                }
+                if (item.id === "crucible") {
+                  const isHeated = vesselHeat[item.instanceId];
+                  const hasTongs = items.some(t => t.id === "tongs" && t.note === item.instanceId);
+                  if (isHeated && !hasTongs) {
+                    onUpdate(item.instanceId, { note: "Safety Warning: The crucible is hot! Please attach Crucible Tongs to handle it safely." });
+                  }
+                }
               }}
               className={`absolute ${cursorClass} transition-transform ${active ? "z-50 scale-105" : "z-10"}`}
               onDoubleClick={(event) => {
@@ -2212,6 +2497,12 @@ export default function InorganicCanvas({
                       onUpdate(item.instanceId, { isLit: false });
                     }
                   }
+                } else if (item.id === "heating-mantle") {
+                  onUpdate(item.instanceId, { isLit: !item.isLit });
+                } else if (item.id === "furnace") {
+                  onUpdate(item.instanceId, { isLit: !item.isLit });
+                } else if (item.id === "gas-inlet-valve") {
+                  onUpdate(item.instanceId, { isOpen: !item.isOpen });
                 } else if (item.id === "matchbox") {
                   if (item.showStick !== false && !item.isStriking) {
                     strikeMatchbox(item);
@@ -2228,7 +2519,7 @@ export default function InorganicCanvas({
                   if (!currentlyFilled) {
                     const isNearContainer = items.some(i => {
                       if (i.instanceId === item.instanceId) return false;
-                      const ignoreIds = ["burner", "matchbox", "match", "forceps", "dropper", "clay-net", "tripod", "wire-gauze", "rubber-stopper", "cork-stopper", "glass-stopper", "burner-cap"];
+                      const ignoreIds = ["burner", "matchbox", "match", "forceps", "dropper", "clay-net", "tripod", "wire-gauze", "rubber-stopper", "cork-stopper", "glass-stopper", "burner-cap", "stirring-rod", "gas-inlet-valve", "safety-gloves", "tongs", "furnace"];
                       if (ignoreIds.includes(i.id)) return false;
 
                       const dx = Math.abs(i.x - item.x);
@@ -2375,6 +2666,30 @@ export default function InorganicCanvas({
                   <TestTubeAsset size="mini" />
                 ) : item.id === "burner" ? (
                   <BurnerAsset lit={item.isLit} isOpen={item.isOpen} />
+                ) : item.id === "heating-mantle" ? (
+                  <HeatingMantleAsset lit={item.isLit} />
+                ) : item.id === "evaporation-chamber" ? (
+                  <EvaporationChamberAsset />
+                ) : item.id === "vacuum-chamber" ? (
+                  <VacuumChamberAsset />
+                ) : item.id === "gas-inlet-valve" ? (
+                  <GasInletValveAsset isOpen={item.isOpen} />
+                ) : item.id === "china-dish" ? (
+                  <ChinaDishAsset />
+                ) : item.id === "mortar-pestle" ? (
+                  <MortarPestleAsset />
+                ) : item.id === "crucible" ? (
+                  <CrucibleAsset />
+                ) : item.id === "furnace" ? (
+                  <FurnaceAsset lit={item.isLit} />
+                ) : item.id === "tongs" ? (
+                  <CrucibleTongsAsset />
+                ) : item.id === "safety-gloves" ? (
+                  <SafetyGlovesAsset />
+                ) : item.id === "graduated-cylinder" ? (
+                  <GraduatedCylinderAsset />
+                ) : item.id === "stirring-rod" ? (
+                  <StirringRodAsset />
                 ) : item.id === "tripod" ? (
                   <StandAsset />
                 ) : item.id === "match" ? (
@@ -3036,6 +3351,8 @@ export default function InorganicCanvas({
               onUpdate={onUpdate}
               onRemove={onRemove}
               onClose={() => setPopupItemId(null)}
+              hasGloves={hasGloves}
+              isHeated={vesselHeat[item.instanceId]}
             />
           );
         })}
@@ -3165,6 +3482,9 @@ function VesselContents({
     if (item.id === "test-tube-mini") return { x: 44, y: 40, w: 12, h: 100, rx: 6 };
     // Funnel viewBox="0 0 420 520"
     if (item.id.includes("funnel")) return { x: 95, y: 58, w: 230, h: 422, rx: 0 };
+    if (item.id === "evaporation-chamber") return { x: 40, y: 40, w: 120, h: 160, rx: 20 };
+    if (item.id === "graduated-cylinder") return { x: 35, y: 20, w: 30, h: 240, rx: 0 };
+    if (item.id === "crucible") return { x: 25, y: 15, w: 50, h: 70, rx: 10 };
     return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
   })();
 
@@ -3176,6 +3496,9 @@ function VesselContents({
     if (item.id === "separatory-funnel") return "0 0 220 660";
     if (item.id.includes("test-tube")) return "0 0 100 200";
     if (item.id.includes("funnel")) return "0 0 420 520";
+    if (item.id === "evaporation-chamber") return "0 0 200 250";
+    if (item.id === "graduated-cylinder") return "0 0 100 280";
+    if (item.id === "crucible") return "0 0 100 100";
     return "0 0 200 280";
   })();
 
@@ -3189,10 +3512,22 @@ function VesselContents({
 
   const isHeated = reactionState === "boiling" || reactionState === "heating" || heated;
   const isVisuallyBoiling = isHeated || boilingIntensity > 0;
-  const showBubbles = (hasGas && !contents.every(c => c.symbol === "H2O")) || isVisuallyBoiling;
+  const showBubbles = (hasGas && !contents.every(c => c.symbol === "H2O") && !contents.every(c => c.id === "air" || c.id === "air-filled-gasbag")) || isVisuallyBoiling;
   const currentBubbleOpacity = isVisuallyBoiling ? 0.82 * boilingIntensity : 0.82;
   const currentBodyOpacity = isVisuallyBoiling ? 0.22 * boilingIntensity : 0.22;
   const currentGlintOpacity = isVisuallyBoiling ? 0.85 * boilingIntensity : 0.85;
+
+  const hasMist = contents.some(c => c.id === "mist");
+  const hasChloroformVapor = contents.some(c => c.id === "chloroform-vapor");
+  const hasCamphorVapor = contents.some(c => c.id === "camphor-vapor");
+  const showBubbleParticles = showBubbles && !hasMist && !hasChloroformVapor && !hasCamphorVapor;
+
+  const gasCloudY = hasMist ? geo.y - 10 : liquidY - 10;
+  const gasCloudH = hasMist ? geo.h + 20 : liquidH + 20;
+  const gasColor = hasMist ? "#f1f5f9" : color;
+  const gasOpacity = hasMist
+    ? 0.22
+    : ((hasChloroformVapor || hasCamphorVapor) ? 0 : (isVisuallyBoiling ? 0.04 * boilingIntensity : 0.04));
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">
@@ -3214,6 +3549,16 @@ function VesselContents({
                 <path d="M110 94 C74 94 47 122 47 159 C47 200 69 230 92 257 C101 268 106 281 110 301 C114 281 119 268 128 257 C151 230 173 200 173 159 C173 122 146 94 110 94 Z M101 298 C102 313 104 327 105 342 H115 C116 327 118 313 119 298 Z M106 364 H114 V624 H106 Z" />
               ) : item.id.includes("funnel") ? (
                 <path d="M 95 58 H 325 L 240 240 V 445 C 240 460 232 472 210 480 C 188 472 180 460 180 445 V 240 L 95 58 Z" />
+              ) : item.id === "graduated-cylinder" ? (
+                <rect x="35" y="20" width="30" height="240" />
+              ) : item.id === "vacuum-chamber" ? (
+                <path d="M 40 190 V 120 A 70 70 0 0 1 180 120 V 190 Z" />
+              ) : item.id === "china-dish" ? (
+                <path d="M 20 25 C 20 82, 140 82, 140 25 Z" />
+              ) : item.id === "mortar-pestle" ? (
+                <path d="M 25 30 C 25 85, 115 85, 115 30 Z" />
+              ) : item.id === "crucible" ? (
+                <path d="M 25 15 L 35 85 Q 50 90 65 85 L 75 15 Z" />
               ) : item.id === "gas-jar" ? (
                 <path d="M84 72 C60 72 48 90 48 120 V250 C48 262 58 272 72 272 H148 C162 272 172 262 172 250 V120 C172 90 160 72 136 72 H84 Z" />
               ) : item.id.includes("test-tube") ? (
@@ -3245,6 +3590,30 @@ function VesselContents({
                 <circle cx="13" cy="8" r="0.65" fill="#ffffff" fillOpacity="0.24" />
               </pattern>
             ))}
+            <linearGradient id="pdMetal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#94a3b8" />
+              <stop offset="50%" stopColor="#cbd5e1" />
+              <stop offset="100%" stopColor="#475569" />
+            </linearGradient>
+            <linearGradient id="amalgamMetal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#cbd5e1" />
+              <stop offset="35%" stopColor="#e2e8f0" />
+              <stop offset="70%" stopColor="#94a3b8" />
+              <stop offset="100%" stopColor="#475569" />
+            </linearGradient>
+            <linearGradient id="alloyMetal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#f59e0b" />
+              <stop offset="40%" stopColor="#fb923c" />
+              <stop offset="80%" stopColor="#ea580c" />
+              <stop offset="100%" stopColor="#7c2d12" />
+            </linearGradient>
+            <filter id="adsorbedGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
           {/* Liquid fill — rises from bottom */}
@@ -3299,6 +3668,90 @@ function VesselContents({
                   const solidH = (geo.h * solidFillPercent) / 100;
                   const solidY = geo.y + geo.h - solidH;
                   const sColor = solid.accent || "#d97706";
+
+                  if (solid.id === "gold-copper-alloy") {
+                    const alloyH = geo.h * 0.4;
+                    const alloyY = geo.y + geo.h - alloyH;
+                    const path = `M ${geo.x + 5} ${geo.y + geo.h} L ${geo.x + 10} ${alloyY} L ${geo.x + geo.w - 10} ${alloyY} L ${geo.x + geo.w - 5} ${geo.y + geo.h} Z`;
+                    return (
+                      <g key={`solid-layer-${solid.id}`} transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY})`}>
+                        <path
+                          d={path}
+                          fill="url(#alloyMetal)"
+                          stroke="#7c2d12"
+                          strokeWidth="1.2"
+                          style={{ transition: "all 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                        />
+                        <path
+                          d={`M ${geo.x + 10} ${alloyY + 2} L ${geo.x + 13} ${geo.y + geo.h - 2} L ${geo.x + geo.w - 13} ${geo.y + geo.h - 2} L ${geo.x + geo.w - 10} ${alloyY + 2} Z`}
+                          fill="#ffffff"
+                          fillOpacity="0.12"
+                        />
+                      </g>
+                    );
+                  }
+
+                  if (solid.id === "sodium-amalgam") {
+                    const pasteH = geo.h * 0.45;
+                    const pasteY = geo.y + geo.h - pasteH;
+                    const path = `M ${geo.x} ${geo.y + geo.h} C ${geo.x + geo.w * 0.1} ${pasteY - 5}, ${geo.x + geo.w * 0.3} ${pasteY - 12}, ${geo.x + geo.w * 0.5} ${pasteY - 8} C ${geo.x + geo.w * 0.7} ${pasteY - 15}, ${geo.x + geo.w * 0.9} ${pasteY - 4}, ${geo.x + geo.w} ${geo.y + geo.h} Z`;
+                    return (
+                      <g key={`solid-layer-${solid.id}`} transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY})`}>
+                        <path
+                          d={path}
+                          fill="url(#amalgamMetal)"
+                          stroke="#94a3b8"
+                          strokeWidth="1"
+                          style={{ transition: "all 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                        />
+                        <path
+                          d={`M ${geo.x + geo.w * 0.25} ${pasteY - 2} Q ${geo.x + geo.w * 0.5} ${pasteY - 6} ${geo.x + geo.w * 0.75} ${pasteY - 2}`}
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeWidth="2.5"
+                          strokeOpacity="0.4"
+                          strokeLinecap="round"
+                        />
+                      </g>
+                    );
+                  }
+
+                  if (solid.id === "palladium-plate" || solid.id === "palladium-adsorbed") {
+                    const isAdsorbed = solid.id === "palladium-adsorbed";
+                    const plateW = geo.w * 0.7;
+                    const plateH = geo.h * 0.55;
+                    const plateX = geo.x + geo.w * 0.15;
+                    const plateY = geo.y + geo.h - plateH - 10;
+
+                    return (
+                      <g key={`solid-layer-${solid.id}`} transform={`rotate(${10 - (item.rotation || 0)}, ${originX}, ${originY})`}>
+                        <rect
+                          x={plateX}
+                          y={plateY}
+                          width={plateW}
+                          height={plateH}
+                          rx={3}
+                          fill="url(#pdMetal)"
+                          stroke={isAdsorbed ? "#38bdf8" : "#cbd5e1"}
+                          strokeWidth={isAdsorbed ? 2.5 : 1}
+                          filter={isAdsorbed ? "url(#adsorbedGlow)" : undefined}
+                          style={{ transition: "all 0.6s cubic-bezier(0.4,0,0.2,1)" }}
+                        />
+                        <rect x={plateX + 2} y={plateY + 2} width={4} height={plateH - 4} fill="#ffffff" fillOpacity="0.2" />
+                        {isAdsorbed && (
+                          <g opacity="0.8">
+                            <circle cx={plateX + plateW * 0.25} cy={plateY + plateH * 0.3} r="1.5" fill="#38bdf8" />
+                            <circle cx={plateX + plateW * 0.45} cy={plateY + plateH * 0.7} r="2" fill="#38bdf8" />
+                            <circle cx={plateX + plateW * 0.75} cy={plateY + plateH * 0.25} r="1.5" fill="#38bdf8" />
+                            <circle cx={plateX + plateW * 0.8} cy={plateY + plateH * 0.6} r="2.5" fill="#e0f2fe" />
+                            <circle cx={plateX + plateW * 0.55} cy={plateY + plateH * 0.4} r="1.5" fill="#38bdf8" />
+                            <circle cx={plateX + plateW * 0.35} cy={plateY + plateH * 0.8} r="1.5" fill="#e0f2fe" />
+                            <circle cx={plateX + plateW * 0.65} cy={plateY + plateH * 0.75} r="2" fill="#38bdf8" />
+                          </g>
+                        )}
+                      </g>
+                    );
+                  }
 
                   // Powder path with a beautiful curved central mound/heap
                   const powderPath = `M ${geo.x - 200} ${geo.y + geo.h + 200} L ${geo.x - 200} ${solidY} Q ${geo.x + geo.w / 2} ${solidY - 18} ${geo.x + geo.w + 200} ${solidY} L ${geo.x + geo.w + 200} ${geo.y + geo.h + 200} Z`;
@@ -3409,19 +3862,19 @@ function VesselContents({
               {/* Ambient backdrop gas scaling dynamically from bottom up */}
               <rect
                 x={geo.x - 10}
-                y={liquidY - 10}
+                y={gasCloudY}
                 width={geo.w + 20}
-                height={liquidH + 20}
-                fill={color}
-                opacity={isVisuallyBoiling ? 0.04 * boilingIntensity : 0.04}
+                height={gasCloudH}
+                fill={gasColor}
+                opacity={gasOpacity}
                 className="chemistry-gas-cloud animate-pulse"
                 style={{
-                  filter: `blur(${Math.min(28, Math.max(8, liquidH * 0.15))}px)`,
-                  transformOrigin: `${geo.x + geo.w / 2}px ${liquidY + liquidH / 2}px`,
+                  filter: `blur(${hasMist ? 16 : Math.min(28, Math.max(8, liquidH * 0.15))}px)`,
+                  transformOrigin: `${geo.x + geo.w / 2}px ${gasCloudY + gasCloudH / 2}px`,
                 }}
               />
               {/* Rising real gas bubbles scaling with filled height */}
-              {(() => {
+              {showBubbleParticles && (() => {
                 const bubbleSpecs = Array.from({ length: 40 }).map((_, idx) => {
                   const hash = (n: number) => {
                     let h = Math.sin(n * 12.9898) * 43758.5453;
@@ -3543,6 +3996,8 @@ function VesselRubberStopper({ id }: { id: string }) {
     stopperStyle = { left: "40%", top: "4%", width: "20%", height: "15%" };
   } else if (id === "test-tube-mini") {
     stopperStyle = { left: "44%", top: "16%", width: "12%", height: "12%" };
+  } else if (id === "evaporation-chamber") {
+    stopperStyle = { left: "42.5%", top: "4%", width: "15%", height: "12%" };
   } else {
     return null;
   }
@@ -3563,9 +4018,11 @@ interface VesselPopupProps {
   onUpdate: (id: string, updates: Partial<PlacedInorganicItem>) => void;
   onRemove: (id: string) => void;
   onClose: () => void;
+  hasGloves?: boolean;
+  isHeated?: boolean;
 }
 
-function VesselPopup({ item, left, top, onUpdate, onRemove, onClose }: VesselPopupProps) {
+function VesselPopup({ item, left, top, onUpdate, onRemove, onClose, hasGloves, isHeated }: VesselPopupProps) {
   const [activeParam, setActiveParam] = useState<string>("Temperature");
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -3593,7 +4050,7 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose }: VesselPop
       if (liquidContent) {
         newContents = newContents.map(c =>
           c.id === liquidContent.id ? { ...c, volume: val } : c
-        ).filter(c => (c.volume ?? 0) > 0.01 || (c.mass ?? 0) > 0.01);
+        ).filter(c => (c.volume ?? 0) > 0.01 || c.state !== "gas");
       } else if (val > 0) {
         newContents.push({
           id: "water",
@@ -3607,7 +4064,7 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose }: VesselPop
           description: "Pure water."
         });
       }
-      const reaction = resolveReaction(newContents);
+      const reaction = resolveReaction(newContents, item.id, hasGloves, isHeated);
       onUpdate(item.instanceId, {
         contents: reaction.contents,
         reactionState: reaction.state ?? "idle",
@@ -3640,7 +4097,7 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose }: VesselPop
           description: "Pure iron powder."
         });
       }
-      const reaction = resolveReaction(newContents);
+      const reaction = resolveReaction(newContents, item.id, hasGloves, isHeated);
       onUpdate(item.instanceId, {
         contents: reaction.contents,
         reactionState: reaction.state ?? "idle",

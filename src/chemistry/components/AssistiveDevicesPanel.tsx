@@ -28,6 +28,11 @@ import {
   CottonAsset,
   FilterPaperAsset,
   GlassPipeAsset,
+  HeatingMantleAsset,
+  StirringRodAsset,
+  GasInletValveAsset,
+  SafetyGlovesAsset,
+  FurnaceAsset,
 } from "./LabAssets";
 
 interface AssistiveDevicesPanelProps {
@@ -46,6 +51,7 @@ export default function AssistiveDevicesPanel({ items, onItemClick }: AssistiveD
             event.dataTransfer.setData("application/chemistry-item", item.id);
           }}
           onClick={() => onItemClick(item)}
+          title={item.description}
           className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
         >
           <div className="flex items-center justify-center h-[90px] w-full">
@@ -101,8 +107,19 @@ function DeviceSVG({ type }: { type: string }) {
       return <ScissorAsset />;
     case "knife":
       return <KnifeAsset />;
+    case "tongs":
     case "crucible-tongs":
       return <CrucibleTongsAsset />;
+    case "heating-mantle":
+      return <HeatingMantleAsset lit={false} />;
+    case "stirring-rod":
+      return <StirringRodAsset />;
+    case "gas-inlet-valve":
+      return <GasInletValveAsset isOpen={false} />;
+    case "safety-gloves":
+      return <SafetyGlovesAsset />;
+    case "furnace":
+      return <FurnaceAsset lit={false} />;
     case "thermometer":
       return <ThermometerAsset />;
     case "glass-conduit":

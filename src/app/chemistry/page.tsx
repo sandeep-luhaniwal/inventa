@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Canvas from "@/chemistry/components/Canvas";
 import Sidebar from "@/chemistry/components/Sidebar";
-import { resolveReaction } from "@/chemistry/reactions";
+import { resolveReaction, REACTION_RULES } from "@/chemistry/reactions";
 import {
   getCategoriesForModule,
   getDefaultCategoryForModule,
@@ -346,10 +346,10 @@ export default function ChemistryPage() {
         return;
       }
 
-      // Check if there is a static reaction rule that matches (e.g. sodium + water, iron + cuso4)
-      const hasStaticReaction =
-        ["sodium", "water"].every(rId => item.contents?.some(c => c.id === rId)) ||
-        ["iron", "cuso4-solution"].every(rId => item.contents?.some(c => c.id === rId));
+      // Check if there is a static reaction rule that matches
+      const hasStaticReaction = REACTION_RULES.some((rule) =>
+        rule.reactants.every((rId) => item.contents?.some((c) => c.id === rId))
+      );
       if (hasStaticReaction) {
         return;
       }

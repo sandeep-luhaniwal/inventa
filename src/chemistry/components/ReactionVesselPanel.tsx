@@ -16,6 +16,12 @@ import {
   ThreeNeckedFlaskIcon,
   FunnelIcon,
   Funnel100Icon,
+  EvaporationChamberAsset,
+  GraduatedCylinderAsset,
+  VacuumChamberAsset,
+  ChinaDishAsset,
+  MortarPestleAsset,
+  CrucibleAsset,
 } from "./LabAssets";
 
 interface ReactionVesselPanelProps {
@@ -34,6 +40,7 @@ export default function ReactionVesselPanel({ items, onItemClick }: ReactionVess
             event.dataTransfer.setData("application/chemistry-item", item.id);
           }}
           onClick={() => onItemClick(item)}
+          title={item.description}
           className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
         >
           <div className="flex items-center justify-center h-[90px] w-full">
@@ -104,6 +111,18 @@ function LabSVG({ type }: { type: string }) {
       return <FunnelIcon />;
     case "funnel-100":
       return <Funnel100Icon />;
+    case "evaporation-chamber":
+      return <EvaporationChamberAsset />;
+    case "graduated-cylinder":
+      return <GraduatedCylinderAsset />;
+    case "vacuum-chamber":
+      return <VacuumChamberAsset />;
+    case "china-dish":
+      return <ChinaDishAsset />;
+    case "mortar-pestle":
+      return <MortarPestleAsset />;
+    case "crucible":
+      return <CrucibleAsset />;
 
     default:
       // Fallback for items not explicitly handled but in the category

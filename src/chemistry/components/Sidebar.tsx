@@ -164,6 +164,7 @@ export default function Sidebar({
                       }
                     }}
                     onClick={() => onItemClick(item)}
+                    title={item.description}
                     className={`group min-h-[142px] rounded-2xl border p-3 text-left transition lg:min-h-[156px] lg:p-4 ${active
                         ? "border-[#2990ff] bg-[#3b424a] shadow-[0_12px_30px_rgba(41,144,255,0.18)]"
                         : "border-black/12 bg-[#353b43] hover:border-white/12 hover:bg-[#3a4048]"

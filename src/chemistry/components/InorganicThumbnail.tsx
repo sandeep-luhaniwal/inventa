@@ -19,6 +19,19 @@ import {
   GlassStopperStandaloneAsset,
   CorkStopperStandaloneAsset,
   GlassDefs,
+  EvaporationChamberAsset,
+  GraduatedCylinderAsset,
+  VacuumChamberAsset,
+  ChinaDishAsset,
+  MortarPestleAsset,
+  CrucibleAsset,
+  BurnerAsset,
+  HeatingMantleAsset,
+  StirringRodAsset,
+  GasInletValveAsset,
+  SafetyGlovesAsset,
+  FurnaceAsset,
+  CrucibleTongsAsset,
 } from "./LabAssets";
 
 interface InorganicThumbnailProps {
@@ -135,6 +148,32 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
           <CopperWireAsset />
         </div>
       );
+    case "evaporation-chamber":
+      return wrap(<EvaporationChamberAsset />);
+    case "graduated-cylinder":
+      return wrap(<GraduatedCylinderAsset />);
+    case "vacuum-chamber":
+      return wrap(<VacuumChamberAsset />);
+    case "china-dish":
+      return wrap(<ChinaDishAsset />);
+    case "mortar-pestle":
+      return wrap(<MortarPestleAsset />);
+    case "crucible":
+      return wrap(<CrucibleAsset />);
+    case "burner":
+      return wrap(<BurnerAsset lit={false} />);
+    case "heating-mantle":
+      return wrap(<HeatingMantleAsset lit={false} />);
+    case "stirring-rod":
+      return wrap(<StirringRodAsset />);
+    case "gas-inlet-valve":
+      return wrap(<GasInletValveAsset isOpen={false} />);
+    case "safety-gloves":
+      return wrap(<SafetyGlovesAsset />);
+    case "furnace":
+      return wrap(<FurnaceAsset lit={false} />);
+    case "tongs":
+      return wrap(<CrucibleTongsAsset />);
     default:
       if (item.state === "solid" || item.state === "liquid" || item.state === "gas") {
         return wrap(

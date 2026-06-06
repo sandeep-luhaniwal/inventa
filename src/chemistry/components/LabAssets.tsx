@@ -373,6 +373,89 @@ export function RoundBottomFlaskAsset() {
     </svg>
   );
 }
+
+export function HeatingMantleAsset({ lit = false }: { lit?: boolean }) {
+  return (
+    <svg viewBox="0 0 180 140" style={{ overflow: 'visible' }} className="h-32 w-44 drop-shadow-[0_12px_24px_rgba(0,0,0,0.25)]">
+      <defs>
+        <linearGradient id="mantleBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#475569" />
+          <stop offset="100%" stopColor="#1e293b" />
+        </linearGradient>
+        <linearGradient id="mantleInner" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#334155" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </linearGradient>
+        <radialGradient id="heatGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+          <stop offset="50%" stopColor="#f97316" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Main Body */}
+      <path d="M10 50 C10 30, 170 30, 170 50 V110 C170 125, 150 135, 90 135 C30 135, 10 125, 10 110 Z" fill="url(#mantleBody)" stroke="#64748b" strokeWidth="2" />
+
+      {/* Inner Heating Well (Hemispherical Bowl) */}
+      <path d="M20 50 C20 90, 160 90, 160 50 C160 50, 140 50, 90 50 C40 50, 20 50, 20 50 Z" fill="url(#mantleInner)" stroke="#475569" strokeWidth="1" />
+
+      {/* Heating glow inside the well when turned on */}
+      {lit && (
+        <path d="M25 50 C25 85, 155 85, 155 50 Z" fill="url(#heatGlow)" filter="blur(4px)" />
+      )}
+
+      {/* Heating coil grid lines inside the well (subtle) */}
+      <path d="M40 55 C60 75, 120 75, 140 55" fill="none" stroke={lit ? "#f97316" : "#475569"} strokeWidth="1.5" />
+      <path d="M60 60 C75 75, 105 75, 120 60" fill="none" stroke={lit ? "#f97316" : "#475569"} strokeWidth="1.5" />
+      <path d="M80 62 C85 68, 95 68, 100 62" fill="none" stroke={lit ? "#f97316" : "#475569"} strokeWidth="1.5" />
+
+      {/* Control Panel Plate */}
+      <rect x="50" y="90" width="80" height="32" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
+
+      {/* Control Knob */}
+      <circle cx="75" cy="106" r="10" fill="#334155" stroke="#475569" strokeWidth="1" />
+      <line x1="75" y1="106" x2={lit ? "83" : "75"} y2={lit ? "101" : "96"} stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" />
+
+      {/* LED Indicator Light */}
+      <circle cx="108" cy="106" r="4" fill={lit ? "#10b981" : "#ef4444"} className="transition-all" />
+      {lit && (
+        <circle cx="108" cy="106" r="6" fill="none" stroke="#10b981" strokeWidth="1" opacity="0.8" />
+      )}
+    </svg>
+  );
+}
+
+export function EvaporationChamberAsset() {
+  return (
+    <svg viewBox="0 0 200 250" className="h-48 w-40 drop-shadow-[0_16px_30px_rgba(0,0,0,0.18)]">
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        {/* Main Chamber Body (Wide cylinder) */}
+        <rect x="40" y="40" width="120" height="160" rx="20" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.35" />
+        <rect x="40" y="40" width="120" height="160" rx="20" fill="url(#internalReflection)" />
+
+        {/* Top Mouth Neck */}
+        <rect x="85" y="10" width="30" height="30" rx="3" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+        <ellipse cx="100" cy="10" rx="15" ry="4" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.5" />
+
+        {/* Left Inlet Port (small horizontal glass tube on the side) */}
+        <rect x="15" y="100" width="26" height="14" rx="2" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+        <ellipse cx="15" cy="107" rx="3" ry="7" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.4" />
+
+        {/* Right Outlet Port (small horizontal glass tube on the side) */}
+        <rect x="159" y="100" width="26" height="14" rx="2" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+        <ellipse cx="185" cy="107" rx="3" ry="7" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.4" />
+
+        {/* Vertical reflection lines to enhance the glass 3D look */}
+        <path d="M50 60 V180" fill="none" stroke="#ffffff" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.14" filter="url(#ultraGlass)" />
+      </g>
+      <text x="100" y="145" textAnchor="middle" fill="#c8d8e8" fontSize="12" fontWeight="500" fontFamily="system-ui" fillOpacity="0.45" letterSpacing="0.8">
+        VAPOR CHAMBER
+      </text>
+    </svg>
+  );
+}
+
 export function SeparatoryFunnelAsset() {
   return (
     <svg viewBox="0 0 220 660" className="h-25 w-full drop-shadow-[0_22px_36px_rgba(0,0,0,0.18)]">
@@ -544,6 +627,54 @@ export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
             strokeOpacity="0.2"
           />
         ))}
+      </g>
+    </svg>
+  );
+}
+
+export function PressureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
+  return (
+    <svg viewBox="0 0 120 180" className="h-28 w-20 drop-shadow-[0_16px_28px_rgba(0,0,0,0.18)]">
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        {/* Stout Pressure Bottle Body */}
+        <rect x="25" y="45" width="70" height="110" rx="20" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.35" />
+        <rect x="25" y="45" width="70" height="110" rx="20" fill="url(#internalReflection)" />
+
+        {/* Thick Glass Bottom Base */}
+        <rect x="28" y="145" width="64" height="8" rx="2" fill="#ffffff" fillOpacity="0.08" />
+
+        {/* Neck */}
+        <rect x="46" y="15" width="28" height="32" rx="4" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+        <ellipse cx="60" cy="15" rx="14" ry="4" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.4" />
+
+        {/* Stopper (when closed) */}
+        {!isOpen && (
+          <path d="M47 8 L73 8 L67 25 L53 25 Z" fill="#b45309" stroke="#78350f" strokeWidth="1" />
+        )}
+
+        {/* Side graduation/scale markings (for high fidelity pressure bottle) */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <line
+            key={i}
+            x1="30"
+            y1={135 - i * 16}
+            x2={30 + (i % 2 === 0 ? 10 : 6)}
+            y2={135 - i * 16}
+            stroke="#ffffff"
+            strokeWidth="1.2"
+            strokeOpacity="0.25"
+          />
+        ))}
+
+        {/* Text inside */}
+        <text x="60" y="105" textAnchor="middle" fill="#c8d8e8" fontSize="8" fontWeight="600" fontFamily="system-ui" fillOpacity="0.4" letterSpacing="0.5">
+          PRESSURE BOTTLE
+        </text>
+
+        {/* 3D Glass Highlights */}
+        <path d="M35 60 V135" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeOpacity="0.12" />
+        <path d="M85 60 V135" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeOpacity="0.06" />
       </g>
     </svg>
   );
@@ -953,7 +1084,7 @@ export function ChemicalContainerAsset({
               <animate attributeName="opacity" values="0.4;0.7;0.4" dur="2s" repeatCount="indefinite" />
               <animate attributeName="rx" values="6;10;6" dur="2s" repeatCount="indefinite" />
             </ellipse>
-            
+
             {/* Rising vapor particles */}
             <circle cx="65" cy="18" r="3" fill={accent || "#ffffff"} opacity="0" filter="blur(1.5px)">
               <animate attributeName="cy" values="18;-40" dur="1.8s" repeatCount="indefinite" begin="0s" />
@@ -3028,5 +3159,370 @@ export function FilterPaperAsset() {
       </defs>
     </svg>
 
+  );
+}
+
+export function GraduatedCylinderAsset() {
+  return (
+    <svg
+      viewBox="0 0 100 280"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.18)]"
+    >
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        {/* Hexagonal/Circular Flat Base */}
+        <path d="M 20 270 L 30 260 H 70 L 80 270 L 70 278 H 30 Z" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.4" />
+        <path d="M 22 270 L 31 262 H 69 L 78 270 L 69 276 H 31 Z" fill="#ffffff" fillOpacity="0.08" />
+
+        {/* Tall Cylinder Body */}
+        <rect x="35" y="20" width="30" height="240" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.35" />
+        <rect x="35" y="20" width="30" height="240" fill="url(#internalReflection)" />
+
+        {/* Flared Pour Spout at Top */}
+        <ellipse cx="50" cy="20" rx="15" ry="3" fill="none" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.4" />
+
+        {/* Graduations/Markings */}
+        {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v, i) => {
+          const y = 250 - (i + 1) * 21;
+          const isMajor = v % 20 === 0;
+          return (
+            <g key={v}>
+              <line
+                x1="35"
+                y1={y}
+                x2={isMajor ? "43" : "39"}
+                y2={y}
+                stroke="#ffffff"
+                strokeWidth="0.75"
+                strokeOpacity="0.45"
+              />
+              {isMajor && (
+                <text
+                  x="45"
+                  y={y + 3}
+                  fontSize="7"
+                  fill="#ffffff"
+                  fillOpacity="0.5"
+                  fontFamily="system-ui, sans-serif"
+                  textAnchor="start"
+                >
+                  {v}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+export function StirringRodAsset() {
+  return (
+    <svg
+      viewBox="0 0 30 240"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_8px_16px_rgba(0,0,0,0.15)]"
+    >
+      <GlassDefs />
+      <g filter="url(#ultraGlass)">
+        {/* Glass rod body */}
+        <rect
+          x="12"
+          y="10"
+          width="6"
+          height="220"
+          rx="3"
+          fill="url(#glassBody)"
+          stroke="#ffffff"
+          strokeWidth="0.5"
+          strokeOpacity="0.4"
+        />
+        {/* Internal reflection */}
+        <rect
+          x="13"
+          y="12"
+          width="2"
+          height="216"
+          rx="1"
+          fill="#ffffff"
+          fillOpacity="0.12"
+        />
+        {/* Tip Highlights */}
+        <ellipse cx="15" cy="12" rx="2" ry="1" fill="#ffffff" fillOpacity="0.4" />
+        <ellipse cx="15" cy="228" rx="2" ry="1" fill="#ffffff" fillOpacity="0.4" />
+      </g>
+    </svg>
+  );
+}
+
+export function VacuumChamberAsset() {
+  return (
+    <svg
+      viewBox="0 0 200 220"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_22px_36px_rgba(0,0,0,0.26)]"
+    >
+      <GlassDefs />
+
+      {/* Ports / Under-Base Pipes */}
+      <rect x="44" y="206" width="12" height="10" fill="#475569" stroke="#334155" strokeWidth="0.5" />
+      <rect x="144" y="206" width="12" height="10" fill="#d97706" stroke="#b45309" strokeWidth="0.5" />
+
+      {/* Heavy Base Plate */}
+      <rect x="10" y="190" width="180" height="16" rx="4" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+      <rect x="12" y="192" width="176" height="4" fill="#475569" fillOpacity="0.4" />
+
+      {/* Glass Bell Jar Dome */}
+      <g filter="url(#ultraGlass)">
+        {/* Outer glass border */}
+        <path
+          d="M 30 190 V 110 A 70 70 0 0 1 170 110 V 190 Z"
+          fill="url(#glassBody)"
+          stroke="#ffffff"
+          strokeWidth="1.5"
+          strokeOpacity="0.45"
+        />
+
+        {/* Glass reflection glint on the left curve */}
+        <path
+          d="M 36 185 V 110 A 64 64 0 0 1 100 46"
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="2.5"
+          strokeOpacity="0.25"
+          strokeLinecap="round"
+          filter="url(#softRim)"
+        />
+
+        {/* Glass thickness base rim */}
+        <ellipse cx="100" cy="190" rx="70" ry="4" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.3" />
+      </g>
+    </svg>
+  );
+}
+
+export function GasInletValveAsset({ isOpen = false }: { isOpen?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 60 60"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="drop-shadow-[0_8px_16px_rgba(0,0,0,0.22)] w-full h-full object-contain"
+    >
+      {/* Connector pipes (horizontal and vertical inlet nozzle) */}
+      <rect x="24" y="0" width="12" height="40" fill="#94a3b8" stroke="#64748b" strokeWidth="0.5" />
+      <rect x="10" y="24" width="40" height="12" fill="#d97706" stroke="#b45309" strokeWidth="0.5" />
+
+      {/* Main Hex Valve Body */}
+      <path d="M 20 18 L 40 18 L 46 30 L 40 42 L 20 42 L 14 30 Z" fill="#b45309" stroke="#78350f" strokeWidth="1" />
+
+      {/* Central Rotary Hub */}
+      <circle cx="30" cy="30" r="10" fill="#475569" stroke="#334155" strokeWidth="1" />
+      <circle cx="30" cy="30" r="3" fill="#ffffff" fillOpacity="0.4" />
+
+      {/* Valve Handle T-Bar */}
+      {/* Tilted vertical when open, horizontal when closed */}
+      <g transform={`rotate(${isOpen ? 90 : 0} 30 30)`} style={{ transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+        {/* Handle Bar */}
+        <rect x="12" y="26" width="36" height="8" rx="4" fill="#fbbf24" stroke="#d97706" strokeWidth="1.2" />
+        {/* Red Arrow or status marker on the handle */}
+        <circle cx="16" cy="30" r="2" fill="#ef4444" />
+        <circle cx="44" cy="30" r="2" fill="#ef4444" />
+      </g>
+    </svg>
+  );
+}
+
+export function ChinaDishAsset() {
+  return (
+    <svg
+      viewBox="0 0 160 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_12px_22px_rgba(0,0,0,0.18)]"
+    >
+      {/* Porcelain Evaporating Dish Body */}
+      {/* Left Spout Lip */}
+      <path d="M 14 25 C 6 25, 4 33, 18 33 C 24 33, 26 25, 14 25 Z" fill="#cbd5e1" />
+
+      {/* Outer Porcelain Dish */}
+      <path d="M 15 25 C 15 85, 145 85, 145 25 C 150 21, 153 29, 145 33 C 125 89, 35 89, 15 33 C 7 29, 10 21, 15 25 Z" fill="#cbd5e1" />
+      <path d="M 17 26 C 17 82, 143 82, 143 26 Z" fill="#f8fafc" />
+
+      {/* Inner shadow/depth for porcelain dish */}
+      <path d="M 17 26 C 17 82, 143 82, 143 26 C 130 31, 30 31, 17 26 Z" fill="#f1f5f9" opacity="0.8" />
+
+      {/* Rim highlights */}
+      <ellipse cx="80" cy="26" rx="63" ry="1.5" fill="#ffffff" fillOpacity="0.8" />
+    </svg>
+  );
+}
+
+export function MortarPestleAsset() {
+  return (
+    <svg
+      viewBox="0 0 140 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_16px_28px_rgba(0,0,0,0.22)]"
+    >
+      <GlassDefs />
+      {/* Heavy Ceramic Mortar Bowl */}
+      <path d="M 15 30 L 22 24 H 118 L 125 30 C 125 85, 15 85, 15 30 Z" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="0.5" />
+      <path d="M 22 28 C 22 76, 118 76, 118 28 Z" fill="#f8fafc" />
+      <path d="M 22 28 C 22 76, 118 76, 118 28 C 110 32, 30 32, 22 28 Z" fill="#f1f5f9" opacity="0.85" />
+
+      {/* Pestle sitting diagonally inside */}
+      {/* Rotated 25 degrees at center (95, 45) */}
+      <g transform="rotate(25 95 45)">
+        {/* Pestle body */}
+        <rect x="88" y="10" width="14" height="60" rx="7" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="0.5" />
+        <rect x="90" y="12" width="10" height="56" rx="5" fill="#f8fafc" />
+        {/* Heavy grinding head highlight */}
+        <path d="M 88 56 Q 95 72 102 56 Z" fill="#cbd5e1" />
+      </g>
+
+      {/* Mortar pouring lip visual rim shadow */}
+      <ellipse cx="70" cy="25" rx="48" ry="1.5" fill="#ffffff" fillOpacity="0.75" />
+    </svg>
+  );
+}
+
+export function SafetyGlovesAsset() {
+  return (
+    <svg
+      viewBox="0 0 100 80"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="drop-shadow-[0_8px_16px_rgba(0,0,0,0.18)] w-full h-full object-contain"
+    >
+      {/* Left Glove */}
+      <g transform="translate(10, 10) scale(0.75)" fill="#38bdf8" stroke="#0284c7" strokeWidth="1">
+        {/* Cuffs */}
+        <path d="M 15 65 C 15 75, 35 75, 35 65 Z" fill="#0ea5e9" />
+        <rect x="15" y="45" width="20" height="20" rx="2" />
+        {/* Palm */}
+        <path d="M 12 25 H 38 V 48 H 12 Z" />
+        {/* Fingers */}
+        <rect x="13" y="2" width="5" height="24" rx="2.5" /> {/* Index */}
+        <rect x="19" y="0" width="5" height="26" rx="2.5" /> {/* Middle */}
+        <rect x="25" y="3" width="5" height="23" rx="2.5" /> {/* Ring */}
+        <rect x="31" y="8" width="5" height="18" rx="2.5" /> {/* Pinky */}
+        <path d="M 37 32 Q 48 30 42 22 Q 37 25 37 32 Z" /> {/* Thumb */}
+      </g>
+
+      {/* Right Glove */}
+      <g transform="translate(50, 10) scale(0.75)" fill="#38bdf8" stroke="#0284c7" strokeWidth="1">
+        {/* Cuffs */}
+        <path d="M 15 65 C 15 75, 35 75, 35 65 Z" fill="#0ea5e9" />
+        <rect x="15" y="45" width="20" height="20" rx="2" />
+        {/* Palm */}
+        <path d="M 12 25 H 38 V 48 H 12 Z" />
+        {/* Fingers */}
+        <rect x="31" y="2" width="5" height="24" rx="2.5" /> {/* Index */}
+        <rect x="25" y="0" width="5" height="26" rx="2.5" /> {/* Middle */}
+        <rect x="19" y="3" width="5" height="23" rx="2.5" /> {/* Ring */}
+        <rect x="13" y="8" width="5" height="18" rx="2.5" /> {/* Pinky */}
+        <path d="M 13 32 Q 2 30 8 22 Q 13 25 13 32 Z" /> {/* Thumb */}
+      </g>
+    </svg>
+  );
+}
+
+export function CrucibleAsset() {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_12px_22px_rgba(0,0,0,0.2)]"
+    >
+      {/* Clay Crucible Body */}
+      <path
+        d="M 20 15 L 32 85 A 8 8 0 0 0 40 92 H 60 A 8 8 0 0 0 68 85 L 80 15 Z"
+        fill="#78350f"
+        stroke="#451a03"
+        strokeWidth="1.5"
+      />
+      {/* Shading/depth texture */}
+      <path
+        d="M 22 17 L 33 83 A 6 6 0 0 0 39 89 H 61 A 6 6 0 0 0 67 83 L 78 17 Z"
+        fill="#9a3412"
+      />
+      {/* Rim of crucible */}
+      <ellipse cx="50" cy="15" rx="30" ry="3" fill="#451a03" />
+      <ellipse cx="50" cy="15" rx="28" ry="2" fill="#78350f" />
+
+      {/* Heat glow effect (subtle overlay if heated) */}
+      <path d="M 33 80 A 6 6 0 0 0 39 86 H 61 A 6 6 0 0 0 67 80 Z" fill="#ea580c" opacity="0.15" filter="blur(2px)" />
+    </svg>
+  );
+}
+
+export function FurnaceAsset({ lit = false }: { lit?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 220 220"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-25 w-full drop-shadow-[0_24px_45px_rgba(0,0,0,0.32)]"
+    >
+      {/* Outer Heavy Furnace Housing */}
+      <rect x="10" y="10" width="200" height="200" rx="12" fill="#334155" stroke="#1e293b" strokeWidth="2.5" />
+
+      {/* Industrial Metal Panel Detail */}
+      <rect x="20" y="20" width="180" height="180" rx="8" fill="#1e293b" />
+      <rect x="22" y="22" width="176" height="40" fill="#334155" opacity="0.4" />
+
+      {/* Bolt details on 4 corners */}
+      <circle cx="28" cy="28" r="4" fill="#64748b" stroke="#475569" strokeWidth="0.5" />
+      <circle cx="192" cy="28" r="4" fill="#64748b" stroke="#475569" strokeWidth="0.5" />
+      <circle cx="28" cy="192" r="4" fill="#64748b" stroke="#475569" strokeWidth="0.5" />
+      <circle cx="192" cy="192" r="4" fill="#64748b" stroke="#475569" strokeWidth="0.5" />
+
+      {/* Furnace Chamber Window / Opening door */}
+      <rect x="40" y="50" width="140" height="120" rx="6" fill="#0f172a" stroke="#475569" strokeWidth="2" />
+
+      {/* Glowing heating element if lit */}
+      {lit ? (
+        <g>
+          {/* Viewport glowing background */}
+          <rect x="44" y="54" width="132" height="112" rx="4" fill="#ea580c" />
+
+          {/* Heat radiation gradient element */}
+          <rect x="50" y="60" width="120" height="100" rx="3" fill="url(#furnaceGlow)" />
+
+          {/* Heating coils */}
+          <path d="M 60 80 H 160 M 60 100 H 160 M 60 120 H 160 M 60 140 H 160" stroke="#fef08a" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="6,4" opacity="0.9" />
+        </g>
+      ) : (
+        <g>
+          {/* Dark cold chamber */}
+          <rect x="44" y="54" width="132" height="112" rx="4" fill="#1e293b" />
+          {/* Cold metallic heating coils */}
+          <path d="M 60 80 H 160 M 60 100 H 160 M 60 120 H 160 M 60 140 H 160" stroke="#475569" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+        </g>
+      )}
+
+      {/* Digital temperature readout display */}
+      <rect x="85" y="178" width="50" height="16" rx="2" fill="#020617" />
+      <text x="110" y="190" fill={lit ? "#ef4444" : "#475569"} fontSize="10" fontFamily="Courier, monospace" fontWeight="bold" textAnchor="middle">
+        {lit ? "1150C" : "0025C"}
+      </text>
+
+      {/* Glow gradient definition */}
+      <defs>
+        <radialGradient id="furnaceGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="40%" stopColor="#f97316" />
+          <stop offset="100%" stopColor="#ef4444" />
+        </radialGradient>
+      </defs>
+    </svg>
   );
 }
