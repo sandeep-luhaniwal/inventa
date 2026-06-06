@@ -1,0 +1,396 @@
+150:       {[0, 1, 2, 3, 4, 5].map((i) => (
+151:         <KonvaRect
+152:           key={i}
+153:           x={startX}
+154:           y={startY + (5 - i) * (slotHeight * 1.1)}
+155:           width={slotWidth}
+156:           height={slotHeight * 0.9}
+157:           fill={i < visibleSlots ? "#22c55e" : "#ef4444"}
+158:           opacity={0.85}
+159:           cornerRadius={2}
+160:         />
+161:       ))}
+162:     </Group>
+163:   );
+164: };
+165: 
+166: export function traceRay(
+167:   rayGlobalStartX: number,
+168:   rayGlobalStartY: number,
+169:   rayGlobalAngle: number,
+170:   sourceCompId: string,
+171:   allComponents: PlacedComponent[],
+172:   maxBounces = 8,
+173:   prismBendDegrees = 12
+174: ): { path: { x: number; y: number }[], virtualPaths: { x: number; y: number }[][] } {
+175:   const points = [{ x: rayGlobalStartX, y: rayGlobalStartY }];
+176:   const virtualPaths: { x: number; y: number }[][] = [];
+177:   let currentX = rayGlobalStartX;
+178:   let currentY = rayGlobalStartY;
+179:   let currentAngle = rayGlobalAngle;
+180:   let currentSourceId = sourceCompId;
+181: 
+182:   for (let bounce = 0; bounce < maxBounces; bounce++) {
+183:     let hit: { tHit: number, comp: PlacedComponent, hitLocalX: number, hitLocalY: number, isMirror: boolean, focalLength: number, dX_local: number, dY_local: number, scaleX: number, scaleY: number, rad: number, opticKind?: "prism", prismExitLocalX?: number, prismExitLocalY?: number } | null = null;
+184:     let minDist = 4000;
+185: 
+186:     const P0x = currentX;
+187:     const P0y = curren
+200:       const centerY = cy + ch / 2;
+201: 
+202:       const rad = -(c.rotation || 0) * Math.PI / 180;
+203:       const scaleX = c.mirrored ? -1 : 1;
+204:       const scaleY = c.flipped ? -1 : 1;
+205: 
+206:       const pX_translated = P0x - centerX;
+207:       const pY_translated = P0y - centerY;
+208: 
+209:       const pX_rot = pX_translated * Math.cos(rad) - pY_translated * Math.sin(rad);
+210:       const pY_rot = pX_translated * Math.sin(rad) + pY_translated * Math.cos(rad);
+211: 
+212:       const dX_rot = Dx * Math.cos(rad) - Dy * Math.sin(rad);
+213:       const dY_rot = Dx * Math.sin(rad) + Dy * Math.cos(rad);
+214: 
+215:       const pX_local = pX_rot * scaleX;
+216:       const pY_local = pY_rot * scaleY;
+217:       const dX_local = dX_rot * scaleX;
+218:       const dY_local = dY_rot * scaleY;
+219: 
+220:       if (c.componentId === 'triangular_glass_prism') {
+221:         const prismTriangle = [
+222:           { x: 0, y: -ch / 2 + (8 / 130) * ch },
+223:           { x: -cw / 2 + (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
+224:           { x: cw / 2 - (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
+225:         ];
+226:         const prismHits: { t: number; x: number; y: number }[] = [];
+227: 
+228:         for (let i = 0; i < prismTriangle.length; i++) {
+229:           const a = prismTriangle[i];
+230:           const b = prismTriangle[(i + 1) % prismTriangle.length];
+231:           const edgeX = b.x - a.x;
+232:           const edgeY = b.y - a.y;
+233:           const denom = dX_local * edgeY - dY_local * edgeX;
+234:           if (Math.abs(denom) < 1e-6) continue;
+235: 
+236:           const relX = a.x - pX_local;
+237:           const relY = a.y - pY_local;
+238:           const t = (relX * edgeY - relY * edgeX) / denom;
+239:           const u = (relX * dY_local - relY * dX_local) / denom;
+240:   const sphereSize = isSphere ? Math.max(SPHERE_MIN_SIZE, Math.min(SPHERE_MAX_SIZE, comp.width || naturalW)) : naturalW;
+241:   const w = isSphere ? sphereSize : naturalW;
+242:   const h = isSphere ? sphereSize : naturalH;
+243:   const scaleX = naturalW ? w / naturalW : 1;
+244:   const scaleY = naturalH ? h / naturalH : 1;
+245:   const crop = layout?.crop;
+246:   const visualPins = useMemo(() => {
+247:     const pins = layout?.pins ?? comp.ports ?? [];
+248:     return isSphere
+249:       ? pins.map((pin) => ({ x: pin.x * scaleX, y: pin.y * scaleY }))
+250:       : pins;
+251:   }, [comp.ports, isSphere, layout?.pins, scaleX, scaleY]);
+252: 
+253:   useEffect(() => {
+254:     if (layout) {
+255:       const sameSize = comp.width === w && comp.height === h;
+256:       const samePorts = (comp.ports ?? []).length === visualPins.length &&
+257:         visualPins.every((pin, index) => {
+258:           const current = comp.ports?.[index];
+259:           return current && Math.abs(current.x - pin.x) < 0.01 && Math.abs(current.y - pin.y) < 0.01;
+260:         });
+261:       if (sameSize && samePorts) return;
+262:       onSizeResolved?.(comp.id, visualPins, w, h);
+263:     }
+264:   }, [comp.height, comp.id, comp.ports, comp.width, h, layout, onSizeResolved, visualPins, w]);
+265: 
+266:   const isConnecting = connectingFrom !== null;
+267:   const isThisComponentConnecting = isConnecting && connectingFrom?.compId === comp.id;
+268:   const isSnapped = useMemo(() => {
+269:     if (comp.componentId === "ac_bulb") {
+270:       retur
+271:             const relX = a.x - entry.x;
+272:             const relY = a.y - entry.y;
+273:             const tInside = (relX * edgeY - relY * edgeX) / denom;
+274:             const uInside = (relX * dY_inside - relY * dX_inside) / denom;
+275:             
+276:             if (tInside > 0.1 && uInside >= -1e-4 && uInside <= 1 + 1e-4) {
+277:                exit = { x: entry.x + tInside * dX_inside, y: entry.y + tInside * dY_inside };
+278:                break;
+279:             }
+280:           }
+281:           
+282:           hit = {
+283:             tHit: entry.t,
+284:             comp: c,
+285:             hitLocalX: entry.x,
+286:             hitLocalY: entry.y,
+287:             isMirror: false,
+288:             focalLength: Infinity,
+289:             dX_local,
+290:             dY_local,
+291:             scaleX,
+292:             scaleY,
+293:             rad,
+294:             opticKind: "prism",
+295:             prismExitLocalX: exit?.x,
+296:             prismExitLocalY: exit?.y,
+297:           };
+298:         }
+299:         continue;
+300:       }
+301: 
+302:       let hitBoxMinX = -cw / 2;
+303:       let hitBoxMaxX = cw / 2;
+304:       let hitBoxMinY = -ch / 2;
+305:       let hitBoxMaxY = ch / 2;
+306:       
+307:       let isOptics = false;
+308:       let isMirror = false;
+309:       
+310:       let radiusCm = c.opticsRadiusValue ?? 15;
+311:       if (c.opticsRadiusUnit === 'm') radiusCm *= 100;
+312:       const baseFocalLengthPx = radiusCm * 10;
+313:       
+314:       let focalLength = baseFocalLengthPx;
+315: 
+316:          isOptics = true;
+317:          isMirror = false;
+318:          focalLength = -baseFocalLengthPx;
+319:       } else if (c.componentId === 'concave_mirror') {
+320:          hitBoxMinX = 5; hitBoxMaxX = 30;
+321:          hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+322:          isOptics = true;
+323:          isMirror = true;
+324:          const tHit = tMin > 0 ? tMin : tMax;
+325:          if (tHit > 0 && tHit < minDist) {
+326:             minDist = tHit;
+327:             const hitLocalY = pY_local + tHit * dY_local;
+328:             const hitLocalX = pX_local + tHit * dX_local;
+329:             if (isOptics) {
+330:               hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror, focalLength, dX_local, dY_local, scaleX, scaleY, rad };
+331:             } else {
+332:               hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local: 0, dY_local: 0, scaleX: 1, scaleY: 1, rad: 0 };
+333:             }
+334:          }
+335:       }
+336:     }
+337: 
+338:     if (hit) {
+339:       
+340:          if (tHit > 0 && tHit < minDist) {
+341:             minDist = tHit;
+342:             const hitLocalY = pY_local + tHit * dY_local;
+343:             const hitLocalX = pX_local + tHit * dX_local;
+344:             if (isOptics) {
+345:               hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror, focalLength, dX_local, dY_local, scaleX, scaleY, rad };
+346:             } else {
+347:               hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local: 0, dY_local: 0, scaleX: 1, scaleY: 1, rad: 0 };
+348:             }
+349:          }
+350:       }
+351:     }
+352: 
+353:     if (hit) {
+354:        const hitGlobalX = currentX + Dx * hit.tHit;
+355:        const hitGlobalY = currentY + Dy * hit.tHit;
+356:        points.push({ x: hitGlobalX, y: hitGlobalY });
+357: 
+358:        if (hit.opticKind === "prism") {
+359:           let prismOutputPoint = { x: hitGlobalX, y: hitGlobalY };
+360:           if (hit.prismExitLocalX !== undefined && hit.prismExitLocalY !== undefined) {
+361:              const unrotX = hit.prismExitLocalX / hit.scaleX;
+362:           const dY_new_rot = Math.sin(theta2_local) * hit.scaleY;
+363:           const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
+364:           const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
+365: 
+366:           currentAngle = Math.atan2(Dy_new, Dx_new);
+367:           currentX = prismOutputPoint.x + Dx_new * 0.1;
+368:           currentY = prismOutputPoint.y + Dy_new * 0.1;
+369:           currentSourceId = hit.comp.id;
+370:        } else if (hit.comp.componentId === "rectangular_glass_slab") {
+371:           const def = STATIC_COMPONENTS.find(sc => sc.id === hit.comp.componentId);
+372:           const w = hit.comp.width || (def?.viewBoxW || 160);
+373:           const h = hit.comp.height || (def?.viewBoxH || 120);
+374:           const hbMinX = -70 * (w / 160);
+375:           const hbMaxX = 30 * (w / 160);
+376:           const hbMinY = -30 * (h / 120);
+377:           const hbMaxY = 50 * (h / 120);
+378: 
+379:           let pX = hit.hitLocalX;
+380:           let pY = hit.hitLocalY;
+381: 
+382:           let nx = 0, ny = 0;
+383:           if (Math.abs(pX - hbMinX) < 1e-3) nx = -1;
+384:           else if (Math.abs(pX - hbMaxX) < 1e-3) nx = 1;
+385:           else if (Math.abs(pY - hbMinY) < 1e-3) ny = -1;
+386:           else if (Math.abs(pY - hbMaxY) < 1e-3) ny = 1;
+387: 
+388:           let vx = hit.dX_local;
+389:           let vy = hit.dY_local;
+390:           const vLen = Math.sqrt(vx*vx + vy*vy);
+391:           vx /= vLen; vy /= vLen;
+392: 
+393:           const n1 = 1;
+394:           const n2 = 1.5;
+395:           const nRatio = n1 / n2;
+396: 
+397:           const cosI = -(vx * nx + vy * ny);
+398:           const sinT2 = nRatio * nRatio * (1 - cosI * cosI);
+399: 
+400:           if (sinT2 <= 1) {
+401:        points.push({ x: hitGlobalX, y: hitGlobalY });
+402: 
+403:        if (hit.opticKind === "prism") {
+404:           let prismOutputPoint = { x: hitGlobalX, y: hitGlobalY };
+405:           if (hit.prismExitLocalX !== undefined && hit.prismExitLocalY !== undefined) {
+406:              const unrotX = hit.prismExitLocalX / hit.scaleX;
+407:              const unrotY = hit.prismExitLocalY / hit.scaleY;
+408:              const pX_translated = unrotX * Math.cos(-hit.rad) - unrotY * Math.sin(-hit.rad);
+409:              const pY_translated = unrotX * Math.sin(-hit.rad) + unrotY * Math.cos(-hit.rad);
+410:              const def = STATIC_COMPONENTS.find(sc => sc.id === hit.comp.componentId);
+411:              const cw = hit.comp.width || (def?.viewBoxW || 100);
+412:              const ch = hit.comp.height || (def?.viewBoxH || 100);
+413:              const centerX = hit.comp.x + cw / 2;
+414:              const centerY = hit.comp.y + ch / 2;
+415:              prismOutputPoint = { x: centerX + pX_translated, y: centerY + pY_translated };
+416:               chargeUnit={comp.chargeUnit}
+417:               sphereRadiusM={(w / 2) / 100}
+418:               observationDistance={comp.physicsObservationDistance ?? Math.max(1, (w / 2) / 100)}
+419:               sphereType={comp.physicsSphereType || "Conducting"}
+420:             />
+421:           )}
+422: 
+423:           {isElectricFluxSphere && !isEarthedSphere && sphereChargeMagnitude > 0 && (
+424:             <ElectricFluxVisual
+425:               x={w / 2}
+426:               y={h / 2}
+427:               radius={Math.max(w, h) * 0.38}
+428:               chargeValue={visibleChargeValue}
+429:               surfaceType={comp.physicsFluxSurfaceType || "Disc"}
+430:               surfaceSize={comp.physicsFluxSurfaceSize ?? 100}
+431:               angle={comp.physicsFluxAngle ?? 0}
+432:               onAngleChange={(nextAngle) => onUpdate?.(comp.id, { physicsFluxAngle: nextAngle })}
+433:             />
+434:           )}
+435: 
+436:           {isElectricFieldLinesSphere && !isEarthedSphere && sphereChargeMagnitude > 0 && (
+437:             <ElectricFieldLinesVisual
+438:               x={w / 2}
+439:               y={h / 2}
+440:               radius={Math.max(w, h) * 0.39}
+441:               chargeValue={visibleChargeValue}
+442:               allSpheres={allComponents
+443:                 .filter((item) => item.id !== comp.id && item.componentId.startsWith("sphere_") && item.physicsTopic === "Electric Field Lines" && Math.abs(item.chargeValue ?? 0) > 0)
+444:                 .map((item) => ({
+445:                   x: item.x + (item.width || 100) / 2 - comp.x,
+446:                   y: item.y + (item.height || 100) / 2 - comp.y,
+447:                   radius: ((item.width || 100) / 2) * 0.78,
+448:                   chargeValue: item.chargeValue ?? 0,
+449:                 }))}
+450:             />
+451: 
+452:           const dX_new_rot = dX_new_local * hit.scaleX;
+453:           const dY_new_rot = dY_new_local * hit.scaleY;
+454: 
+455:           const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
+456:           const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
+457: 
+458:           if (hit.focalLength !== Infinity && Math.abs(dY_new_local) > 1e-4) {
+459:              const t_virtual = -hit.hitLocalY / dY_new_local;
+460:              if (t_virtual < -1) {
+461:                 virtualPaths.push([
+462:                    { x: hitGlobalX, y: hitGlobalY },
+463:                    { x: hitGlobalX + t_virtual * Dx_new, y: hitGlobalY + t_virtual * Dy_new }
+464:                 ]);
+465:              }
+466:           }
+467: 
+468:           currentAngle = Math.atan2(Dy_new, Dx_new);
+469:           currentX = hitGlobalX + Dx_new * 0.1; // offset slightly to avoid self-intersection
+470:           currentY = hitGlobalY + Dy_new * 0.1;
+471:           currentSourceId = hit.comp.id;
+472:        } else {
+473:           break; // Stop at non-optics
+474:        }
+475:     } else {
+476:        points.push({ x: currentX + Dx * 4000, y: currentY + Dy * 4000 });
+477:        break;
+478:     }
+479:   }
+480:   return { path: points, virtualPaths };
+701:       onSizeResolved?.(comp.id, visualPins, w, h);
+702:     }
+703:   }, [comp.height, comp.id, comp.ports, comp.width, h, layout, onSizeResolved, visualPins, w]);
+704: 
+705:   const isConnecting = connectingFrom !== null;
+706:   const isThisComponentConnecting = isConnecting && connectingFrom?.compId === comp.id;
+707:   const isSnapped = useMemo(() => {
+708:     if (comp.componentId === "ac_bulb") {
+709:       return allComponents.some(
+710:         (c) => c.componentId === "bulb_holder" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+711:       );
+712:     }
+713:     if (comp.componentId === "bulb_holder") {
+714:       return allComponents.some(
+715:         (c) => c.componentId === "ac_bulb" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+716:       );
+717:     }
+718:     return false;
+719:   }, [comp.componentId, comp.x, comp.y, allComponents]);
+720:   const sphereMetal = METAL_PHYSICS[comp.physicsMetal || "Copper"] || METAL_PHYSICS.Copper;
+721:   const sphereTextColor = getContrastTextColor(sphereMetal.colors.main);
+722:   const isFrictionSphere = isSphere && comp.physicsChargeMethod === "Friction";
+723:   const isEarthedSphere = isSphere && comp.physicsEarthing === "Earthed";
+724:   const isElectricFieldIntensitySphere = isSphere && comp.physicsTopic === "Electric Field Intensity";
+725:   const isElectricFieldLinesSphere = isSphere && comp.physicsTopic === "Electric Field Lines";
+726:   const isElectricFluxSphere = isSphere && comp.physicsTopic === "Electric Flux";
+727:   cons
+1451:     });
+1452:   };
+1453: 
+1454:   const togglePower = () => onUpdate(comp.id, { powerEnabled: !isOn });
+1455: 
+1456:   const renderKnob = (x: number, y: number, label: string, angle: number) => (
+1457:     <Group x={x} y={y} listening={false}>
+1458:       <Circle radius={24} fill="rgba(15,23,42,0.22)" />
+1459:       <Group rotation={angle}>
+1460:         <Circle
+1461:           radius={21}
+1462:           fillRadialGradientStartRadius={0}
+1463:           fillRadialGradientEndRadius={21}
+1464:           fillRadialGradientColorStops={[0, "#f8fafc", 0.34, "#94a3b8", 0.68, "#334155", 1, "#020617"]}
+1465:           stroke="#1f2937"
+1466:           strokeWidth={1.3}
+1467:         />
+1468:         <Circle
+1469:           radius={15}
+1470:           fillRadialGradientStartRadius={0}
+1471:           fillRadialGradientEndRadius={15}
+1472:           fillRadialGradientColorStops={[0, "#ffffff", 0.36, "#9ca3af", 0.82, "#334155", 1, "#111827"]}
+1473:           stroke="#8aa0b6"
+1474:           strokeWidth={0.8}
+1475:         />
+1476:         <Line points={[0, -18, 0, -10]} stroke="#ffffff" strokeWidth={2.4} lineCap="round" />
+1477:       </Group>
+1478:       <Text
+1479:         x={-11}
+1480:         y={-9}
+1481:         width={22}
+1482:         text={label}
+1483:         fontFamily="Georgia, serif"
+1484:         fontSize={17}
+1485:         fontStyle="bold"
+1486:         align="center"
+1487:         fill="#ffffff"
+1488:       />
+1489:     </Group>
+1490:   );
+1491: 
+1492:   const renderFineButton = (
+1493:     x: number,
+1494:     y: number,
+1495:     label: string,
+1496:     onPress: () => void,
+1497:     tone: "voltage" | "current" | "dc"
+1498:   ) => {
+1499:     const fillStops =
+1500:       tone === "voltage"
