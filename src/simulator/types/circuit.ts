@@ -26,16 +26,25 @@ export interface PlacedComponent {
   height?: number;
   ports: Pin[];
   isBlinking?: boolean;
+  isPressed?: boolean;
   relativePins?: RelativePin[];
   
   // Ohm's Law fields
   resistanceValue?: number;
   resistanceUnit?: string;
   voltageValue?: number;
+  wattageValue?: number;
   capacitanceValue?: number;
   capacitanceUnit?: string;
   isBurned?: boolean;
   brightness?: number; // 0 to 1
+
+  // Power Supply Simulation Engine fields
+  powerSupplyType?: "DC" | "AC";
+  powerVoltageSet?: number;
+  powerCurrentLimit?: number;
+  powerFrequency?: number;
+  powerEnabled?: boolean;
 
   // Physics fields (Coulomb's Law)
   chargeValue?: number;
@@ -47,7 +56,15 @@ export interface PlacedComponent {
   physicsMedium?: string;
   physicsDielectric?: number;
   physicsSphereType?: "Conducting" | "Non-Conducting";
+  opticsMirrorView?: "Front View" | "Side View";
+  opticsLensView?: "Front View" | "Side View";
   physicsObservationDistance?: number;
+  opticsLaserMode?: "Off" | "Red" | "Green" | "White" | "Both";
+  opticsGreenLaserAngle?: number;
+  opticsStandLength?: number;
+  opticsStatus?: "Active" | "Unactive";
+  opticsRadiusValue?: number;
+  opticsRadiusUnit?: "m" | "cm";
   physicsFluxSurfaceType?: "Triangular" | "Disc" | "Cylindrical" | "Spherical";
   physicsFluxArea?: number;
   physicsFluxAngle?: number;

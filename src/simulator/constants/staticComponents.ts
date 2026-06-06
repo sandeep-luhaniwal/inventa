@@ -28,15 +28,30 @@ export interface StaticComponentDef {
   relativePins: StaticPin[];
   ledColor?: string;
   voltageValue?: number;
+  wattageValue?: number;
   capacitanceValue?: number;
   capacitanceUnit?: string;
+  powerVoltageSet?: number;
+  powerCurrentLimit?: number;
+  powerFrequency?: number;
 }
 
-export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = false): string {
-  const body = (lit && def.litSvgBody) ? def.litSvgBody : def.svgBody;
+export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = false, uniqueId = ""): string {
+  let body = (lit && def.litSvgBody) ? def.litSvgBody : def.svgBody;
+  let outlineId = "component_outline";
+
+  if (uniqueId) {
+    const cleanId = uniqueId.replace(/[^a-zA-Z0-9_-]/g, "_");
+    outlineId = `component_outline_${cleanId}`;
+    body = body.replace(/id\s*=\s*["']([^"']+)["']/g, `id="$1_${cleanId}"`);
+    body = body.replace(/url\(\s*['"]?#([^'"\s)]+)['"]?\s*\)/g, `url(#$1_${cleanId})`);
+    body = body.replace(/(href|xlink:href)\s*=\s*["']#([^"']+)["']/g, `$1="#$2_${cleanId}"`);
+    body = body.replace(/component_outline/g, outlineId);
+  }
+
   const outlineDefs = outlined
     ? `<defs>
-         <filter id="component_outline" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+         <filter id="${outlineId}" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
            <feDropShadow dx="1.5" dy="0" stdDeviation="0.2" flood-color="#3b82f6" flood-opacity="1"/>
            <feDropShadow dx="-1.5" dy="0" stdDeviation="0.2" flood-color="#3b82f6" flood-opacity="1"/>
            <feDropShadow dx="0" dy="1.5" stdDeviation="0.2" flood-color="#3b82f6" flood-opacity="1"/>
@@ -47,9 +62,9 @@ export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = fa
            <feDropShadow dx="-1.05" dy="-1.05" stdDeviation="0.2" flood-color="#3b82f6" flood-opacity="1"/>
          </filter>
        </defs>`
-    : "";  
-  const wrappedBody = outlined ? `<g filter="url(#component_outline)">${body}</g>` : body;
-  const svg = `<svg viewBox="0 0 ${def.viewBoxW} ${def.viewBoxH}" xmlns="http://www.w3.org/2000/svg">${outlineDefs}${wrappedBody}</svg>`;
+    : "";
+  const wrappedBody = outlined ? `<g filter="url(#${outlineId})">${body}</g>` : body;
+  const svg = `<svg width="${def.viewBoxW}" height="${def.viewBoxH}" viewBox="0 0 ${def.viewBoxW} ${def.viewBoxH}" xmlns="http://www.w3.org/2000/svg">${outlineDefs}${wrappedBody}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -219,68 +234,665 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     name: "AC LED Bulb",
     category: "Output",
     voltageValue: 220,
+    wattageValue: 9,
     viewBoxW: 100,
     viewBoxH: 140,
     svgBody: `
       <defs>
-        <radialGradient id="bulb_glass" cx="40%" cy="30%" r="60%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
-          <stop offset="100%" stop-color="#888888" stop-opacity="0.1"/>
-        </radialGradient>
-        <linearGradient id="bulb_base" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#717D7E"/>
-          <stop offset="50%" stop-color="#D5D8DC"/>
-          <stop offset="100%" stop-color="#717D7E"/>
+        <!-- Metal Thread Gradient -->
+        <linearGradient id="metal_thread_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4a535a" />
+          <stop offset="25%" stop-color="#9aa2a8" />
+          <stop offset="50%" stop-color="#e2e6e9" />
+          <stop offset="75%" stop-color="#80878d" />
+          <stop offset="100%" stop-color="#3d444a" />
         </linearGradient>
+        
+        <!-- Glass Unlit Gradient -->
+        <radialGradient id="glass_unlit_grad" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5" />
+          <stop offset="40%" stop-color="#ffffff" stop-opacity="0.1" />
+          <stop offset="80%" stop-color="#e2e8f0" stop-opacity="0.1" />
+          <stop offset="100%" stop-color="#94a3b8" stop-opacity="0.3" />
+        </radialGradient>
       </defs>
-      <!-- Pins -->
-      <rect x="34" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
-      <rect x="60" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
       
-      <!-- Screw Base -->
-      <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="url(#bulb_base)"/>
-      <line x1="32" y1="108" x2="68" y2="108" stroke="#5D6D7E" stroke-width="1"/>
-      <line x1="34" y1="116" x2="66" y2="116" stroke="#5D6D7E" stroke-width="1"/>
+      <!-- Screw Cap of Bulb -->
+      <!-- Threads -->
+      <ellipse cx="50" cy="71" rx="15.5" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
+      <ellipse cx="50" cy="75" rx="15" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
+      <ellipse cx="50" cy="79" rx="14.5" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
       
-      <!-- Glass Dome -->
-      <path d="M 50 100 C 10 100, 10 20, 50 20 C 90 20, 90 100, 50 100 Z" fill="url(#bulb_glass)" stroke="#D5D8DC" stroke-width="1"/>
+      <!-- Bulb Glass Dome (Unlit) -->
+      <path d="M 34 68 C 32 60, 27 52, 27 42 A 23 23 0 0 1 73 42 C 73 52, 68 60, 66 68 Z" fill="url(#glass_unlit_grad)" stroke="#b8c0ca" stroke-width="0.8" />
       
-      <!-- Internal Filament (Unlit) -->
-      <path d="M 45 100 L 45 70 M 55 100 L 55 70" stroke="#7F8C8D" stroke-width="1.5"/>
-      <path d="M 45 70 Q 50 60, 55 70" stroke="#7F8C8D" stroke-width="1.5" fill="none"/>
+      <!-- Specular Glass Highlight Crescent -->
+      <path d="M 31 42 A 19 19 0 0 1 60 25 A 22 22 0 0 0 29 42 Z" fill="#ffffff" opacity="0.4" />
+      
+      <!-- Filament and Support Wires (Unlit) -->
+      <path d="M 44 68 L 44 48 M 56 68 L 56 48" stroke="#5a5e66" stroke-width="1.2" stroke-linecap="round" />
+      <!-- Filament wire coil -->
+      <path d="M 44 48 Q 45.5 45, 47 48 Q 48.5 45, 50 48 Q 51.5 45, 53 48 Q 54.5 45, 56 48" stroke="#5a5e66" stroke-width="1.2" fill="none" stroke-linecap="round" />
     `,
     litSvgBody: `
       <defs>
-        <radialGradient id="bulb_glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#FFF9C4" stop-opacity="1"/>
-          <stop offset="70%" stop-color="#FBC02D" stop-opacity="0.6"/>
-          <stop offset="100%" stop-color="#FBC02D" stop-opacity="0"/>
-        </radialGradient>
-        <filter id="bulb_outer_glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="8" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <!-- Glow filters -->
+        <filter id="bulb_glow_filter" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="blur1"/>
+          <feGaussianBlur stdDeviation="12" result="blur2"/>
+          <feMerge>
+            <feMergeNode in="blur2"/>
+            <feMergeNode in="blur1"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
         </filter>
+        
+        <!-- Metal Thread Gradient -->
+        <linearGradient id="metal_thread_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4a535a" />
+          <stop offset="25%" stop-color="#9aa2a8" />
+          <stop offset="50%" stop-color="#e2e6e9" />
+          <stop offset="75%" stop-color="#80878d" />
+          <stop offset="100%" stop-color="#3d444a" />
+        </linearGradient>
+        
+        <!-- Glass Lit Gradient -->
+        <radialGradient id="glass_lit_grad" cx="50%" cy="45%" r="60%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+          <stop offset="20%" stop-color="#fff59d" stop-opacity="0.95" />
+          <stop offset="55%" stop-color="#ffb300" stop-opacity="0.75" />
+          <stop offset="85%" stop-color="#ff6f00" stop-opacity="0.35" />
+          <stop offset="100%" stop-color="#e65100" stop-opacity="0.1" />
+        </radialGradient>
       </defs>
-      <!-- Pins -->
-      <rect x="34" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
-      <rect x="60" y="125" width="6" height="15" rx="2" fill="#AAB7B8"/>
       
-      <!-- Screw Base -->
-      <path d="M 30 100 L 70 100 L 65 125 L 35 125 Z" fill="#D5D8DC"/>
+      <!-- Screw Cap of Bulb -->
+      <ellipse cx="50" cy="71" rx="15.5" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
+      <ellipse cx="50" cy="75" rx="15" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
+      <ellipse cx="50" cy="79" rx="14.5" ry="3" fill="url(#metal_thread_grad)" stroke="#222" stroke-width="0.3" />
       
-      <!-- Glow Effect -->
-      <circle cx="50" cy="60" r="45" fill="url(#bulb_glow)" filter="url(#bulb_outer_glow)"/>
+      <!-- Soft base glow behind the bulb -->
+      <circle cx="50" cy="45" r="35" fill="#ff8f00" opacity="0.3" filter="url(#bulb_glow_filter)" />
+
+      <!-- Bulb Glass Dome (Lit) -->
+      <path d="M 34 68 C 32 60, 27 52, 27 42 A 23 23 0 0 1 73 42 C 73 52, 68 60, 66 68 Z" fill="url(#glass_lit_grad)" stroke="#ffb300" stroke-width="1.2" filter="url(#bulb_glow_filter)" />
       
-      <!-- Glass Dome -->
-      <path d="M 50 100 C 10 100, 10 20, 50 20 C 90 20, 90 100, 50 100 Z" fill="rgba(255, 235, 59, 0.2)" stroke="#FBC02D" stroke-width="1.5"/>
+      <!-- Specular Glass Highlight Crescent -->
+      <path d="M 31 42 A 19 19 0 0 1 60 25 A 22 22 0 0 0 29 42 Z" fill="#ffffff" opacity="0.6" />
       
-      <!-- Internal Filament (Lit) -->
-      <path d="M 45 100 L 45 70 M 55 100 L 55 70" stroke="#F1C40F" stroke-width="2"/>
-      <path d="M 45 70 Q 50 50, 55 70" stroke="#FFF176" stroke-width="2.5" fill="none" filter="url(#bulb_outer_glow)"/>
+      <!-- Filament and Support Wires (Lit) -->
+      <path d="M 44 68 L 44 48 M 56 68 L 56 48" stroke="#ffb300" stroke-width="1.5" stroke-linecap="round" />
+      <!-- Filament wire coil (Glowing White-Yellow) -->
+      <path d="M 44 48 Q 45.5 45, 47 48 Q 48.5 45, 50 48 Q 51.5 45, 53 48 Q 54.5 45, 56 48" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" filter="url(#bulb_glow_filter)" />
+      <path d="M 44 48 Q 45.5 45, 47 48 Q 48.5 45, 50 48 Q 51.5 45, 53 48 Q 54.5 45, 56 48" stroke="#fff9c4" stroke-width="1.2" fill="none" stroke-linecap="round" />
     `,
     relativePins: [
-      { name: "Terminal 1", relX: 37 / 100, relY: 135 / 140 },
-      { name: "Terminal 2", relX: 63 / 100, relY: 135 / 140 },
+      { name: "Terminal 1", relX: 42 / 100, relY: 80 / 140 },
+      { name: "Terminal 2", relX: 58 / 100, relY: 80 / 140 },
+    ],
+  },
+  {
+    id: "bulb_holder",
+    name: "Bulb Holder",
+    category: "Output",
+    viewBoxW: 100,
+    viewBoxH: 140,
+    svgBody: `
+      <defs>
+        <!-- Ground shadow filter -->
+        <filter id="shadow_filter" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        
+        <!-- Porcelain Base Gradient -->
+        <linearGradient id="porcelain_base_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#a8a594" />
+          <stop offset="20%" stop-color="#dbd8cc" />
+          <stop offset="50%" stop-color="#ebe8dc" />
+          <stop offset="80%" stop-color="#d1cebf" />
+          <stop offset="100%" stop-color="#a09d8c" />
+        </linearGradient>
+        
+        <!-- Porcelain Neck Gradient -->
+        <linearGradient id="porcelain_neck_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#9a9786" />
+          <stop offset="20%" stop-color="#d4d1c3" />
+          <stop offset="50%" stop-color="#ebe8dc" />
+          <stop offset="80%" stop-color="#cbc8b8" />
+          <stop offset="100%" stop-color="#928f7f" />
+        </linearGradient>
+        
+        <!-- Thread Metallic Gradient -->
+        <linearGradient id="thread_metal_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#3a3c3e" />
+          <stop offset="25%" stop-color="#9fa2a6" />
+          <stop offset="50%" stop-color="#e2e5e9" />
+          <stop offset="75%" stop-color="#8c8f92" />
+          <stop offset="100%" stop-color="#313234" />
+        </linearGradient>
+        
+        <!-- Copper Contact Gradient -->
+        <linearGradient id="copper_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#d35400" />
+          <stop offset="50%" stop-color="#f39c12" />
+          <stop offset="100%" stop-color="#a04000" />
+        </linearGradient>
+
+        <clipPath id="inner_socket_clip">
+          <ellipse cx="50" cy="80" rx="18" ry="4.8" />
+        </clipPath>
+      </defs>
+      
+      <!-- 1. Ambient Ground Shadow -->
+      <ellipse cx="50" cy="130" rx="38" ry="10" fill="#1a1916" opacity="0.45" filter="url(#shadow_filter)" />
+      
+      <!-- 2. Wires -->
+      <!-- White Wire Outer Loop -->
+      <path d="M 74 121 C 96 121, 93 141, 37 135" stroke="#9da0a8" stroke-width="4.8" fill="none" stroke-linecap="round" />
+      <path d="M 74 121 C 96 121, 93 141, 37 135" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.9" />
+      
+      <!-- Black Wire Inner Loop -->
+      <path d="M 74 118 C 91 118, 89 136, 63 135" stroke="#121315" stroke-width="4.8" fill="none" stroke-linecap="round" />
+      <path d="M 74 118 C 91 118, 89 136, 63 135" stroke="#424652" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.85" />
+      
+      <!-- 3. Terminal Connectors -->
+      <!-- Left Terminal -->
+      <circle cx="37" cy="135" r="3.2" fill="#1e1e1b" />
+      <circle cx="37" cy="135" r="3.2" fill="none" stroke="url(#copper_grad)" stroke-width="1.5" />
+      <!-- Right Terminal -->
+      <circle cx="63" cy="135" r="3.2" fill="#1e1e1b" />
+      <circle cx="63" cy="135" r="3.2" fill="none" stroke="url(#copper_grad)" stroke-width="1.5" />
+      
+      <!-- 4. Porcelain Base (Main cylinder body) -->
+      <path d="M 14 110 A 36 10 0 0 0 86 110 L 86 128 A 36 10 0 0 1 14 128 Z" fill="url(#porcelain_base_grad)" />
+      <ellipse cx="50" cy="110" rx="36" ry="10" fill="url(#porcelain_base_grad)" stroke="#e4e1d5" stroke-width="0.3" />
+      
+      <!-- 5. Mounting Holes -->
+      <!-- Left Mounting Hole -->
+      <ellipse cx="28" cy="115" rx="4.5" ry="2.2" fill="#504d44" />
+      <ellipse cx="28" cy="115.5" rx="3.5" ry="1.7" fill="#1f1e1b" />
+      <ellipse cx="28" cy="115" rx="4.5" ry="2.2" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.7" />
+      
+      <!-- Right/Back Mounting Hole -->
+      <ellipse cx="72" cy="107" rx="3.5" ry="1.7" fill="#504d44" />
+      <ellipse cx="72" cy="107.4" rx="2.6" ry="1.2" fill="#1f1e1b" />
+      <ellipse cx="72" cy="107" rx="3.5" ry="1.7" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.7" />
+      
+      <!-- 6. Notch/Housing on the right for Wires -->
+      <path d="M 68 111.5 L 78 113.5 L 76 109 L 66 108 Z" fill="url(#porcelain_base_grad)" stroke="#d1cebf" stroke-width="0.3" />
+      <path d="M 66 108 L 68 111.5 L 68 125 L 66 121 Z" fill="url(#porcelain_base_grad)" />
+      <path d="M 68 111.5 L 78 113.5 L 78 127 L 68 125 Z" fill="url(#porcelain_base_grad)" />
+      <path d="M 72 113 L 75 113.6 L 75 124 L 72 123.4 Z" fill="#22211e" />
+      
+      <!-- 7. Porcelain Neck Cylinder (covers the flare and height) -->
+      <path d="M 28 80 C 28 83, 32 85, 32 88 L 32 110 A 18 5 0 0 0 68 110 L 68 88 C 68 85, 72 83, 72 80 A 22 6 0 0 1 28 80 Z" fill="url(#porcelain_neck_grad)" />
+      
+      <!-- Neck Flared Top Rim Face -->
+      <ellipse cx="50" cy="80" rx="22" ry="6" fill="url(#porcelain_neck_grad)" stroke="#eae7db" stroke-width="0.5" />
+      
+      <!-- Inner Socket Hole and Metallic Threads inside clip path -->
+      <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="#1a1a19" />
+      
+      <g clip-path="url(#inner_socket_clip)">
+        <!-- Dark interior background -->
+        <rect x="30" y="70" width="40" height="40" fill="#1b1b19" />
+        
+        <!-- Metallic Screw Threads -->
+        <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="79.2" rx="17.2" ry="4.5" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="78.4" rx="16.4" ry="4.2" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="77.6" rx="15.6" ry="3.9" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="76.8" rx="14.8" ry="3.6" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="76" rx="14" ry="3.3" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="75.2" rx="13.2" ry="3.0" fill="none" stroke="url(#thread_metal_grad)" stroke-width="1.8" />
+        
+        <!-- Center Bottom Contact Plate -->
+        <ellipse cx="50" cy="74.5" rx="3.5" ry="1" fill="url(#copper_grad)" />
+      </g>
+      
+      <!-- Inner edge bevel stroke for porcelain wall thickness -->
+      <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="none" stroke="#cfcbc0" stroke-width="0.8" />
+      
+      <!-- Specular Highlight on rim -->
+      <path d="M 29 81 A 21 5.8 0 0 1 68 78.5" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.65" stroke-linecap="round" />
+    `,
+    litSvgBody: `
+      <defs>
+        <!-- Ground shadow filter -->
+        <filter id="shadow_filter" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+        
+        <!-- Porcelain Base Gradient -->
+        <linearGradient id="porcelain_base_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#a8a594" />
+          <stop offset="20%" stop-color="#dbd8cc" />
+          <stop offset="50%" stop-color="#ebe8dc" />
+          <stop offset="80%" stop-color="#d1cebf" />
+          <stop offset="100%" stop-color="#a09d8c" />
+        </linearGradient>
+        
+        <!-- Porcelain Neck Gradient -->
+        <linearGradient id="porcelain_neck_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#9a9786" />
+          <stop offset="20%" stop-color="#d4d1c3" />
+          <stop offset="50%" stop-color="#ebe8dc" />
+          <stop offset="80%" stop-color="#cbc8b8" />
+          <stop offset="100%" stop-color="#928f7f" />
+        </linearGradient>
+        
+        <!-- Lit Thread Metallic Gradient (Warm Golden Reflection) -->
+        <linearGradient id="thread_lit_metal_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#6e5722" />
+          <stop offset="25%" stop-color="#cfa344" />
+          <stop offset="50%" stop-color="#ffe58f" />
+          <stop offset="75%" stop-color="#b58e38" />
+          <stop offset="100%" stop-color="#54431a" />
+        </linearGradient>
+        
+        <!-- Copper Contact Gradient -->
+        <linearGradient id="copper_grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#d35400" />
+          <stop offset="50%" stop-color="#f39c12" />
+          <stop offset="100%" stop-color="#a04000" />
+        </linearGradient>
+
+        <!-- Vertical reflection gradient on neck -->
+        <linearGradient id="porcelain_glow_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffb300" stop-opacity="0.65" />
+          <stop offset="100%" stop-color="#ffb300" stop-opacity="0" />
+        </linearGradient>
+
+        <clipPath id="inner_socket_clip_lit">
+          <ellipse cx="50" cy="80" rx="18" ry="4.8" />
+        </clipPath>
+      </defs>
+      
+      <!-- 1. Ambient Ground Shadow -->
+      <ellipse cx="50" cy="130" rx="38" ry="10" fill="#1a1916" opacity="0.45" filter="url(#shadow_filter)" />
+      
+      <!-- 2. Wires -->
+      <!-- White Wire Outer Loop -->
+      <path d="M 74 121 C 96 121, 93 141, 37 135" stroke="#9da0a8" stroke-width="4.8" fill="none" stroke-linecap="round" />
+      <path d="M 74 121 C 96 121, 93 141, 37 135" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.9" />
+      
+      <!-- Black Wire Inner Loop -->
+      <path d="M 74 118 C 91 118, 89 136, 63 135" stroke="#121315" stroke-width="4.8" fill="none" stroke-linecap="round" />
+      <path d="M 74 118 C 91 118, 89 136, 63 135" stroke="#424652" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.85" />
+      
+      <!-- 3. Terminal Connectors -->
+      <!-- Left Terminal -->
+      <circle cx="37" cy="135" r="3.2" fill="#1e1e1b" />
+      <circle cx="37" cy="135" r="3.2" fill="none" stroke="url(#copper_grad)" stroke-width="1.5" />
+      <!-- Right Terminal -->
+      <circle cx="63" cy="135" r="3.2" fill="#1e1e1b" />
+      <circle cx="63" cy="135" r="3.2" fill="none" stroke="url(#copper_grad)" stroke-width="1.5" />
+      
+      <!-- 4. Porcelain Base (Main cylinder body) -->
+      <path d="M 14 110 A 36 10 0 0 0 86 110 L 86 128 A 36 10 0 0 1 14 128 Z" fill="url(#porcelain_base_grad)" />
+      <ellipse cx="50" cy="110" rx="36" ry="10" fill="url(#porcelain_base_grad)" stroke="#e4e1d5" stroke-width="0.3" />
+      
+      <!-- Warm light reflection on base top -->
+      <ellipse cx="50" cy="110" rx="34" ry="9.2" fill="#ffa000" opacity="0.2" filter="url(#shadow_filter)" />
+      
+      <!-- 5. Mounting Holes -->
+      <!-- Left Mounting Hole -->
+      <ellipse cx="28" cy="115" rx="4.5" ry="2.2" fill="#504d44" />
+      <ellipse cx="28" cy="115.5" rx="3.5" ry="1.7" fill="#1f1e1b" />
+      <ellipse cx="28" cy="115" rx="4.5" ry="2.2" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.7" />
+      
+      <!-- Right/Back Mounting Hole -->
+      <ellipse cx="72" cy="107" rx="3.5" ry="1.7" fill="#504d44" />
+      <ellipse cx="72" cy="107.4" rx="2.6" ry="1.2" fill="#1f1e1b" />
+      <ellipse cx="72" cy="107" rx="3.5" ry="1.7" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.7" />
+      
+      <!-- 6. Notch/Housing on the right for Wires -->
+      <path d="M 68 111.5 L 78 113.5 L 76 109 L 66 108 Z" fill="url(#porcelain_base_grad)" stroke="#d1cebf" stroke-width="0.3" />
+      <path d="M 66 108 L 68 111.5 L 68 125 L 66 121 Z" fill="url(#porcelain_base_grad)" />
+      <path d="M 68 111.5 L 78 113.5 L 78 127 L 68 125 Z" fill="url(#porcelain_base_grad)" />
+      <path d="M 72 113 L 75 113.6 L 75 124 L 72 123.4 Z" fill="#22211e" />
+      
+      <!-- 7. Porcelain Neck Cylinder (covers the flare and height) -->
+      <path d="M 28 80 C 28 83, 32 85, 32 88 L 32 110 A 18 5 0 0 0 68 110 L 68 88 C 68 85, 72 83, 72 80 A 22 6 0 0 1 28 80 Z" fill="url(#porcelain_neck_grad)" />
+      
+      <!-- Warm light cast on neck cylinder -->
+      <path d="M 28 80 C 28 83, 32 85, 32 88 L 32 108 A 18 5 0 0 0 68 108 L 68 88 C 68 85, 72 83, 72 80 Z" fill="url(#porcelain_glow_grad)" opacity="0.45" />
+      
+      <!-- Neck Flared Top Rim Face -->
+      <ellipse cx="50" cy="80" rx="22" ry="6" fill="url(#porcelain_neck_grad)" stroke="#eae7db" stroke-width="0.5" />
+      
+      <!-- Glow reflection on rim -->
+      <ellipse cx="50" cy="80" rx="21.5" ry="5.8" fill="#ffe082" opacity="0.4" filter="url(#shadow_filter)" />
+      
+      <!-- Inner Socket Hole and Metallic Threads inside clip path -->
+      <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="#1a1a19" />
+      
+      <g clip-path="url(#inner_socket_clip_lit)">
+        <!-- Dark interior background -->
+        <rect x="30" y="70" width="40" height="40" fill="#1b1b19" />
+        
+        <!-- Lit/Glowing Metallic Screw Threads -->
+        <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="79.2" rx="17.2" ry="4.5" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="78.4" rx="16.4" ry="4.2" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="77.6" rx="15.6" ry="3.9" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="76.8" rx="14.8" ry="3.6" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="76" rx="14" ry="3.3" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        <ellipse cx="50" cy="75.2" rx="13.2" ry="3.0" fill="none" stroke="url(#thread_lit_metal_grad)" stroke-width="1.8" />
+        
+        <!-- Center Bottom Contact Plate -->
+        <ellipse cx="50" cy="74.5" rx="3.5" ry="1" fill="#ffe082" />
+        
+        <!-- Warm filament glow reflection overlay inside the socket hole -->
+        <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="#ffb300" opacity="0.22" />
+      </g>
+      
+      <!-- Inner edge bevel stroke for porcelain wall thickness -->
+      <ellipse cx="50" cy="80" rx="18" ry="4.8" fill="none" stroke="#ffe082" stroke-width="0.8" opacity="0.8" />
+      
+      <!-- Specular Highlight on rim (warmer for lit state) -->
+      <path d="M 29 81 A 21 5.8 0 0 1 68 78.5" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.8" stroke-linecap="round" />
+    `,
+    relativePins: [
+      { name: "Terminal 1", relX: 37 / 100, relY: 135 / 140, type: "path1" },
+      { name: "Terminal 2", relX: 63 / 100, relY: 135 / 140, type: "path2" },
+      { name: "Socket 1", relX: 42 / 100, relY: 80 / 140, type: "path1" },
+      { name: "Socket 2", relX: 58 / 100, relY: 80 / 140, type: "path2" },
+    ],
+  },
+  {
+    id: "dc_power_supply",
+    name: "DC Power Supply",
+    category: "Power",
+    viewBoxW: 180,
+    viewBoxH: 170,
+    svgBody: `
+      <defs>
+        <!-- Realistic horizontal brushed metal gradient -->
+        <linearGradient id="dc_brushed" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#b8c0ca"/>
+          <stop offset="4%" stop-color="#e2e8f0"/>
+          <stop offset="8%" stop-color="#cbd5e1"/>
+          <stop offset="12%" stop-color="#94a3b8"/>
+          <stop offset="16%" stop-color="#e2e8f0"/>
+          <stop offset="22%" stop-color="#cbd5e1"/>
+          <stop offset="28%" stop-color="#f1f5f9"/>
+          <stop offset="34%" stop-color="#cbd5e1"/>
+          <stop offset="40%" stop-color="#94a3b8"/>
+          <stop offset="48%" stop-color="#e2e8f0"/>
+          <stop offset="55%" stop-color="#cbd5e1"/>
+          <stop offset="62%" stop-color="#f8fafc"/>
+          <stop offset="70%" stop-color="#cbd5e1"/>
+          <stop offset="78%" stop-color="#94a3b8"/>
+          <stop offset="85%" stop-color="#e2e8f0"/>
+          <stop offset="92%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#88909a"/>
+        </linearGradient>
+        
+        <!-- Chrome Bezel Gradient -->
+        <linearGradient id="dc_bezel_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="20%" stop-color="#cbd5e1"/>
+          <stop offset="50%" stop-color="#64748b"/>
+          <stop offset="80%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+
+        <linearGradient id="dc_inner_bezel_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="30%" stop-color="#475569"/>
+          <stop offset="70%" stop-color="#94a3b8"/>
+          <stop offset="100%" stop-color="#cbd5e1"/>
+        </linearGradient>
+
+        <!-- Screen Recess / Bezel -->
+        <linearGradient id="dc_screen_bezel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="50%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+
+        <!-- Banana Jacks Port Colors -->
+        <radialGradient id="dc_red_port" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#f87171"/>
+          <stop offset="50%" stop-color="#dc2626"/>
+          <stop offset="85%" stop-color="#991b1b"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </radialGradient>
+        
+        <radialGradient id="dc_black_port" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#9ca3af"/>
+          <stop offset="50%" stop-color="#374151"/>
+          <stop offset="85%" stop-color="#1f2937"/>
+          <stop offset="100%" stop-color="#030712"/>
+        </radialGradient>
+
+        <radialGradient id="dc_short_lamp_lens" cx="38%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#fff7ed"/>
+          <stop offset="18%" stop-color="#fb923c"/>
+          <stop offset="45%" stop-color="#ef4444"/>
+          <stop offset="78%" stop-color="#b91c1c"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </radialGradient>
+
+        <radialGradient id="dc_short_lamp_bezel" cx="35%" cy="25%" r="80%">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="35%" stop-color="#94a3b8"/>
+          <stop offset="72%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </radialGradient>
+
+        <!-- Shadow filter -->
+        <filter id="dc_shadow" x="-8%" y="-8%" width="116%" height="116%">
+          <feDropShadow dx="0" dy="5" stdDeviation="4.5" flood-color="#000000" flood-opacity="0.45"/>
+        </filter>
+
+        <!-- Embossed text shadow -->
+        <filter id="dc_emboss_shadow">
+          <feDropShadow dx="0.5" dy="0.5" stdDeviation="0" flood-color="#ffffff" flood-opacity="0.75"/>
+        </filter>
+      </defs>
+
+      <!-- Chassis Body -->
+      <rect x="3" y="3" width="174" height="164" rx="18" fill="url(#dc_bezel_grad)" filter="url(#dc_shadow)"/>
+      <rect x="5" y="5" width="170" height="160" rx="16" fill="url(#dc_inner_bezel_grad)"/>
+      <rect x="8" y="8" width="164" height="154" rx="13" fill="url(#dc_brushed)"/>
+
+      <!-- Embossed Title Text -->
+      <text x="90" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="900" letter-spacing="1" text-anchor="middle" fill="#334155" filter="url(#dc_emboss_shadow)">DC POWER SUPPLY</text>
+
+      <!-- Glossy LCD Display Bezel & Screen -->
+      <rect x="18" y="26" width="104" height="48" rx="6" fill="url(#dc_screen_bezel)" stroke="#0f172a" stroke-width="0.8"/>
+      <rect x="20" y="28" width="100" height="44" rx="4" fill="#04060a" stroke="#000000" stroke-width="1.2"/>
+      
+      <!-- Short Circuit Indicator Lamp Bezel -->
+      <circle cx="146" cy="45" r="13.5" fill="url(#dc_short_lamp_bezel)" stroke="#1f2937" stroke-width="0.8"/>
+      <circle cx="146" cy="45" r="11" fill="#7f1d1d" stroke="#7f1d1d" stroke-width="1"/>
+      <circle cx="146" cy="45" r="8.3" fill="url(#dc_short_lamp_lens)" stroke="#7f1d1d" stroke-width="0.7"/>
+      <circle cx="142.5" cy="40.5" r="2.6" fill="#fff7ed" opacity="0.9"/>
+      <circle cx="146" cy="45" r="6" fill="#fb2d18" opacity="0.35"/>
+      <text x="146" y="65" font-family="system-ui, -apple-system, sans-serif" font-size="6.5" font-weight="900" text-anchor="middle" fill="#334155">SHORT</text>
+      <text x="146" y="72" font-family="system-ui, -apple-system, sans-serif" font-size="6.5" font-weight="900" text-anchor="middle" fill="#334155">CIRCUIT</text>
+
+      <!-- Knob Ticks Dials (Voltage: center at 52, 108. Amperage: center at 122, 108) -->
+      <!-- Voltage Group -->
+      <g>
+        <!-- Voltage Ticks (centered at 52, 108) -->
+        <path d="M 36.4 123.6 L 34.3 125.7 M 31.1 114.8 L 28.2 115.7 M 30.3 104.6 L 27.3 104.1 M 34.2 95.1 L 31.8 93.3 M 42.0 88.4 L 40.6 85.7 M 52 86 L 52 83 M 62.0 88.4 L 63.4 85.7 M 69.8 95.1 L 72.2 93.3 M 73.7 104.6 L 76.7 104.1 M 72.9 114.8 L 75.8 115.7 M 67.6 123.6 L 69.7 125.7" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+        <!-- Controls Labels -->
+        <text x="52" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="7" font-weight="600" text-anchor="middle" fill="#2c3038">VOLTAGE</text>
+        <!-- Voltage FINE buttons labels & placeholders -->
+        <text x="84" y="90" font-family="system-ui, -apple-system, sans-serif" font-size="6" font-weight="900" text-anchor="middle" fill="#334155">FINE</text>
+        <text x="84" y="112.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">V</text>
+      </g>
+
+      <!-- Middle Separator line -->
+      <line x1="95" y1="87" x2="95" y2="125" stroke="#7a808e" stroke-width="1.2" stroke-linecap="round"/>
+
+      <!-- Amperage Group -->
+      <g>
+        <!-- Amperage Ticks (centered at 122, 108) -->
+        <path d="M 106.4 123.6 L 104.3 125.7 M 101.1 114.8 L 98.2 115.7 M 100.3 104.6 L 97.3 104.1 M 104.2 95.1 L 101.8 93.3 M 112.0 88.4 L 110.6 85.7 M 122 86 L 122 83 M 132.0 88.4 L 133.4 85.7 M 139.8 95.1 L 142.2 93.3 M 143.7 104.6 L 146.7 104.1 M 142.9 114.8 L 145.8 115.7 M 137.6 123.6 L 139.7 125.7" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+        <!-- Controls Labels -->
+        <text x="122" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="7" font-weight="600" text-anchor="middle" fill="#2c3038">AMPERAGE</text>
+        <!-- Amperage FINE Buttons labels -->
+        <text x="154" y="90" font-family="system-ui, -apple-system, sans-serif" font-size="6" font-weight="900" text-anchor="middle" fill="#334155">FINE</text>
+        <text x="154" y="112.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">A</text>
+      </g>
+
+      <!-- Bottom Panel Section Separator Line -->
+      <line x1="10" y1="133" x2="170" y2="133" stroke="#7a808e" stroke-width="1" stroke-linecap="round"/>
+
+      <!-- Toggle Switch Frame -->
+      <rect x="29" y="137" width="20" height="26" rx="4" fill="url(#dc_bezel_grad)" stroke="#1a1c22" stroke-width="0.8"/>
+      <rect x="31" y="139" width="16" height="22" rx="2.5" fill="#04060a" stroke="#000" stroke-width="1"/>
+      <text x="56" y="146" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">ON</text>
+      <text x="56" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">OFF</text>
+
+      <!-- Terminals Section (Red centered at 106, Black centered at 142) -->
+      <text x="124" y="141" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">OUTPUT</text>
+      
+      <!-- Positive Terminal Red (+) -->
+      <text x="89" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="900" text-anchor="middle" fill="#334155">+</text>
+      <circle cx="106" cy="153" r="11" fill="url(#dc_bezel_grad)" stroke="#0f172a" stroke-width="0.8"/>
+      <circle cx="106" cy="153" r="8" fill="url(#dc_red_port)"/>
+      <circle cx="106" cy="153" r="4.5" fill="#150202" stroke="#450a0a" stroke-width="0.6"/>
+
+      <!-- Negative Terminal Black (-) -->
+      <circle cx="142" cy="153" r="11" fill="url(#dc_bezel_grad)" stroke="#0f172a" stroke-width="0.8"/>
+      <circle cx="142" cy="153" r="8" fill="url(#dc_black_port)"/>
+      <circle cx="142" cy="153" r="4.5" fill="#020305" stroke="#1f2937" stroke-width="0.6"/>
+      <text x="159" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="900" text-anchor="middle" fill="#334155">-</text>
+    `,
+    relativePins: [
+      { name: "Positive (+)", relX: 106 / 180, relY: 153 / 170, type: "positive" },
+      { name: "Negative (-)", relX: 142 / 180, relY: 153 / 170, type: "negative" },
+    ],
+  },
+  {
+    id: "ac_power_supply",
+    name: "AC Power Supply",
+    category: "Power",
+    viewBoxW: 180,
+    viewBoxH: 170,
+    powerVoltageSet: 230.5,
+    powerCurrentLimit: 1.15,
+    powerFrequency: 50,
+    svgBody: `
+      <defs>
+        <linearGradient id="acps_brushed" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#b8c0ca"/>
+          <stop offset="4%" stop-color="#e2e8f0"/>
+          <stop offset="8%" stop-color="#cbd5e1"/>
+          <stop offset="12%" stop-color="#94a3b8"/>
+          <stop offset="16%" stop-color="#e2e8f0"/>
+          <stop offset="22%" stop-color="#cbd5e1"/>
+          <stop offset="28%" stop-color="#f1f5f9"/>
+          <stop offset="34%" stop-color="#cbd5e1"/>
+          <stop offset="40%" stop-color="#94a3b8"/>
+          <stop offset="48%" stop-color="#e2e8f0"/>
+          <stop offset="55%" stop-color="#cbd5e1"/>
+          <stop offset="62%" stop-color="#f8fafc"/>
+          <stop offset="70%" stop-color="#cbd5e1"/>
+          <stop offset="78%" stop-color="#94a3b8"/>
+          <stop offset="85%" stop-color="#e2e8f0"/>
+          <stop offset="92%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#88909a"/>
+        </linearGradient>
+        <linearGradient id="acps_bezel_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="20%" stop-color="#cbd5e1"/>
+          <stop offset="50%" stop-color="#64748b"/>
+          <stop offset="80%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+        <linearGradient id="acps_inner_bezel_grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="30%" stop-color="#475569"/>
+          <stop offset="70%" stop-color="#94a3b8"/>
+          <stop offset="100%" stop-color="#cbd5e1"/>
+        </linearGradient>
+        <linearGradient id="acps_screen_bezel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="50%" stop-color="#475569"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+        <radialGradient id="acps_black_port" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#9ca3af"/>
+          <stop offset="50%" stop-color="#374151"/>
+          <stop offset="85%" stop-color="#1f2937"/>
+          <stop offset="100%" stop-color="#030712"/>
+        </radialGradient>
+        <radialGradient id="acps_green_port" cx="35%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#a7f3d0"/>
+          <stop offset="55%" stop-color="#10b981"/>
+          <stop offset="85%" stop-color="#047857"/>
+          <stop offset="100%" stop-color="#064e3b"/>
+        </radialGradient>
+        <radialGradient id="acps_fault_lamp_lens" cx="38%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="#fff7ed"/>
+          <stop offset="18%" stop-color="#fb923c"/>
+          <stop offset="45%" stop-color="#ef4444"/>
+          <stop offset="78%" stop-color="#b91c1c"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </radialGradient>
+        <radialGradient id="acps_fault_lamp_bezel" cx="35%" cy="25%" r="80%">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="35%" stop-color="#94a3b8"/>
+          <stop offset="72%" stop-color="#334155"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </radialGradient>
+        <filter id="acps_shadow" x="-8%" y="-8%" width="116%" height="116%">
+          <feDropShadow dx="0" dy="5" stdDeviation="4.5" flood-color="#000000" flood-opacity="0.45"/>
+        </filter>
+        <filter id="acps_emboss_shadow">
+          <feDropShadow dx="0.5" dy="0.5" stdDeviation="0" flood-color="#ffffff" flood-opacity="0.75"/>
+        </filter>
+      </defs>
+      <rect x="3" y="3" width="174" height="164" rx="18" fill="url(#acps_bezel_grad)" filter="url(#acps_shadow)"/>
+      <rect x="5" y="5" width="170" height="160" rx="16" fill="url(#acps_inner_bezel_grad)"/>
+      <rect x="8" y="8" width="164" height="154" rx="13" fill="url(#acps_brushed)"/>
+      <text x="90" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="900" letter-spacing="1" text-anchor="middle" fill="#334155" filter="url(#acps_emboss_shadow)">AC POWER SUPPLY</text>
+      <rect x="18" y="26" width="104" height="48" rx="6" fill="url(#acps_screen_bezel)" stroke="#0f172a" stroke-width="0.8"/>
+      <rect x="20" y="28" width="100" height="44" rx="4" fill="#04060a" stroke="#000000" stroke-width="1.2"/>
+      <circle cx="146" cy="45" r="13.5" fill="url(#acps_fault_lamp_bezel)" stroke="#1f2937" stroke-width="0.8"/>
+      <circle cx="146" cy="45" r="11" fill="#7f1d1d" stroke="#7f1d1d" stroke-width="1"/>
+      <circle cx="146" cy="45" r="8.3" fill="url(#acps_fault_lamp_lens)" stroke="#7f1d1d" stroke-width="0.7"/>
+      <circle cx="142.5" cy="40.5" r="2.6" fill="#fff7ed" opacity="0.9"/>
+      <circle cx="146" cy="45" r="6" fill="#fb2d18" opacity="0.35"/>
+      <text x="146" y="65" font-family="system-ui, -apple-system, sans-serif" font-size="6.5" font-weight="900" text-anchor="middle" fill="#334155">AC</text>
+      <text x="146" y="72" font-family="system-ui, -apple-system, sans-serif" font-size="6.5" font-weight="900" text-anchor="middle" fill="#334155">FAULT</text>
+      <g>
+        <path d="M 36.4 123.6 L 34.3 125.7 M 31.1 114.8 L 28.2 115.7 M 30.3 104.6 L 27.3 104.1 M 34.2 95.1 L 31.8 93.3 M 42.0 88.4 L 40.6 85.7 M 52 86 L 52 83 M 62.0 88.4 L 63.4 85.7 M 69.8 95.1 L 72.2 93.3 M 73.7 104.6 L 76.7 104.1 M 72.9 114.8 L 75.8 115.7 M 67.6 123.6 L 69.7 125.7" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+        <text x="52" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="7" font-weight="600" text-anchor="middle" fill="#2c3038">AC VOLTAGE</text>
+        <text x="84" y="90" font-family="system-ui, -apple-system, sans-serif" font-size="6" font-weight="900" text-anchor="middle" fill="#334155">FINE</text>
+        <text x="84" y="112.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">V</text>
+      </g>
+      <line x1="95" y1="87" x2="95" y2="125" stroke="#7a808e" stroke-width="1.2" stroke-linecap="round"/>
+      <g>
+        <path d="M 106.4 123.6 L 104.3 125.7 M 101.1 114.8 L 98.2 115.7 M 100.3 104.6 L 97.3 104.1 M 104.2 95.1 L 101.8 93.3 M 112.0 88.4 L 110.6 85.7 M 122 86 L 122 83 M 132.0 88.4 L 133.4 85.7 M 139.8 95.1 L 142.2 93.3 M 143.7 104.6 L 146.7 104.1 M 142.9 114.8 L 145.8 115.7 M 137.6 123.6 L 139.7 125.7" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+        <text x="122" y="80" font-family="system-ui, -apple-system, sans-serif" font-size="7" font-weight="600" text-anchor="middle" fill="#2c3038">AC AMPERAGE</text>
+        <text x="154" y="90" font-family="system-ui, -apple-system, sans-serif" font-size="6" font-weight="900" text-anchor="middle" fill="#334155">FINE</text>
+        <text x="154" y="112.5" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">A</text>
+      </g>
+      <line x1="10" y1="133" x2="170" y2="133" stroke="#7a808e" stroke-width="1" stroke-linecap="round"/>
+      <rect x="29" y="137" width="20" height="26" rx="4" fill="url(#acps_bezel_grad)" stroke="#1a1c22" stroke-width="0.8"/>
+      <rect x="31" y="139" width="16" height="22" rx="2.5" fill="#04060a" stroke="#000" stroke-width="1"/>
+      <text x="56" y="146" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">OFF</text>
+      <text x="56" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" fill="#334155">ON</text>
+      <text x="124" y="141" font-family="system-ui, -apple-system, sans-serif" font-size="7.5" font-weight="900" text-anchor="middle" fill="#334155">AC OUTPUT</text>
+      <text x="89" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="900" text-anchor="middle" fill="#334155">N</text>
+      <circle cx="106" cy="153" r="11" fill="url(#acps_bezel_grad)" stroke="#0f172a" stroke-width="0.8"/>
+      <circle cx="106" cy="153" r="8" fill="url(#acps_black_port)"/>
+      <circle cx="106" cy="153" r="4.5" fill="#020305" stroke="#1f2937" stroke-width="0.6"/>
+      <circle cx="142" cy="153" r="11" fill="url(#acps_bezel_grad)" stroke="#0f172a" stroke-width="0.8"/>
+      <circle cx="142" cy="153" r="8" fill="url(#acps_green_port)"/>
+      <circle cx="142" cy="153" r="4.5" fill="#021f0a" stroke="#047857" stroke-width="0.6"/>
+      <text x="159" y="157" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="900" text-anchor="middle" fill="#334155">P</text>
+    `,
+    relativePins: [
+      { name: "Neutral (N)", relX: 106 / 180, relY: 153 / 170, type: "negative" },
+      { name: "Phase (P)", relX: 142 / 180, relY: 153 / 170, type: "positive" },
     ],
   },
   {
@@ -326,9 +938,6 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <text x="35" y="84" font-size="16" font-weight="bold" text-anchor="middle" fill="#000" opacity="0.5">+</text>
       <circle cx="65" cy="78" r="8" fill="#000" opacity="0.2"/>
       <text x="65" y="84" font-size="16" font-weight="bold" text-anchor="middle" fill="#000" opacity="0.5">−</text>
-      
-      <!-- Label -->
-      <text x="50" y="145" font-size="38" font-weight="bold" text-anchor="middle" fill="#FFFFFF" opacity="0.9">9V</text>
     `,
     relativePins: [
       { name: "Positive (+)", relX: 33.5 / 100, relY: 12 / 180, type: "positive" },
@@ -369,27 +978,165 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     category: "Passive",
     viewBoxW: 100,
     viewBoxH: 150,
-    capacitanceValue: 1,
-    capacitanceUnit: "µF",
+    capacitanceValue: 1000,
+    capacitanceUnit: "uF",
+    voltageValue: 25,
     svgBody: `
       <defs>
-        <linearGradient id="c_bodyGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#1A5276"/>
-          <stop offset="30%" stop-color="#2E86C1"/>
-          <stop offset="60%" stop-color="#5DADE2"/>
-          <stop offset="100%" stop-color="#1A5276"/>
+        <!-- Clip path for the cylinder body to ensure stripe and highlights are clean -->
+        <clipPath id="cap_body_clip">
+          <path d="M 15 29 A 35 12 0 0 0 85 29 V 111 A 35 12 0 0 1 15 111 Z"/>
+        </clipPath>
+        
+        <!-- Main metallic body gradient with specular highlight on the right (63%) -->
+        <linearGradient id="cap_body" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#0c0e12"/>
+          <stop offset="20%" stop-color="#12151b"/>
+          <stop offset="40%" stop-color="#1b2029"/>
+          <stop offset="58%" stop-color="#2c3341"/>
+          <stop offset="63%" stop-color="#e8eff9"/> <!-- Bright Specular Highlight Core -->
+          <stop offset="68%" stop-color="#2c3341"/>
+          <stop offset="80%" stop-color="#1b2029"/>
+          <stop offset="95%" stop-color="#0c0e12"/>
+          <stop offset="100%" stop-color="#050608"/>
+        </linearGradient>
+
+        <!-- Vertical Gloss overlay gradient aligned with body highlight -->
+        <linearGradient id="cap_gloss" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.03"/>
+          <stop offset="50%" stop-color="#ffffff" stop-opacity="0.0"/>
+          <stop offset="58%" stop-color="#ffffff" stop-opacity="0.3"/>
+          <stop offset="63%" stop-color="#ffffff" stop-opacity="0.7"/> <!-- Glossy glare center -->
+          <stop offset="68%" stop-color="#ffffff" stop-opacity="0.3"/>
+          <stop offset="85%" stop-color="#ffffff" stop-opacity="0.0"/>
+          <stop offset="95%" stop-color="#ffffff" stop-opacity="0.1"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
+        </linearGradient>
+        
+        <!-- Slate-grey/blue-grey gradient matching Nichicon stripe -->
+        <linearGradient id="cap_stripe" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#697689"/>
+          <stop offset="25%" stop-color="#909eb4"/>
+          <stop offset="70%" stop-color="#bcc9db"/>
+          <stop offset="100%" stop-color="#808e9f"/>
+        </linearGradient>
+        
+        <!-- Metallic pins/leads gradient -->
+        <linearGradient id="cap_pin" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#2c3540"/>
+          <stop offset="25%" stop-color="#8a99a8"/>
+          <stop offset="50%" stop-color="#f1f5f9"/>
+          <stop offset="75%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#2c3540"/>
+        </linearGradient>
+        
+        <!-- Metallic top cap gradient - Lip -->
+        <linearGradient id="cap_top_lip" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="30%" stop-color="#e2e8f0"/>
+          <stop offset="70%" stop-color="#94a3b8"/>
+          <stop offset="100%" stop-color="#475569"/>
+        </linearGradient>
+
+        <!-- Metallic top cap gradient - Recess -->
+        <linearGradient id="cap_top_recess" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#e2e8f0"/>
+          <stop offset="30%" stop-color="#cbd5e1"/>
+          <stop offset="70%" stop-color="#94a3b8"/>
+          <stop offset="100%" stop-color="#475569"/>
+        </linearGradient>
+
+        <!-- Premium Gold Text Gradient (vertical gradient for crispness) -->
+        <linearGradient id="cap_gold_text" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffd56b"/>
+          <stop offset="100%" stop-color="#b88a14"/>
+        </linearGradient>
+        
+        <!-- Drop shadow for 3D depth -->
+        <filter id="cap_shadow" x="-20%" y="-15%" width="140%" height="135%">
+          <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#020617" flood-opacity="0.45"/>
+        </filter>
+
+        <!-- Bottom sleeve edge highlight rim gradient -->
+        <linearGradient id="cap_bottom_rim" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#1e293b"/>
+          <stop offset="35%" stop-color="#64748b"/>
+          <stop offset="50%" stop-color="#cbd5e1"/>
+          <stop offset="65%" stop-color="#64748b"/>
+          <stop offset="100%" stop-color="#1e293b"/>
         </linearGradient>
       </defs>
-      <rect x="33" y="108" width="8" height="38" rx="3" fill="#BFC7CE"/>
-      <rect x="59" y="108" width="8" height="38" rx="3" fill="#BFC7CE"/>
-      <rect x="15" y="30" width="70" height="80" rx="12" fill="url(#c_bodyGrad)"/>
-      <ellipse cx="50" cy="110" rx="35" ry="9" fill="#154360"/>
-      <ellipse cx="50" cy="30" rx="35" ry="9" fill="#D5D8DC"/>
-      <text x="19" y="76" font-size="18" font-weight="700" fill="#FDFEFE" opacity="0.7">-</text>
+      
+      <!-- 1. Metallic Leads (Pins) -->
+      <rect x="34.5" y="113" width="5" height="34" rx="2.5" fill="url(#cap_pin)" stroke="#1e293b" stroke-width="0.4"/>
+      <rect x="60.5" y="113" width="5" height="34" rx="2.5" fill="url(#cap_pin)" stroke="#1e293b" stroke-width="0.4"/>
+      
+      <!-- 2. Main Cylinder Body (Clipped to 3D cylinder shape) -->
+      <g clip-path="url(#cap_body_clip)" filter="url(#cap_shadow)">
+        <!-- Cylinder background sleeve -->
+        <rect x="15" y="15" width="70" height="120" fill="url(#cap_body)" />
+        
+        <!-- Silver stripe on the left -->
+        <rect x="16" y="15" width="16" height="110" fill="url(#cap_stripe)"/>
+        
+        <!-- Negative Indicator Capsules on the silver stripe -->
+        <!-- Top Capsule -->
+        <rect x="19.5" y="32" width="9" height="16" rx="2.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+        <rect x="22" y="36.5" width="4" height="7" rx="1.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+        
+        <!-- Middle Capsule -->
+        <rect x="19.5" y="62" width="9" height="16" rx="2.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+        <rect x="22" y="66.5" width="4" height="7" rx="1.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+        
+        <!-- Bottom Capsule -->
+        <rect x="19.5" y="92" width="9" height="16" rx="2.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+        <rect x="22" y="96.5" width="4" height="7" rx="1.5" fill="none" stroke="#222b35" stroke-width="1.2"/>
+
+        <!-- Cylinder gloss reflection overlay -->
+        <rect x="15" y="15" width="70" height="120" fill="url(#cap_gloss)" pointer-events="none" />
+      </g>
+      
+      <!-- 3. Text Labels on the black body (Clipped to body for realism) -->
+      <g clip-path="url(#cap_body_clip)">
+        <!-- "evalab" Brand Label -->
+        <text x="58.5" y="54" font-family="Georgia, serif" font-size="7.5" font-weight="bold" text-anchor="middle" fill="url(#cap_gold_text)" letter-spacing="0.5">evalab</text>
+        
+        <!-- Capacitance Value -->
+        <text x="58.5" y="72" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle" fill="url(#cap_gold_text)">
+          <tspan font-size="12" font-weight="900">VAR_CAP_VALUE</tspan>
+          <tspan font-size="9" font-weight="bold" dx="1">VAR_CAP_UNIT</tspan>
+        </text>
+        
+        <!-- Voltage Value -->
+        <text x="58.5" y="89" font-family="system-ui, -apple-system, sans-serif" text-anchor="middle" fill="url(#cap_gold_text)">
+          <tspan font-size="12" font-weight="900">VAR_CAP_VOLTAGE</tspan>
+          <tspan font-size="9" font-weight="bold" dx="2">v</tspan>
+        </text>
+      </g>
+      
+      <!-- 4. Top Metal Face (Bezel Rim + Recessed Inner Vent) -->
+      <!-- Outer lip bezel -->
+      <ellipse cx="50" cy="29" rx="35" ry="12" fill="url(#cap_top_lip)" stroke="#1e293b" stroke-width="1"/>
+      <!-- Recessed top face -->
+      <ellipse cx="50" cy="29" rx="32" ry="10" fill="url(#cap_top_recess)" stroke="#334155" stroke-width="0.5"/>
+      
+      <!-- 3D engraved cross vent lines -->
+      <g opacity="0.85">
+        <!-- Engraving dark groove -->
+        <path d="M 32 29 H 68 M 50 23.5 V 34.5" stroke="#101725" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Engraving light edge reflection -->
+        <path d="M 32 28.5 H 68 M 50 23 V 34" stroke="#f1f5f9" stroke-width="0.8" stroke-linecap="round"/>
+      </g>
+      
+      <!-- 5. Bottom Rubber Base and Bottom sleeve fold highlight -->
+      <!-- Rubber plug protruding slightly at the bottom -->
+      <ellipse cx="50" cy="113" rx="34" ry="11.5" fill="#0b0e14" stroke="#1e293b" stroke-width="0.5" />
+      <!-- Soft shiny highlight rim at the bottom edge of crimped sleeve -->
+      <path d="M15 109 A 35 12 0 0 0 85 109" fill="none" stroke="url(#cap_bottom_rim)" stroke-width="1.8"/>
     `,
     relativePins: [
-      { name: "Positive (+)", relX: 37 / 100, relY: 146 / 150, type: "positive" },
-      { name: "Negative (-)", relX: 63 / 100, relY: 146 / 150, type: "negative" },
+      { name: "Negative (-)", relX: 37 / 100, relY: 146 / 150, type: "negative" },
+      { name: "Positive (+)", relX: 63 / 100, relY: 146 / 150, type: "positive" },
     ],
   },
   {
@@ -807,7 +1554,7 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <rect x="20" y="20" width="160" height="160" rx="12" fill="#1B1B1B"/>
       <!-- Edge Connector -->
       <rect x="165" y="20" width="25" height="160" fill="#D4AF37" rx="2"/>
-      ${[35, 67, 100, 133, 165].map((y, i) => `
+      ${[35, 67, 100, 133, 165].map((y) => `
         <circle cx="178" cy="${y}" r="9" fill="#FDFEFE" stroke="#B7950B" stroke-width="1.5"/>
       `).join("")}
       
@@ -1376,8 +2123,377 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     `,
     relativePins: [],
   },
-];
+  {
+    id: "triangular_glass_prism",
+    name: "Triangular Glass Prism",
+    category: "Optics",
+    viewBoxW: 160,
+    viewBoxH: 130,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="prism_face_front" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fbff" stop-opacity="0.88"/>
+          <stop offset="42%" stop-color="#dcecf9" stop-opacity="0.7"/>
+          <stop offset="68%" stop-color="#ffffff" stop-opacity="0.82"/>
+          <stop offset="100%" stop-color="#b7d3e7" stop-opacity="0.68"/>
+        </linearGradient>
+        <linearGradient id="prism_face_side" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d9ecfa" stop-opacity="0.75"/>
+          <stop offset="50%" stop-color="#9bb9d2" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#526b82" stop-opacity="0.85"/>
+        </linearGradient>
+        <linearGradient id="prism_base" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#c8dceb" stop-opacity="0.72"/>
+          <stop offset="50%" stop-color="#f8fbff" stop-opacity="0.62"/>
+          <stop offset="100%" stop-color="#8aa7bf" stop-opacity="0.75"/>
+        </linearGradient>
+        <linearGradient id="prism_highlight" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="48%" stop-color="#ffffff" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="prism_shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.18"/>
+        </filter>
+      </defs>
 
+      <g filter="url(#prism_shadow)">
+        <!-- Main glass triangle -->
+        <path d="M80 8 L14 114 L146 114 Z" fill="url(#prism_face_front)" stroke="#07111f" stroke-width="2.6" stroke-linejoin="round"/>
+
+        <!-- Right refractive side face -->
+        <path d="M80 8 L146 114 L125 114 L83 35 Z" fill="url(#prism_face_side)" stroke="#30475f" stroke-width="1.5" stroke-linejoin="round" opacity="0.9"/>
+
+        <!-- Lower thick glass base -->
+        <path d="M14 114 L146 114 L125 101 L34 101 Z" fill="url(#prism_base)" stroke="#41576e" stroke-width="1.4" stroke-linejoin="round"/>
+
+        <!-- Left inner edge -->
+        <path d="M80 8 L34 101 L14 114" fill="none" stroke="#6d849b" stroke-width="1.4" opacity="0.9"/>
+
+        <!-- Front inner edge -->
+        <path d="M83 35 L125 101" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.75"/>
+
+        <!-- Soft diagonal glass sheen -->
+        <path d="M52 96 L94 33 L109 58 L67 112 Z" fill="url(#prism_highlight)" opacity="0.56"/>
+        <path d="M72 101 L106 54" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.16"/>
+
+        <!-- Bottom rim -->
+        <path d="M14 114 L146 114" stroke="#07111f" stroke-width="2.4" stroke-linecap="round"/>
+      </g>
+    `,
+  },
+  {
+    id: "rectangular_glass_slab",
+    name: "Rectangular Glass Slab",
+    category: "Optics",
+    viewBoxW: 160,
+    viewBoxH: 120,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="slab_face_front" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fbff" stop-opacity="0.88"/>
+          <stop offset="42%" stop-color="#dcecf9" stop-opacity="0.7"/>
+          <stop offset="68%" stop-color="#ffffff" stop-opacity="0.82"/>
+          <stop offset="100%" stop-color="#b7d3e7" stop-opacity="0.68"/>
+        </linearGradient>
+        <linearGradient id="slab_face_side" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d9ecfa" stop-opacity="0.75"/>
+          <stop offset="50%" stop-color="#9bb9d2" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#526b82" stop-opacity="0.85"/>
+        </linearGradient>
+        <linearGradient id="slab_face_top" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#d9ecfa" stop-opacity="0.8"/>
+        </linearGradient>
+      </defs>
+      <g filter="url(#prism_shadow)">
+        <!-- Back inner edges -->
+        <path d="M 40 20 L 40 100 L 10 110" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.4"/>
+        <path d="M 40 100 L 140 100" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.4"/>
+
+        <!-- Top face -->
+        <path d="M 10 30 L 110 30 L 140 20 L 40 20 Z" fill="url(#slab_face_top)" stroke="#41576e" stroke-width="1.5" stroke-linejoin="round"/>
+        
+        <!-- Front face -->
+        <path d="M 10 30 L 110 30 L 110 110 L 10 110 Z" fill="url(#slab_face_front)" stroke="#07111f" stroke-width="2.6" stroke-linejoin="round"/>
+        
+        <!-- Right side face -->
+        <path d="M 110 30 L 140 20 L 140 100 L 110 110 Z" fill="url(#slab_face_side)" stroke="#30475f" stroke-width="1.5" stroke-linejoin="round"/>
+        
+        <!-- Highlights -->
+        <path d="M 15 35 L 105 35" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 15 35 L 15 105" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+      </g>
+    `
+  },
+  {
+    id: "plane_mirror",
+    name: "Plane Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="plane_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="30%" stop-color="#b6bbc2"/>
+          <stop offset="50%" stop-color="#e9eaed"/>
+          <stop offset="70%" stop-color="#9da3ab"/>
+          <stop offset="100%" stop-color="#555a61"/>
+        </linearGradient>
+        <linearGradient id="plane_metal_v" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="50%" stop-color="#d3d7dc"/>
+          <stop offset="100%" stop-color="#464a51"/>
+        </linearGradient>
+        <linearGradient id="plane_glass" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d4e6f1"/>
+          <stop offset="40%" stop-color="#a9cce3"/>
+          <stop offset="45%" stop-color="#ffffff"/>
+          <stop offset="55%" stop-color="#ffffff"/>
+          <stop offset="60%" stop-color="#7fb3d5"/>
+          <stop offset="100%" stop-color="#5499c7"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Base -->
+      <path d="M 25 135 L 25 140 A 35 6 0 0 0 95 140 L 95 135 Z" fill="#464a51"/>
+      <ellipse cx="60" cy="135" rx="35" ry="6" fill="url(#plane_metal)"/>
+
+      <!-- Stem -->
+      <path d="M 48 135 C 48 120, 54 110, 56 95 L 64 95 C 66 110, 72 120, 72 135 Z" fill="url(#plane_metal)"/>
+      <path d="M 52 135 C 52 120, 56 110, 58 95 L 62 95 C 64 110, 68 120, 68 135 Z" fill="#ffffff" opacity="0.4"/>
+
+      <!-- Bracket (U-shape) -->
+      <path d="M 18 55 L 18 70 A 42 42 0 0 0 102 70 L 102 55 L 94 55 L 94 70 A 34 34 0 0 1 26 70 L 26 55 Z" fill="url(#plane_metal)"/>
+
+      <!-- Side Knobs -->
+      <rect x="14" y="50" width="6" height="10" rx="2" fill="url(#plane_metal_v)"/>
+      <rect x="100" y="50" width="6" height="10" rx="2" fill="url(#plane_metal_v)"/>
+
+      <!-- Mirror Frame -->
+      <circle cx="60" cy="55" r="41" fill="url(#plane_metal)"/>
+      <circle cx="60" cy="55" r="39" fill="#1f2328"/>
+      <circle cx="60" cy="55" r="37.5" fill="url(#plane_metal_v)"/>
+
+      <!-- Mirror Surface -->
+      <circle cx="60" cy="55" r="36" fill="url(#plane_glass)"/>
+    `
+  },
+  {
+    id: "concave_mirror",
+    name: "Concave Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="sidebar_cm_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="50%" stop-color="#b6bbc2"/>
+          <stop offset="100%" stop-color="#464a51"/>
+        </linearGradient>
+        <linearGradient id="sidebar_cm_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#90caf9"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Metal Back Body (Thin) -->
+      <path d="M 50 10 C 79 42.5, 79 107.5, 50 140 C 75 107.5, 75 42.5, 50 10 Z" fill="url(#sidebar_cm_metal)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Glass Front Face -->
+      <path d="M 50 10 C 75 42.5, 75 107.5, 50 140 C 70 107.5, 70 42.5, 50 10 Z" fill="url(#sidebar_cm_glass)" stroke="#147ac7" stroke-width="1.5"/>
+      
+      <!-- Inner Highlight -->
+      <path d="M 53 15 C 71 45, 71 105, 53 135" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    `
+  },
+  {
+    id: "convex_mirror",
+    name: "Convex Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="sidebar_cv_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#464a51"/>
+          <stop offset="50%" stop-color="#b6bbc2"/>
+          <stop offset="100%" stop-color="#707680"/>
+        </linearGradient>
+        <linearGradient id="sidebar_cv_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#90caf9"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Metal Back Body (Thin) -->
+      <path d="M 70 10 C 70 42.5, 70 107.5, 70 140 C 74 107.5, 74 42.5, 70 10 Z" fill="url(#sidebar_cv_metal)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Glass Front Face (Bulges Left) -->
+      <path d="M 70 10 C 70 42.5, 70 107.5, 70 140 C 30 107.5, 30 42.5, 70 10 Z" fill="url(#sidebar_cv_glass)" stroke="#147ac7" stroke-width="1.5"/>
+      
+      <!-- Inner Highlight -->
+      <path d="M 64 15 C 34 45, 34 105, 64 135" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    `
+  },
+  {
+    id: "concave_lens",
+    name: "Concave Lens",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="concave_lens_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="20%" stop-color="#bbdefb"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="80%" stop-color="#90caf9"/>
+          <stop offset="100%" stop-color="#64b5f6"/>
+        </linearGradient>
+      </defs>
+      <!-- Glass Body -->
+      <path d="M 30 10 L 90 10 Q 65 75, 90 140 L 30 140 Q 55 75, 30 10 Z" fill="url(#concave_lens_glass)" stroke="#1976d2" stroke-width="2"/>
+      <!-- Inner Highlight -->
+      <path d="M 34 14 L 86 14 Q 63 75, 86 136 L 34 136 Q 57 75, 34 14 Z" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.7"/>
+    `
+  },
+  {
+    id: "convex_lens",
+    name: "Convex Lens",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="convex_lens_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="20%" stop-color="#bbdefb"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="80%" stop-color="#90caf9"/>
+          <stop offset="100%" stop-color="#64b5f6"/>
+        </linearGradient>
+      </defs>
+      <!-- Glass Body -->
+      <path d="M 60 10 Q 110 75, 60 140 Q 10 75, 60 10 Z" fill="url(#convex_lens_glass)" stroke="#1976d2" stroke-width="2"/>
+      <!-- Inner Highlight -->
+      <path d="M 60 15 Q 102 75, 60 135 Q 18 75, 60 15 Z" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.7"/>
+    `
+  },
+  {
+    id: "laser",
+    name: "Laser",
+    category: "Optics",
+    viewBoxW: 240,
+    viewBoxH: 80,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="laser_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="20%" stop-color="#555" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="80%" stop-color="#222" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="laser_switch" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#111" />
+          <stop offset="100%" stop-color="#333" />
+        </linearGradient>
+      </defs>
+      <!-- Body -->
+      <rect x="20" y="25" width="160" height="30" rx="6" fill="url(#laser_body)" />
+      <!-- Switch Indent -->
+      <rect x="70" y="30" width="40" height="20" rx="10" fill="#000" />
+      <rect x="75" y="36" width="4" height="8" rx="2" fill="#880000" />
+      <rect x="101" y="36" width="4" height="8" rx="2" fill="#008800" />
+      <!-- Switch Slider (OFF position - Left) -->
+      <rect x="72" y="32" width="20" height="16" rx="4" fill="url(#laser_switch)" stroke="#555" stroke-width="1" />
+      <!-- Right Face -->
+      <ellipse cx="175" cy="40" rx="5" ry="15" fill="#111" />
+      <!-- Unlit Laser Dots -->
+      <circle cx="175" cy="32" r="3" fill="#880000" />
+      <circle cx="175" cy="48" r="3" fill="#008800" />
+    `,
+    litSvgBody: `
+      <defs>
+        <linearGradient id="laser_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="20%" stop-color="#555" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="80%" stop-color="#222" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="laser_switch" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#111" />
+          <stop offset="100%" stop-color="#333" />
+        </linearGradient>
+      </defs>
+      <!-- Body -->
+      <rect x="20" y="25" width="160" height="30" rx="6" fill="url(#laser_body)" />
+      <!-- Switch Indent -->
+      <rect x="70" y="30" width="40" height="20" rx="10" fill="#000" />
+      <rect x="75" y="36" width="4" height="8" rx="2" fill="#ff4444" />
+      <rect x="101" y="36" width="4" height="8" rx="2" fill="#44ff44" />
+      <!-- Switch Slider (ON position - Right) -->
+      <rect x="88" y="32" width="20" height="16" rx="4" fill="url(#laser_switch)" stroke="#555" stroke-width="1" />
+      <!-- Right Face -->
+      <ellipse cx="175" cy="40" rx="5" ry="15" fill="#111" />
+      <!-- Lit Laser Dots -->
+      <circle cx="175" cy="32" r="3" fill="#ff4444" />
+      <circle cx="175" cy="48" r="3" fill="#44ff44" />
+    `
+  },
+  {
+    id: "laser_stand",
+    name: "Laser Stand",
+    category: "Optics",
+    viewBoxW: 240,
+    viewBoxH: 80,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="stand_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e63946" />
+          <stop offset="20%" stop-color="#ff4d4d" />
+          <stop offset="50%" stop-color="#cc0000" />
+          <stop offset="80%" stop-color="#990000" />
+          <stop offset="100%" stop-color="#660000" />
+        </linearGradient>
+        <linearGradient id="stand_cap" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#444" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="stand_head" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+      </defs>
+      <!-- Left Cap -->
+      <rect x="20" y="25" width="10" height="30" rx="3" fill="url(#stand_cap)" />
+      <!-- Red Body -->
+      <rect x="30" y="27" width="140" height="26" fill="url(#stand_body)" />
+      <!-- Vertical Mount Head -->
+      <path d="M 160 15 L 160 65 A 12 6 0 0 0 184 65 L 184 15 A 12 6 0 0 1 160 15 Z" fill="url(#stand_head)" />
+      <ellipse cx="172" cy="15" rx="12" ry="6" fill="#333" />
+      <ellipse cx="172" cy="65" rx="12" ry="6" fill="#111" />
+      <ellipse cx="172" cy="65" rx="6" ry="3" fill="#000" />
+    `
+  }
+];
 /**
  * Returns { imageSrc, litImageSrc } data URLs for any LED color value (e.g. "blue", "red").
  * Safe to call at any time â€” STATIC_COMPONENTS is already initialised by the time
@@ -1385,9 +2501,182 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
  */
 export function getLedDataUrls(
   colorValue: string,
-  outlined = false
+  outlined = false,
+  uniqueId = ""
 ): { imageSrc: string; litImageSrc?: string } {
   const def = STATIC_COMPONENTS.find((d) => d.id === `led_${colorValue}`);
+  if (def) {
+    return {
+      imageSrc: svgToDataUrl(def, false, outlined, uniqueId),
+      litImageSrc: def.litSvgBody ? svgToDataUrl(def, true, outlined, uniqueId) : undefined,
+    };
+  }
+  // Fallback to red
+  const fallback = STATIC_COMPONENTS.find((d) => d.id === "led_red");
+  if (fallback) {
+    return {
+      imageSrc: svgToDataUrl(fallback, false, outlined, uniqueId),
+      litImageSrc: fallback.litSvgBody ? svgToDataUrl(fallback, true, outlined, uniqueId) : undefined,
+    };
+  }
+  return { imageSrc: "" };
+}
+
+export function getMicrobitDataUrls(
+  colorValue: string,
+  outlined = false,
+  uniqueId = ""
+): { imageSrc: string; litImageSrc?: string } {
+  const def = STATIC_COMPONENTS.find((d) => d.id === "microbit");
+  if (!def) return { imageSrc: "" };
+
+  const pcbColors: Record<string, string> = {
+    black: "#1B1B1B",
+    red: "#C0392B",
+    green: "#27AE60",
+    blue: "#2980B9",
+    yellow: "#F1C40F",
+  };
+  const pcbColor = pcbColors[colorValue?.toLowerCase()] || pcbColors.black;
+
+  // Clone and modify the SVG body to change the PCB color
+  const modifiedDef = {
+    ...def,
+    svgBody: def.svgBody.replace('fill="#1B1B1B"', `fill="${pcbColor}"`),
+    litSvgBody: def.litSvgBody?.replace('fill="#1B1B1B"', `fill="${pcbColor}"`),
+  };
+
+  return {
+    imageSrc: svgToDataUrl(modifiedDef, false, outlined, uniqueId),
+    litImageSrc: modifiedDef.litSvgBody ? svgToDataUrl(modifiedDef, true, outlined, uniqueId) : undefined,
+  };
+}
+
+export function getSphereDataUrls(
+  metal: string,
+  outlined = false,
+  uniqueId = ""
+): { imageSrc: string } {
+  const def = STATIC_COMPONENTS.find((d) => d.id === "sphere_red");
+  if (!def) return { imageSrc: "" };
+
+  const colors = (METAL_PHYSICS[metal] || METAL_PHYSICS.Copper).colors;
+
+  const modifiedDef = {
+    ...def,
+    svgBody: def.svgBody
+      .replace(/VAR_MAIN/g, colors.main)
+      .replace(/VAR_LIGHT/g, colors.light)
+      .replace(/VAR_DARK/g, colors.dark)
+  };
+
+  return {
+    imageSrc: svgToDataUrl(modifiedDef, false, outlined, uniqueId),
+  };
+}
+
+export function getCapacitorDataUrl(
+  capacitanceValue = 1000,
+  capacitanceUnit = "uF",
+  voltageValue = 25,
+  outlined = false,
+  uniqueId = ""
+): string {
+  const def = STATIC_COMPONENTS.find((d) => d.id === "capacitor");
+  if (!def) return "";
+
+  const displayUnit = (capacitanceUnit === "uF" || capacitanceUnit === "µF") ? "µF" : capacitanceUnit;
+  const modifiedDef = {
+    ...def,
+    svgBody: def.svgBody
+      .replace(/VAR_CAP_VALUE/g, `${capacitanceValue || 0}`)
+      .replace(/VAR_CAP_UNIT/g, displayUnit || "µF")
+      .replace(/VAR_CAP_VOLTAGE/g, `${voltageValue || 0}`),
+  };
+
+  return svgToDataUrl(modifiedDef, false, outlined, uniqueId);
+}
+
+export function getCapacitorShellDataUrl(outlined = false, uniqueId = ""): string {
+  const def = STATIC_COMPONENTS.find((d) => d.id === "capacitor");
+  if (!def) return "";
+
+  const modifiedDef = {
+    ...def,
+    svgBody: def.svgBody
+      .replace(/VAR_CAP_VALUE/g, "")
+      .replace(/VAR_CAP_UNIT/g, "")
+      .replace(/VAR_CAP_VOLTAGE/g, ""),
+  };
+
+  return svgToDataUrl(modifiedDef, false, outlined, uniqueId);
+}
+/*
+  <circle cx="70" cy = "70" r = "15" fill = "#BDC3C7" stroke = "#95A5A6" />
+    <rect x="67" y = "55" width = "6" height = "30" fill = "#7F8C8D" />
+
+      <!--Connector -->
+        <rect x="40" y = "125" width = "60" height = "15" rx = "2" fill = "#1B2631" />
+          ${
+            Array.from({ length: 4 }).map((_, i) => `
+        <rect x="${48 + i * 12}" y="132" width="4" height="8" rx="1" fill="#BDC3C7"/>
+      `).join("")
+}
+`,
+    relativePins: [
+      { name: "A1", relX: 50 / 140, relY: 136 / 140 },
+      { name: "A2", relX: 62 / 140, relY: 136 / 140 },
+      { name: "B1", relX: 74 / 140, relY: 136 / 140 },
+      { name: "B2", relX: 86 / 140, relY: 136 / 140 },
+    ],
+  },
+  {
+    id: "sphere_red",
+    name: "Charged Sphere",
+    category: "Physics",
+    viewBoxW: 100,
+    viewBoxH: 100,
+    svgBody: `
+  < defs >
+  <radialGradient id="sphere_grad" cx = "40%" cy = "35%" >
+    <stop offset="0%" stop - color="VAR_LIGHT" stop - opacity="0.9" />
+      <stop offset="50%" stop - color="VAR_MAIN" stop - opacity="0.7" />
+        <stop offset="100%" stop - color="VAR_DARK" stop - opacity="0.95" />
+          </radialGradient>
+          </defs>
+          < circle cx = "50" cy = "50" r = "40" fill = "url(#sphere_grad)" stroke = "VAR_MAIN" stroke - width="2" />
+            `,
+    relativePins: [
+      { name: "Ground (⏚)", relX: 0.5, relY: 0.9, type: "ground" }
+    ],
+  },
+  {
+    id: "earthing_icon",
+    name: "Earthing",
+    category: "Physics",
+    viewBoxW: 100,
+    viewBoxH: 100,
+    svgBody: `
+            < rect x = "0" y = "0" width = "100" height = "100" rx = "10" fill = "#F0FDF4" />
+              <rect x="46" y = "16" width = "8" height = "36" rx = "1" fill = "#22C55E" />
+                <rect x="20" y = "48" width = "60" height = "8" rx = "1" fill = "#22C55E" />
+                  <rect x="28" y = "62" width = "44" height = "8" rx = "1" fill = "#22C55E" />
+                    <rect x="36" y = "76" width = "28" height = "8" rx = "1" fill = "#22C55E" />
+                      `,
+    relativePins: [],
+  },
+];
+
+/**
+ * Returns { imageSrc, litImageSrc } data URLs for any LED color value (e.g. "blue", "red").
+ * Safe to call at any time â€” STATIC_COMPONENTS is already initialised by the time
+ * any React component renders.
+ * /
+export function getLedDataUrls(
+  colorValue: string,
+  outlined = false
+): { imageSrc: string; litImageSrc?: string } {
+  const def = STATIC_COMPONENTS.find((d) => d.id === `led_${ colorValue } `);
   if (def) {
     return {
       imageSrc: svgToDataUrl(def, false, outlined),
@@ -1424,8 +2713,8 @@ export function getMicrobitDataUrls(
   // Clone and modify the SVG body to change the PCB color
   const modifiedDef = {
     ...def,
-    svgBody: def.svgBody.replace('fill="#1B1B1B"', `fill="${pcbColor}"`),
-    litSvgBody: def.litSvgBody?.replace('fill="#1B1B1B"', `fill="${pcbColor}"`),
+    svgBody: def.svgBody.replace('fill="#1B1B1B"', `fill = "${pcbColor}"`),
+    litSvgBody: def.litSvgBody?.replace('fill="#1B1B1B"', `fill = "${pcbColor}"`),
   };
 
   return {
@@ -1454,4 +2743,218 @@ export function getSphereDataUrls(
   return {
     imageSrc: svgToDataUrl(modifiedDef, false, outlined),
   };
+} */
+
+export function getMirrorDataUrl(componentId: string, view: "Front View" | "Side View" | "Back View" = "Front View", outlined = false, uniqueId = ""): string {
+  if (view === "Front View") {
+    const def = STATIC_COMPONENTS.find(d => d.id === componentId);
+    return svgToDataUrl(def!, false, outlined, uniqueId);
+  }
+
+  let svgBody = `
+      <defs>
+         <linearGradient id="prem_metal_base_top" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f0f3f5"/>
+            <stop offset="100%" stop-color="#b8c0c8"/>
+         </linearGradient>
+         <linearGradient id="prem_metal_base_front" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7a858e"/>
+            <stop offset="100%" stop-color="#3d454d"/>
+         </linearGradient>
+         <linearGradient id="prem_metal_stem" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#556069"/>
+            <stop offset="25%" stop-color="#a3b0b8"/>
+            <stop offset="50%" stop-color="#e3eaed"/>
+            <stop offset="85%" stop-color="#7a858e"/>
+            <stop offset="100%" stop-color="#4a535c"/>
+         </linearGradient>
+         <linearGradient id="prem_glass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#4aa3df"/>
+            <stop offset="50%" stop-color="#a4d3f5"/>
+            <stop offset="100%" stop-color="#147ac7"/>
+         </linearGradient>
+        <radialGradient id="prem_dome" cx="40%" cy="30%" r="60%">
+          <stop offset="0%" stop-color="#e3eaed"/>
+          <stop offset="50%" stop-color="#8f9ca6"/>
+          <stop offset="100%" stop-color="#4a535c"/>
+        </radialGradient>
+      </defs>
+      
+      <!-- Base Bottom Shadow -->
+      <ellipse cx="60" cy="144" rx="42" ry="5" fill="#000000" opacity="0.3"/>
+      
+      <!-- Base Front Slab -->
+      <polygon points="20,136 100,136 100,144 20,144" fill="url(#prem_metal_base_front)" stroke="#2b3137" stroke-width="1.5"/>
+      <!-- Base Top Slab -->
+      <polygon points="30,128 90,128 100,136 20,136" fill="url(#prem_metal_base_top)" stroke="#556069" stroke-width="1.5"/>
+
+      <!-- Curved Stem -->
+      <path d="M 45 128 C 45 100, 52 80, 56 60 L 64 60 C 68 80, 75 100, 75 128 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+`;
+
+  if (view === "Back View") {
+    svgBody += `
+      <!-- Mirror Dome (Back) -->
+      <circle cx="60" cy="55" r="42" fill="url(#prem_dome)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Back U-Bracket -->
+      <path d="M 18 55 L 18 65 A 42 42 0 0 0 102 65 L 102 55 L 95 55 L 95 65 A 35 35 0 0 1 25 65 L 25 55 Z" fill="url(#prem_metal_stem)"/>
+      <rect x="55" y="45" width="10" height="25" rx="3" fill="url(#prem_metal_stem)"/>
+      
+      <!-- Side Knobs -->
+      <rect x="14" y="50" width="8" height="12" rx="3" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1"/>
+      <rect x="98" y="50" width="8" height="12" rx="3" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1"/>
+
+      <!-- Center Knob -->
+      <circle cx="60" cy="55" r="6" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1"/>
+      <circle cx="60" cy="55" r="3" fill="#e3eaed"/>
+    `;
+  } else if (view === "Side View") {
+    let mirrorProfile = "";
+    if (componentId === "plane_mirror") {
+      mirrorProfile = `
+        <polygon points="50,10 60,10 60,110 50,110" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <polygon points="45,10 50,10 50,110 45,110" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    } else if (componentId === "concave_mirror") {
+      mirrorProfile = `
+        <!-- Metal Back Body (Thin) -->
+        <path d="M 50 10 C 79 35, 79 85, 50 110 C 75 85, 75 35, 50 10 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <!-- Glass Front Face -->
+        <path d="M 50 10 C 75 35, 75 85, 50 110 C 70 85, 70 35, 50 10 Z" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <!-- Pivot Joint on the back -->
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    } else if (componentId === "convex_mirror") {
+      mirrorProfile = `
+        <!-- Metal Back Body (Thin) -->
+        <path d="M 70 10 C 70 35, 70 85, 70 110 C 74 85, 74 35, 70 10 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <!-- Glass Front Face (Bulges Left) -->
+        <path d="M 70 10 C 70 35, 70 85, 70 110 C 30 85, 30 35, 70 10 Z" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    }
+
+    svgBody += `
+      ${mirrorProfile}
+    `;
+  }
+
+  const def: StaticComponentDef = {
+    id: componentId,
+    name: componentId,
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody
+  };
+
+  return svgToDataUrl(def, false, outlined, uniqueId);
 }
+
+export function getLensDataUrl(componentId: string, view: "Front View" | "Side View" | "Edge View" = "Front View", outlined = false, uniqueId = ""): string {
+  if (view === "Front View") {
+    const def = STATIC_COMPONENTS.find(d => d.id === componentId);
+    return svgToDataUrl(def!, false, outlined, uniqueId);
+  }
+
+  let svgBody = `
+    <defs>
+      <linearGradient id="lens_glass_view" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#e3f2fd"/>
+        <stop offset="20%" stop-color="#bbdefb"/>
+        <stop offset="50%" stop-color="#ffffff"/>
+        <stop offset="80%" stop-color="#90caf9"/>
+        <stop offset="100%" stop-color="#64b5f6"/>
+      </linearGradient>
+    </defs>
+  `;
+
+  if (view === "Side View") {
+    if (componentId === "concave_lens") {
+      svgBody += `
+        <defs>
+          <linearGradient id="concave_glass_front" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#e3f2fd"/>
+            <stop offset="30%" stop-color="#ffffff"/>
+            <stop offset="70%" stop-color="#90caf9"/>
+            <stop offset="100%" stop-color="#55a5e3"/>
+          </linearGradient>
+          <linearGradient id="concave_glass_edge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#55a5e3"/>
+            <stop offset="50%" stop-color="#84c5f5"/>
+            <stop offset="100%" stop-color="#3d91cc"/>
+          </linearGradient>
+        </defs>
+        <!-- Bottom Face -->
+        <polygon points="35,130 65,130 80,123 50,123" fill="#3d91cc" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Right Edge Face (Thickness) -->
+        <path d="M 65 20 L 80 13 Q 65 68, 80 123 L 65 130 Q 50 75, 65 20 Z" fill="url(#concave_glass_edge)" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Top Face -->
+        <polygon points="35,20 65,20 80,13 50,13" fill="#e3f2fd" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Front Face -->
+        <path d="M 35 20 L 65 20 Q 50 75, 65 130 L 35 130 Q 50 75, 35 20 Z" fill="url(#concave_glass_front)" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Inner Highlights -->
+        <path d="M 38 23 Q 50 75, 38 127" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+        <path d="M 62 23 Q 48 75, 62 127" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 68 20 Q 53 72, 68 126" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+      `;
+    } else if (componentId === "convex_lens") {
+      svgBody += `
+        <defs>
+          <linearGradient id="lens_glass_front" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#e3f2fd"/>
+            <stop offset="30%" stop-color="#ffffff"/>
+            <stop offset="70%" stop-color="#90caf9"/>
+            <stop offset="100%" stop-color="#55a5e3"/>
+          </linearGradient>
+          <linearGradient id="lens_glass_edge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#55a5e3"/>
+            <stop offset="50%" stop-color="#84c5f5"/>
+            <stop offset="100%" stop-color="#3d91cc"/>
+          </linearGradient>
+        </defs>
+        <!-- Right Face (Thickness) -->
+        <path d="M 50 10 Q 80 75, 50 140 Q 95 75, 50 10 Z" fill="url(#lens_glass_edge)" stroke="#1c6ca1" stroke-width="2" stroke-linejoin="round"/>
+        <!-- Front Face -->
+        <path d="M 50 10 Q 20 75, 50 140 Q 80 75, 50 10 Z" fill="url(#lens_glass_front)" stroke="#1c6ca1" stroke-width="2" stroke-linejoin="round"/>
+        <!-- Inner Left Highlight -->
+        <path d="M 50 15 Q 26 75, 50 135" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+        <!-- Inner Right Highlight -->
+        <path d="M 50 16 Q 74 75, 50 134" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      `;
+    }
+  } else if (view === "Edge View") {
+    if (componentId === "concave_lens") {
+      svgBody += `
+        <!-- Edge View (Thin hourglass profile) -->
+        <polygon points="57,10 63,10 65,15 65,135 63,140 57,140 55,135 55,15" fill="url(#lens_glass_view)" stroke="#1976d2" stroke-width="1.5"/>
+        <polygon points="59,12 61,12 63,16 63,134 61,138 59,138 57,134 57,16" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+      `;
+    } else if (componentId === "convex_lens") {
+      svgBody += `
+        <!-- Edge View (Thin rectangle profile) -->
+        <rect x="55" y="10" width="10" height="130" rx="3" fill="url(#lens_glass_view)" stroke="#1976d2" stroke-width="1.5"/>
+        <rect x="57" y="12" width="6" height="126" rx="2" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+      `;
+    }
+  }
+
+  const def: StaticComponentDef = {
+    id: componentId,
+    name: componentId,
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody
+  };
+
+  return svgToDataUrl(def, false, outlined, uniqueId);
+}
+

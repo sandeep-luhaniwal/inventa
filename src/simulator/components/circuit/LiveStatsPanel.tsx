@@ -19,7 +19,7 @@ const LiveStatsPanel: React.FC<LiveStatsPanelProps> = ({ simulation }) => {
       </div>
       
       <div className="space-y-4">
-        <StatRow label="Voltage" value="9.0" unit="V" color="text-[#f59e0b]" />
+        <StatRow label="Voltage" value={simulation.voltage?.toFixed(1) ?? "0.0"} unit="V" color="text-[#f59e0b]" />
         <StatRow 
           label="Resistance" 
           value={simulation.totalResistance?.toFixed(1) ?? "0.0"} 

@@ -9,11 +9,11 @@ import { getComponentSnapOffset } from "@/simulator/utils/snapUtils";
 import { METAL_PHYSICS } from "@/simulator/constants/physics";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Group, Circle, Image as KonvaImage, Text, Rect as KonvaRect, Path, Arrow, Line } from "react-konva";
-import { getMicrobitDataUrls } from "@/simulator/constants/staticComponents";
+import { getMicrobitDataUrls, STATIC_COMPONENTS } from "@/simulator/constants/staticComponents";
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
-const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
+const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "bulb_holder", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
 const SPHERE_CHARGE_WAVE_COLOR = "#ef4444";
 const SPHERE_MIN_SIZE = 15;
 const SPHERE_MAX_SIZE = 220;
@@ -118,6 +118,661 @@ function findInductionSource(comp: PlacedComponent, allComponents: PlacedCompone
   }, null);
 }
 
+const BatteryDischargeOverlay = ({ isSimulating, w, h }: { isSimulating: boolean; w: number; h: number }) => {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isSimulating) {
+      const frame = requestAnimationFrame(() => setElapsed(0));
+      return () => cancelAnimationFrame(frame);
+    }
+    const frame = requestAnimationFrame(() => setElapsed(0));
+    const interval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(interval);
+    };
+  }, [isSimulating]);
+
+  if (!isSimulating) return null;
+
+  const visibleSlots = Math.max(0, 6 - Math.floor(elapsed / 10));
+
+  const slotWidth = w * 0.18;
+  const slotHeight = (h * 0.4) / 6;
+  const startX = w * 0.65;
+  const startY = h * 0.35;
+
+  return (
+    <Group x={0} y={0} listening={false}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <KonvaRect
+          key={i}
+          x={startX}
+          y={startY + (5 - i) * (slotHeight * 1.1)}
+          width={slotWidth}
+          height={slotHeight * 0.9}
+          fill={i < visibleSlots ? "#22c55e" : "#ef4444"}
+          opacity={0.85}
+          cornerRadius={2}
+        />
+      ))}
+    </Group>
+  );
+};
+
+export function traceRay(
+  rayGlobalStartX: number,
+  rayGlobalStartY: number,
+  rayGlobalAngle: number,
+  sourceCompId: string,
+  allComponents: PlacedComponent[],
+  maxBounces = 8,
+  prismBendDegrees = 12
+): { path: { x: number; y: number }[], virtualPaths: { x: number; y: number }[][] } {
+  const points = [{ x: rayGlobalStartX, y: rayGlobalStartY }];
+  const virtualPaths: { x: number; y: number }[][] = [];
+  let currentX = rayGlobalStartX;
+  let currentY = rayGlobalStartY;
+  let currentAngle = rayGlobalAngle;
+  let currentSourceId = sourceCompId;
+
+  for (let bounce = 0; bounce < maxBounces; bounce++) {
+    let hit: { tHit: number, comp: PlacedComponent, hitLocalX: number, hitLocalY: number, isMirror: boolean, focalLength: number, dX_local: number, dY_local: number, scaleX: number, scaleY: number, rad: number, opticKind?: "prism" | "slab", prismExitLocalX?: number, prismExitLocalY?: number, nx?: number, ny?: number } | null = null;
+    let minDist = 4000;
+
+    const P0x = currentX;
+    const P0y = currentY;
+    const Dx = Math.cos(currentAngle);
+    const Dy = Math.sin(currentAngle);
+
+    for (const c of allComponents) {
+      if (c.id === currentSourceId) continue;
+      const def = STATIC_COMPONENTS.find(sc => sc.id === c.componentId);
+      const cw = c.width || (def?.viewBoxW || 100);
+      const ch = c.height || (def?.viewBoxH || 100);
+      const cx = c.x;
+      const cy = c.y;
+
+      const centerX = cx + cw / 2;
+      const centerY = cy + ch / 2;
+
+      const rad = -(c.rotation || 0) * Math.PI / 180;
+      const scaleX = c.mirrored ? -1 : 1;
+      const scaleY = c.flipped ? -1 : 1;
+
+      const pX_translated = P0x - centerX;
+      const pY_translated = P0y - centerY;
+
+      const pX_rot = pX_translated * Math.cos(rad) - pY_translated * Math.sin(rad);
+      const pY_rot = pX_translated * Math.sin(rad) + pY_translated * Math.cos(rad);
+
+      const dX_rot = Dx * Math.cos(rad) - Dy * Math.sin(rad);
+      const dY_rot = Dx * Math.sin(rad) + Dy * Math.cos(rad);
+
+      const pX_local = pX_rot * scaleX;
+      const pY_local = pY_rot * scaleY;
+      const dX_local = dX_rot * scaleX;
+      const dY_local = dY_rot * scaleY;
+
+      if (c.componentId === 'triangular_glass_prism') {
+        const prismTriangle = [
+          { x: 0, y: -ch / 2 + (8 / 130) * ch },
+          { x: -cw / 2 + (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
+          { x: cw / 2 - (14 / 160) * cw, y: -ch / 2 + (114 / 130) * ch },
+        ];
+        const prismHits: { t: number; x: number; y: number }[] = [];
+
+        for (let i = 0; i < prismTriangle.length; i++) {
+          const a = prismTriangle[i];
+          const b = prismTriangle[(i + 1) % prismTriangle.length];
+          const edgeX = b.x - a.x;
+          const edgeY = b.y - a.y;
+          const denom = dX_local * edgeY - dY_local * edgeX;
+          if (Math.abs(denom) < 1e-6) continue;
+
+          const relX = a.x - pX_local;
+          const relY = a.y - pY_local;
+          const t = (relX * edgeY - relY * edgeX) / denom;
+          const u = (relX * dY_local - relY * dX_local) / denom;
+
+          if (t > 0.1 && u >= -1e-4 && u <= 1 + 1e-4) {
+            prismHits.push({
+              t,
+              x: pX_local + t * dX_local,
+              y: pY_local + t * dY_local,
+            });
+          }
+        }
+
+        prismHits.sort((a, b) => a.t - b.t);
+        const entry = prismHits[0];
+        
+        if (entry && entry.t < minDist) {
+          minDist = entry.t;
+          
+          const inwardBendRadians = (prismBendDegrees * Math.PI / 180) * 0.5 * (dX_local >= 0 ? 1 : -1);
+          const thetaInside = Math.atan2(dY_local, dX_local) + inwardBendRadians;
+          const dX_inside = Math.cos(thetaInside);
+          const dY_inside = Math.sin(thetaInside);
+          
+          let exit: { x: number, y: number } | undefined;
+          
+          for (let i = 0; i < prismTriangle.length; i++) {
+            const a = prismTriangle[i];
+            const b = prismTriangle[(i + 1) % prismTriangle.length];
+            const edgeX = b.x - a.x;
+            const edgeY = b.y - a.y;
+            const denom = dX_inside * edgeY - dY_inside * edgeX;
+            if (Math.abs(denom) < 1e-6) continue;
+            
+            const relX = a.x - entry.x;
+            const relY = a.y - entry.y;
+            const tInside = (relX * edgeY - relY * edgeX) / denom;
+            const uInside = (relX * dY_inside - relY * dX_inside) / denom;
+            
+            if (tInside > 0.1 && uInside >= -1e-4 && uInside <= 1 + 1e-4) {
+               exit = { x: entry.x + tInside * dX_inside, y: entry.y + tInside * dY_inside };
+               break;
+            }
+          }
+          
+          hit = {
+            tHit: entry.t,
+            comp: c,
+            hitLocalX: entry.x,
+            hitLocalY: entry.y,
+            isMirror: false,
+            focalLength: Infinity,
+            dX_local,
+            dY_local,
+            scaleX,
+            scaleY,
+            rad,
+            opticKind: "prism",
+            prismExitLocalX: exit?.x,
+            prismExitLocalY: exit?.y,
+          };
+        }
+        continue;
+      } else if (c.componentId === 'rectangular_glass_slab') {
+        let hitBoxMinX = (10 / 160) * cw - cw / 2;
+        let hitBoxMaxX = (110 / 160) * cw - cw / 2;
+        let hitBoxMinY = (30 / 120) * ch - ch / 2;
+        let hitBoxMaxY = (110 / 120) * ch - ch / 2;
+        
+        let tMinX = -Infinity, tMaxX = Infinity;
+        if (Math.abs(dX_local) > 1e-6) {
+           tMinX = Math.min((hitBoxMinX - pX_local) / dX_local, (hitBoxMaxX - pX_local) / dX_local);
+           tMaxX = Math.max((hitBoxMinX - pX_local) / dX_local, (hitBoxMaxX - pX_local) / dX_local);
+        } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) { continue; }
+        
+        let tMinY = -Infinity, tMaxY = Infinity;
+        if (Math.abs(dY_local) > 1e-6) {
+           tMinY = Math.min((hitBoxMinY - pY_local) / dY_local, (hitBoxMaxY - pY_local) / dY_local);
+           tMaxY = Math.max((hitBoxMinY - pY_local) / dY_local, (hitBoxMaxY - pY_local) / dY_local);
+        } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) { continue; }
+        
+        const tMin = Math.max(tMinX, tMinY);
+        const tMax = Math.min(tMaxX, tMaxY);
+        
+        if (tMax >= tMin && tMax >= 0) {
+           const tHit = tMin > 0 ? tMin : tMax;
+           if (tHit > 0 && tHit < minDist) {
+              minDist = tHit;
+              const hitLocalX = pX_local + tHit * dX_local;
+              const hitLocalY = pY_local + tHit * dY_local;
+              
+              let nx = 0, ny = 0;
+              if (Math.abs(hitLocalX - hitBoxMinX) < 1e-4) nx = -1;
+              else if (Math.abs(hitLocalX - hitBoxMaxX) < 1e-4) nx = 1;
+              else if (Math.abs(hitLocalY - hitBoxMinY) < 1e-4) ny = -1;
+              else if (Math.abs(hitLocalY - hitBoxMaxY) < 1e-4) ny = 1;
+
+              hit = {
+                 tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local, dY_local, scaleX, scaleY, rad, opticKind: "slab", nx, ny
+              };
+           }
+        }
+        continue;
+      }
+
+      let hitBoxMinX = -cw / 2;
+      let hitBoxMaxX = cw / 2;
+      let hitBoxMinY = -ch / 2;
+      let hitBoxMaxY = ch / 2;
+      
+      let isOptics = false;
+      let isMirror = false;
+      
+      let radiusCm = c.opticsRadiusValue ?? 15;
+      if (c.opticsRadiusUnit === 'm') radiusCm *= 100;
+      const baseFocalLengthPx = radiusCm * 10;
+      
+      let focalLength = baseFocalLengthPx;
+
+      if (c.componentId === 'plane_mirror') {
+         hitBoxMinX = -6; hitBoxMaxX = 6;
+         hitBoxMinY = -ch / 2 + 10; hitBoxMaxY = ch / 2 - 10;
+         isOptics = true;
+         isMirror = true;
+         focalLength = Infinity;
+      } else if (c.componentId === 'convex_lens') {
+         hitBoxMinX = -12; hitBoxMaxX = 12;
+         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+         isOptics = true;
+         isMirror = false;
+         focalLength = baseFocalLengthPx;
+      } else if (c.componentId === 'concave_lens') {
+         hitBoxMinX = -12; hitBoxMaxX = 12;
+         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+         isOptics = true;
+         isMirror = false;
+         focalLength = -baseFocalLengthPx;
+      } else if (c.componentId === 'concave_mirror') {
+         hitBoxMinX = 5; hitBoxMaxX = 30;
+         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+         isOptics = true;
+         isMirror = true;
+         focalLength = baseFocalLengthPx;
+      } else if (c.componentId === 'convex_mirror') {
+         hitBoxMinX = -20; hitBoxMaxX = 10;
+         hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+         isOptics = true;
+         isMirror = true;
+         focalLength = -baseFocalLengthPx;
+      } else if (c.componentId === 'laser_stand') {
+         const standLengthCm = c.opticsStandLength || 14;
+         const standLengthPx = standLengthCm * 10;
+         const totalW = 54 + standLengthPx;
+
+         hitBoxMinX = (30 / totalW) * cw - cw / 2;
+         hitBoxMaxX = ((30 + standLengthPx) / totalW) * cw - cw / 2;
+         hitBoxMinY = (27 / 80) * ch - ch / 2;
+         hitBoxMaxY = (53 / 80) * ch - ch / 2;
+      } else if (c.componentId.startsWith('led')) {
+         hitBoxMinX = -cw / 3; hitBoxMaxX = cw / 3;
+         hitBoxMinY = -ch / 3; hitBoxMaxY = ch / 3;
+      }
+
+      let tMinX = -Infinity, tMaxX = Infinity;
+      if (Math.abs(dX_local) > 1e-6) {
+         const t1 = (hitBoxMinX - pX_local) / dX_local;
+         const t2 = (hitBoxMaxX - pX_local) / dX_local;
+         tMinX = Math.min(t1, t2);
+         tMaxX = Math.max(t1, t2);
+      } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) {
+         continue;
+      }
+
+      let tMinY = -Infinity, tMaxY = Infinity;
+      if (Math.abs(dY_local) > 1e-6) {
+         const t1 = (hitBoxMinY - pY_local) / dY_local;
+         const t2 = (hitBoxMaxY - pY_local) / dY_local;
+         tMinY = Math.min(t1, t2);
+         tMaxY = Math.max(t1, t2);
+      } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) {
+         continue;
+      }
+
+      const tMin = Math.max(tMinX, tMinY);
+      const tMax = Math.min(tMaxX, tMaxY);
+
+      if (tMax >= tMin && tMax >= 0) {
+         const tHit = tMin > 0 ? tMin : tMax;
+         if (tHit > 0 && tHit < minDist) {
+            minDist = tHit;
+            const hitLocalY = pY_local + tHit * dY_local;
+            const hitLocalX = pX_local + tHit * dX_local;
+            if (isOptics) {
+              hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror, focalLength, dX_local, dY_local, scaleX, scaleY, rad };
+            } else {
+              hit = { tHit, comp: c, hitLocalX, hitLocalY, isMirror: false, focalLength: Infinity, dX_local: 0, dY_local: 0, scaleX: 1, scaleY: 1, rad: 0 };
+            }
+         }
+      }
+    }
+
+    if (hit) {
+       const hitGlobalX = currentX + Dx * hit.tHit;
+       const hitGlobalY = currentY + Dy * hit.tHit;
+       points.push({ x: hitGlobalX, y: hitGlobalY });
+
+       if (hit.opticKind === "prism") {
+          let prismOutputPoint = { x: hitGlobalX, y: hitGlobalY };
+          if (hit.prismExitLocalX !== undefined && hit.prismExitLocalY !== undefined) {
+             const unrotX = hit.prismExitLocalX / hit.scaleX;
+             const unrotY = hit.prismExitLocalY / hit.scaleY;
+             const pX_translated = unrotX * Math.cos(-hit.rad) - unrotY * Math.sin(-hit.rad);
+             const pY_translated = unrotX * Math.sin(-hit.rad) + unrotY * Math.cos(-hit.rad);
+             const def = STATIC_COMPONENTS.find(sc => sc.id === hit.comp.componentId);
+             const cw = hit.comp.width || (def?.viewBoxW || 100);
+             const ch = hit.comp.height || (def?.viewBoxH || 100);
+             const centerX = hit.comp.x + cw / 2;
+             const centerY = hit.comp.y + ch / 2;
+             prismOutputPoint = { x: centerX + pX_translated, y: centerY + pY_translated };
+          }
+          points.push(prismOutputPoint);
+
+          const bendRadians = (prismBendDegrees * Math.PI / 180) * (hit.dX_local >= 0 ? 1 : -1);
+          const theta2_local = Math.atan2(hit.dY_local, hit.dX_local) + bendRadians;
+          const dX_new_rot = Math.cos(theta2_local) * hit.scaleX;
+          const dY_new_rot = Math.sin(theta2_local) * hit.scaleY;
+          const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
+          const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
+
+          currentAngle = Math.atan2(Dy_new, Dx_new);
+          currentX = prismOutputPoint.x + Dx_new * 0.1;
+          currentY = prismOutputPoint.y + Dy_new * 0.1;
+          currentSourceId = hit.comp.id;
+       } else if (hit.opticKind === "slab") {
+          const globalAngleDeg = Math.round(Math.abs(currentAngle * 180 / Math.PI)) % 360;
+          const is42Deg = Math.abs(globalAngleDeg - 42) <= 1 || Math.abs(globalAngleDeg - (180 - 42)) <= 1 || Math.abs(globalAngleDeg - (360 - 42)) <= 1 || Math.abs(globalAngleDeg - (180 + 42)) <= 1;
+          
+          let curLx = hit.hitLocalX;
+          let curLy = hit.hitLocalY;
+          let nx = hit.nx || 0;
+          let ny = hit.ny || 0;
+          const I_x = hit.dX_local;
+          const I_y = hit.dY_local;
+          
+          let cosI_in = -(nx * I_x + ny * I_y);
+          let eta_in = 1.0 / 1.5; // air to glass
+          let sinT2_in = eta_in * eta_in * (1.0 - cosI_in * cosI_in);
+          
+          let dX_in = I_x, dY_in = I_y;
+          if (sinT2_in <= 1.0) {
+              const cosT_in = Math.sqrt(1.0 - sinT2_in);
+              dX_in = eta_in * I_x + (eta_in * cosI_in - cosT_in) * nx;
+              dY_in = eta_in * I_y + (eta_in * cosI_in - cosT_in) * ny;
+          }
+          
+          const lenIn = Math.hypot(dX_in, dY_in);
+          dX_in /= lenIn;
+          dY_in /= lenIn;
+
+          const def = STATIC_COMPONENTS.find(sc => sc.id === hit!.comp.componentId);
+          const cw = hit.comp.width || (def?.viewBoxW || 100);
+          const ch = hit.comp.height || (def?.viewBoxH || 100);
+          const centerX = hit.comp.x + cw / 2;
+          const centerY = hit.comp.y + ch / 2;
+          
+          const minX = (10 / 160) * cw - cw / 2;
+          const maxX = (110 / 160) * cw - cw / 2;
+          const minY = (30 / 120) * ch - ch / 2;
+          const maxY = (110 / 120) * ch - ch / 2;
+
+          if (is42Deg) {
+             // Force a specific slope to create a nice W-shape zigzag (approx 4 bounces)
+             const signX = dX_in >= 0 ? 1 : -1;
+             const signY = dY_in >= 0 ? 1 : -1;
+             // slope = 3.2 gives exactly 4 bounces for 100 width and 80 height
+             dX_in = 0.298 * signX; 
+             dY_in = 0.954 * signY;
+
+             for (let b = 0; b < 25; b++) {
+                 let tX = Infinity;
+                 if (dX_in > 1e-6) tX = (maxX - curLx) / dX_in;
+                 else if (dX_in < -1e-6) tX = (minX - curLx) / dX_in;
+                 
+                 let tY = Infinity;
+                 if (dY_in > 1e-6) tY = (maxY - curLy) / dY_in;
+                 else if (dY_in < -1e-6) tY = (minY - curLy) / dY_in;
+
+                 if (tX < 1e-4) tX = Infinity;
+                 if (tY < 1e-4) tY = Infinity;
+                 
+                 let tHitIn = Math.min(tX, tY);
+                 if (tHitIn === Infinity) break;
+                 
+                 let hitNormX = 0, hitNormY = 0;
+                 if (tX < tY) hitNormX = dX_in > 0 ? -1 : 1;
+                 else hitNormY = dY_in > 0 ? -1 : 1;
+                 
+                 curLx += dX_in * tHitIn;
+                 curLy += dY_in * tHitIn;
+                 
+                 const pX_translated = curLx / hit.scaleX;
+                 const pY_translated = curLy / hit.scaleY;
+                 const rotGlobalX = pX_translated * Math.cos(-hit.rad) - pY_translated * Math.sin(-hit.rad);
+                 const rotGlobalY = pX_translated * Math.sin(-hit.rad) + pY_translated * Math.cos(-hit.rad);
+                 
+                 points.push({ x: centerX + rotGlobalX, y: centerY + rotGlobalY });
+                 
+                 // Total Internal Reflection on top/bottom faces
+                 if (hitNormY !== 0) {
+                     dY_in = -dY_in;
+                 }
+                 
+                 // Stop ray if it hits the left/right faces (don't bounce back or exit)
+                 if (hitNormX !== 0) {
+                     break;
+                 }
+             }
+             break;
+          } else {
+             for (let b = 0; b < 25; b++) {
+                 let tX = Infinity;
+                 if (dX_in > 1e-6) tX = (maxX - curLx) / dX_in;
+                 else if (dX_in < -1e-6) tX = (minX - curLx) / dX_in;
+                 
+                 let tY = Infinity;
+                 if (dY_in > 1e-6) tY = (maxY - curLy) / dY_in;
+                 else if (dY_in < -1e-6) tY = (minY - curLy) / dY_in;
+
+                 if (tX < 1e-4) tX = Infinity;
+                 if (tY < 1e-4) tY = Infinity;
+                 
+                 let tHitIn = Math.min(tX, tY);
+                 if (tHitIn === Infinity) break;
+                 
+                 curLx += dX_in * tHitIn;
+                 curLy += dY_in * tHitIn;
+                 
+                 const pX_translated = curLx / hit.scaleX;
+                 const pY_translated = curLy / hit.scaleY;
+                 const rotGlobalX = pX_translated * Math.cos(-hit.rad) - pY_translated * Math.sin(-hit.rad);
+                 const rotGlobalY = pX_translated * Math.sin(-hit.rad) + pY_translated * Math.cos(-hit.rad);
+                 
+                 points.push({ x: centerX + rotGlobalX, y: centerY + rotGlobalY });
+
+                 // Determine hit normal pointing OUT of the glass
+                 let N_out_x = 0, N_out_y = 0;
+                 if (tX < tY) {
+                     N_out_x = dX_in > 0 ? 1 : -1;
+                 } else {
+                     N_out_y = dY_in > 0 ? 1 : -1;
+                 }
+
+                 // For refraction, the normal should point INTO the medium of incidence (the glass)
+                 const N_glass_x = -N_out_x;
+                 const N_glass_y = -N_out_y;
+
+                 let cosI_out = -(N_glass_x * dX_in + N_glass_y * dY_in);
+                 let eta_out = 1.5 / 1.0;
+                 let sinT2_out = eta_out * eta_out * (1.0 - cosI_out * cosI_out);
+
+                 if (sinT2_out > 1.0) {
+                     // Total Internal Reflection
+                     dX_in = dX_in + 2 * cosI_out * N_glass_x;
+                     dY_in = dY_in + 2 * cosI_out * N_glass_y;
+                 } else {
+                     // Exit the slab
+                     const cosT_out = Math.sqrt(1.0 - sinT2_out);
+                     let dX_out_local = eta_out * dX_in + (eta_out * cosI_out - cosT_out) * N_glass_x;
+                     let dY_out_local = eta_out * dY_in + (eta_out * cosI_out - cosT_out) * N_glass_y;
+                     
+                     const Dx_new = dX_out_local * hit.scaleX * Math.cos(-hit.rad) - dY_out_local * hit.scaleY * Math.sin(-hit.rad);
+                     const Dy_new = dX_out_local * hit.scaleX * Math.sin(-hit.rad) + dY_out_local * hit.scaleY * Math.cos(-hit.rad);
+                     
+                     currentAngle = Math.atan2(Dy_new, Dx_new);
+                     currentX = centerX + rotGlobalX + Dx_new * 0.1;
+                     currentY = centerY + rotGlobalY + Dy_new * 0.1;
+                     currentSourceId = hit.comp.id;
+                     break;
+                 }
+             }
+          }
+       } else if (hit.isMirror || hit.focalLength !== Infinity || hit.comp.componentId === 'plane_mirror') {
+          // Refract or reflect
+          const theta1_local = Math.atan2(hit.dY_local, hit.dX_local);
+          const signX = hit.dX_local >= 0 ? 1 : -1;
+          
+          let theta2_local = theta1_local;
+
+          if (isFinite(hit.focalLength)) {
+             const F_x = hit.isMirror ? -hit.focalLength * signX : hit.focalLength * signX;
+             const bend = Math.atan(hit.hitLocalY / (F_x - hit.hitLocalX));
+             if (hit.isMirror) {
+               theta2_local = Math.PI - theta1_local - bend;
+             } else {
+               theta2_local = theta1_local - bend;
+             }
+          } else if (hit.isMirror) {
+             theta2_local = Math.PI - theta1_local;
+          }
+
+          const dX_new_local = Math.cos(theta2_local);
+          const dY_new_local = Math.sin(theta2_local);
+
+          const dX_new_rot = dX_new_local * hit.scaleX;
+          const dY_new_rot = dY_new_local * hit.scaleY;
+
+          const Dx_new = dX_new_rot * Math.cos(-hit.rad) - dY_new_rot * Math.sin(-hit.rad);
+          const Dy_new = dX_new_rot * Math.sin(-hit.rad) + dY_new_rot * Math.cos(-hit.rad);
+
+          if (hit.focalLength !== Infinity && Math.abs(dY_new_local) > 1e-4) {
+             const t_virtual = -hit.hitLocalY / dY_new_local;
+             if (t_virtual < -1) {
+                virtualPaths.push([
+                   { x: hitGlobalX, y: hitGlobalY },
+                   { x: hitGlobalX + t_virtual * Dx_new, y: hitGlobalY + t_virtual * Dy_new }
+                ]);
+             }
+          }
+
+          currentAngle = Math.atan2(Dy_new, Dx_new);
+          currentX = hitGlobalX + Dx_new * 0.1; // offset slightly to avoid self-intersection
+          currentY = hitGlobalY + Dy_new * 0.1;
+          currentSourceId = hit.comp.id;
+       } else {
+          break; // Stop at non-optics
+       }
+    } else {
+       points.push({ x: currentX + Dx * 4000, y: currentY + Dy * 4000 });
+       break;
+    }
+  }
+  return { path: points, virtualPaths };
+}
+
+function getRayCastDistance(
+  rayGlobalStartX: number,
+  rayGlobalStartY: number,
+  rayGlobalAngle: number,
+  comp: PlacedComponent,
+  allComponents: PlacedComponent[]
+): number {
+  let minDist = 4000;
+  const P0x = rayGlobalStartX;
+  const P0y = rayGlobalStartY;
+  const Dx = Math.cos(rayGlobalAngle);
+  const Dy = Math.sin(rayGlobalAngle);
+
+  for (const c of allComponents) {
+    if (c.id === comp.id) continue;
+    const cw = c.width || 100;
+    const ch = c.height || 100;
+    const cx = c.x;
+    const cy = c.y;
+
+    const centerX = cx + cw / 2;
+    const centerY = cy + ch / 2;
+
+    const rad = -(c.rotation || 0) * Math.PI / 180;
+    const scaleX = c.mirrored ? -1 : 1;
+    const scaleY = c.flipped ? -1 : 1;
+
+    const pX_translated = P0x - centerX;
+    const pY_translated = P0y - centerY;
+
+    const pX_rot = pX_translated * Math.cos(rad) - pY_translated * Math.sin(rad);
+    const pY_rot = pX_translated * Math.sin(rad) + pY_translated * Math.cos(rad);
+
+    const dX_rot = Dx * Math.cos(rad) - Dy * Math.sin(rad);
+    const dY_rot = Dx * Math.sin(rad) + Dy * Math.cos(rad);
+
+    const pX_local = pX_rot * scaleX;
+    const pY_local = pY_rot * scaleY;
+    const dX_local = dX_rot * scaleX;
+    const dY_local = dY_rot * scaleY;
+
+    let hitBoxMinX = -cw / 2;
+    let hitBoxMaxX = cw / 2;
+    let hitBoxMinY = -ch / 2;
+    let hitBoxMaxY = ch / 2;
+
+    if (c.componentId === 'laser_stand') {
+       const standLengthCm = c.opticsStandLength || 14;
+       const standLengthPx = standLengthCm * 10;
+       const totalW = 54 + standLengthPx;
+
+       hitBoxMinX = (30 / totalW) * cw - cw / 2;
+       hitBoxMaxX = ((30 + standLengthPx) / totalW) * cw - cw / 2;
+       hitBoxMinY = (27 / 80) * ch - ch / 2;
+       hitBoxMaxY = (53 / 80) * ch - ch / 2;
+    } else if (c.componentId === 'plane_mirror') {
+       hitBoxMinX = -6; hitBoxMaxX = 6;
+       hitBoxMinY = -ch / 2 + 10; hitBoxMaxY = ch / 2 - 10;
+    } else if (c.componentId === 'convex_lens' || c.componentId === 'concave_lens') {
+       hitBoxMinX = -12; hitBoxMaxX = 12;
+       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+    } else if (c.componentId === 'concave_mirror') {
+       hitBoxMinX = 5; hitBoxMaxX = 30;
+       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+    } else if (c.componentId === 'convex_mirror') {
+       hitBoxMinX = -20; hitBoxMaxX = 10;
+       hitBoxMinY = -ch / 2 + 15; hitBoxMaxY = ch / 2 - 15;
+    } else if (c.componentId.startsWith('led')) {
+       hitBoxMinX = -cw / 3; hitBoxMaxX = cw / 3;
+       hitBoxMinY = -ch / 3; hitBoxMaxY = ch / 3;
+    }
+
+    let tMinX = -Infinity, tMaxX = Infinity;
+    if (Math.abs(dX_local) > 1e-6) {
+       const t1 = (hitBoxMinX - pX_local) / dX_local;
+       const t2 = (hitBoxMaxX - pX_local) / dX_local;
+       tMinX = Math.min(t1, t2);
+       tMaxX = Math.max(t1, t2);
+    } else if (pX_local < hitBoxMinX || pX_local > hitBoxMaxX) {
+       continue;
+    }
+
+    let tMinY = -Infinity, tMaxY = Infinity;
+    if (Math.abs(dY_local) > 1e-6) {
+       const t1 = (hitBoxMinY - pY_local) / dY_local;
+       const t2 = (hitBoxMaxY - pY_local) / dY_local;
+       tMinY = Math.min(t1, t2);
+       tMaxY = Math.max(t1, t2);
+    } else if (pY_local < hitBoxMinY || pY_local > hitBoxMaxY) {
+       continue;
+    }
+
+    const tMin = Math.max(tMinX, tMinY);
+    const tMax = Math.min(tMaxX, tMaxY);
+
+    if (tMax >= tMin && tMax >= 0) {
+       const tHit = tMin > 0 ? tMin : tMax;
+       if (tHit > 0 && tHit < minDist) {
+          minDist = tHit;
+       }
+    }
+  }
+  return minDist;
+}
+
 const ComponentNode = ({
   comp,
   imageSrc,
@@ -150,6 +805,62 @@ const ComponentNode = ({
   const resolvedLitSrc = activeLitSrc ?? comp.litImageSrc;
   let activeSrc = (isLit && resolvedLitSrc) ? resolvedLitSrc : (activeImageSrc ?? "");
 
+  if (comp.componentId === 'laser_stand') {
+    const standLengthCm = comp.opticsStandLength || 14;
+    const standLengthPx = standLengthCm * 10;
+    const totalW = 20 + 10 + standLengthPx + 24;
+    const totalH = 80;
+    
+    let ticks = '';
+    for (let i = 0; i <= standLengthCm; i++) {
+      const x = 30 + i * 10;
+      const isMajor = i % 5 === 0;
+      const tickH = isMajor ? 10 : 5;
+      ticks += `<line x1="${x}" y1="27" x2="${x}" y2="${27 + tickH}" stroke="white" stroke-width="1.5" />`;
+      if (isMajor) {
+         ticks += `<text x="${x}" y="45" fill="white" font-size="8" font-family="sans-serif" font-weight="bold" text-anchor="middle">${i}</text>`;
+      }
+    }
+
+    const modifiedSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}">
+        <defs>
+          <linearGradient id="stand_body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#e63946" />
+            <stop offset="20%" stop-color="#ff4d4d" />
+            <stop offset="50%" stop-color="#cc0000" />
+            <stop offset="80%" stop-color="#990000" />
+            <stop offset="100%" stop-color="#660000" />
+          </linearGradient>
+          <linearGradient id="stand_cap" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#444" />
+            <stop offset="50%" stop-color="#111" />
+            <stop offset="100%" stop-color="#000" />
+          </linearGradient>
+          <linearGradient id="stand_head" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#333" />
+            <stop offset="50%" stop-color="#111" />
+            <stop offset="100%" stop-color="#000" />
+          </linearGradient>
+        </defs>
+        <rect x="20" y="25" width="10" height="30" rx="3" fill="url(#stand_cap)" />
+        <rect x="30" y="27" width="${standLengthPx}" height="26" fill="url(#stand_body)" />
+        ${ticks}
+        <g transform="translate(${standLengthPx - 140}, 0)">
+          <path d="M 160 15 L 160 65 A 12 6 0 0 0 184 65 L 184 15 A 12 6 0 0 1 160 15 Z" fill="url(#stand_head)" />
+          <ellipse cx="172" cy="15" rx="12" ry="6" fill="#333" />
+          <ellipse cx="172" cy="65" rx="12" ry="6" fill="#111" />
+          <ellipse cx="172" cy="65" rx="6" ry="3" fill="#000" />
+        </g>
+      </svg>
+    `;
+    activeSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(modifiedSvg)}`;
+  }
+
+  if (comp.componentId === "laser" && comp.powerEnabled) {
+    activeSrc = resolvedLitSrc || activeSrc;
+  }
+
   // Hide the static gear in the SVG when we're going to overlay a live one
   if (isLit && comp.componentId === "dc_motor" && activeSrc.startsWith("data:image/svg+xml")) {
     const decoded = decodeURIComponent(activeSrc.replace("data:image/svg+xml;charset=utf-8,", ""));
@@ -164,7 +875,8 @@ const ComponentNode = ({
   const layout = useMemo(() => {
     if (!img) return null;
 
-    const relativePins = comp.relativePins ?? [];
+    const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
+    const relativePins = def ? def.relativePins : (comp.relativePins ?? []);
     const isSvgSource =
       activeSrc.startsWith("data:image/svg+xml") ||
       activeSrc.toLowerCase().endsWith(".svg");
@@ -187,7 +899,7 @@ const ComponentNode = ({
     }
 
     return resolveFullImageLayout(img, relativePins);
-  }, [img, comp.relativePins, activeSrc]);
+  }, [img, comp.componentId, comp.relativePins, activeSrc]);
 
   const naturalW = layout?.w ?? 100;
   const naturalH = layout?.h ?? 100;
@@ -219,6 +931,19 @@ const ComponentNode = ({
 
   const isConnecting = connectingFrom !== null;
   const isThisComponentConnecting = isConnecting && connectingFrom?.compId === comp.id;
+  const isSnapped = useMemo(() => {
+    if (comp.componentId === "ac_bulb") {
+      return allComponents.some(
+        (c) => c.componentId === "bulb_holder" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+      );
+    }
+    if (comp.componentId === "bulb_holder") {
+      return allComponents.some(
+        (c) => c.componentId === "ac_bulb" && Math.abs(c.x - comp.x) < 0.1 && Math.abs(c.y - comp.y) < 0.1
+      );
+    }
+    return false;
+  }, [comp.componentId, comp.x, comp.y, allComponents]);
   const sphereMetal = METAL_PHYSICS[comp.physicsMetal || "Copper"] || METAL_PHYSICS.Copper;
   const sphereTextColor = getContrastTextColor(sphereMetal.colors.main);
   const isFrictionSphere = isSphere && comp.physicsChargeMethod === "Friction";
@@ -275,6 +1000,23 @@ const ComponentNode = ({
   const isBurned = simulationState?.isBurned;
     const brightness = simulationState?.brightness ?? 0;
     const isShortCircuit = simulationState?.isShortCircuit;
+    const capacitorSparkIntensity = simulationState?.capacitorSparkIntensity ?? 0;
+    const capacitorSparkPoint = useMemo(() => {
+      if (comp.componentId !== "capacitor" || capacitorSparkIntensity <= 0 || visualPins.length < 2) return null;
+      let positiveIndex = comp.relativePins?.findIndex((pin) => pin.type === "positive") ?? -1;
+      let negativeIndex = comp.relativePins?.findIndex((pin) => pin.type === "negative") ?? -1;
+      if (positiveIndex < 0) positiveIndex = 1;
+      if (negativeIndex < 0) negativeIndex = 0;
+      const positivePin = visualPins[positiveIndex] ?? visualPins[1] ?? visualPins[0];
+      const negativePin = visualPins[negativeIndex] ?? visualPins[0] ?? visualPins[1];
+      if (!positivePin || !negativePin) return null;
+      return {
+        x: (positivePin.x + negativePin.x) / 2,
+        y: (positivePin.y + negativePin.y) / 2,
+      };
+    }, [capacitorSparkIntensity, comp.componentId, comp.relativePins, visualPins]);
+
+    // Laser animation removed as it is now a solid line
 
     return (
       <Group
@@ -307,7 +1049,19 @@ const ComponentNode = ({
         onClick={(e) => {
           if (!isConnecting) {
             e.cancelBubble = true;
+            if (comp.componentId === "pushbutton") {
+              onUpdate?.(comp.id, { isPressed: !comp.isPressed });
+            }
             onSelect(comp.id, e.evt.ctrlKey || e.evt.metaKey);
+          }
+        }}
+        onTap={(e) => {
+          if (!isConnecting) {
+            e.cancelBubble = true;
+            if (comp.componentId === "pushbutton") {
+              onUpdate?.(comp.id, { isPressed: !comp.isPressed });
+            }
+            onSelect(comp.id, false);
           }
         }}
       >
@@ -413,7 +1167,68 @@ const ComponentNode = ({
               width={w} 
               height={h} 
               {...(crop ? { crop } : {})}
-              opacity={isBurned ? 0.4 : 1}
+              opacity={comp.componentId === "ac_bulb" && isSnapped ? 0 : (isBurned ? 0.4 : 1)}
+            />
+          )}
+
+          {['concave_lens', 'convex_lens', 'plane_mirror', 'concave_mirror', 'convex_mirror'].includes(comp.componentId) && comp.opticsStatus === "Active" && (() => {
+            let radiusCm = comp.opticsRadiusValue ?? 15;
+            if (comp.opticsRadiusUnit === 'm') radiusCm *= 100;
+            const fPx = radiusCm * 10;
+            const showFocalPoints = comp.componentId !== 'plane_mirror';
+
+            const isCurvedMirror = comp.componentId === 'concave_mirror' || comp.componentId === 'convex_mirror';
+            const label2F = isCurvedMirror ? "C" : "2F";
+            const offset2F = isCurvedMirror ? 7 : 10;
+
+            return (
+              <>
+                <Line
+                  points={[-2000, h / 2, 2000 + w, h / 2]}
+                  stroke="black"
+                  strokeWidth={1.5}
+                  opacity={0.5}
+                  listening={false}
+                />
+                <Circle
+                  x={w / 2}
+                  y={h / 2}
+                  radius={4}
+                  fill="black"
+                  listening={false}
+                />
+                {showFocalPoints && (
+                  <>
+                    {/* 2F1 */}
+                    <Circle x={w / 2 - 2 * fPx} y={h / 2} radius={8} fill="red" listening={false} />
+                    <Text text={label2F} x={w / 2 - 2 * fPx - offset2F} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
+                    
+                    {/* F1 */}
+                    <Circle x={w / 2 - fPx} y={h / 2} radius={8} fill="red" listening={false} />
+                    <Text text="F" x={w / 2 - fPx - 6} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
+                    
+                    {/* F2 */}
+                    <Circle x={w / 2 + fPx} y={h / 2} radius={8} fill="red" listening={false} />
+                    <Text text="F" x={w / 2 + fPx - 6} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
+                    
+                    {/* 2F2 */}
+                    <Circle x={w / 2 + 2 * fPx} y={h / 2} radius={8} fill="red" listening={false} />
+                    <Text text={label2F} x={w / 2 + 2 * fPx - offset2F} y={h / 2 + 12} fontSize={20} fill="red" fontStyle="bold" listening={false} />
+                  </>
+                )}
+              </>
+            );
+          })()}
+          {comp.componentId === "bulb_holder" && isSnapped && (
+            <BulbSeatedInHolderOverlay width={w} height={h} isLit={isLit} />
+          )}
+          {(comp.componentId === "dc_power_supply" || comp.componentId === "ac_power_supply") && (
+            <DCPowerSupplyOverlays
+              comp={comp}
+              width={w}
+              height={h}
+              simulationState={simulationState}
+              onUpdate={onUpdate ?? (() => {})}
             />
           )}
           {isSphere && (
@@ -457,6 +1272,223 @@ const ComponentNode = ({
               color={SPHERE_CHARGE_WAVE_COLOR}
             />
           )}
+          {comp.componentId === 'laser' && comp.powerEnabled && (() => {
+             const rad = (comp.rotation || 0) * Math.PI / 180;
+             const scaleXDir = comp.mirrored ? -1 : 1;
+             const scaleYDir = comp.flipped ? -1 : 1;
+
+             const localX = (178 / 240) * w - w / 2;
+             const localYRed = (32 / 80) * h - h / 2;
+             const localYGreen = (48 / 80) * h - h / 2;
+             const localYWhite = (40 / 80) * h - h / 2;
+
+             const globalRedX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYRed * scaleYDir * Math.sin(rad));
+             const globalRedY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYRed * scaleYDir * Math.cos(rad));
+
+             const globalGreenX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYGreen * scaleYDir * Math.sin(rad));
+             const globalGreenY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYGreen * scaleYDir * Math.cos(rad));
+
+             const globalWhiteX = comp.x + w/2 + (localX * scaleXDir * Math.cos(rad) - localYWhite * scaleYDir * Math.sin(rad));
+             const globalWhiteY = comp.y + h/2 + (localX * scaleXDir * Math.sin(rad) + localYWhite * scaleYDir * Math.cos(rad));
+
+             const rayAngle = Math.atan2(scaleXDir * Math.sin(rad), scaleXDir * Math.cos(rad));
+             
+             const greenAngleRad = (comp.opticsGreenLaserAngle || 0) * Math.PI / 180;
+             const dX_scaled = Math.cos(greenAngleRad) * scaleXDir;
+             const dY_scaled = Math.sin(greenAngleRad) * scaleYDir;
+             const globalGreenDx = dX_scaled * Math.cos(rad) - dY_scaled * Math.sin(rad);
+             const globalGreenDy = dX_scaled * Math.sin(rad) + dY_scaled * Math.cos(rad);
+             const greenRayAngle = Math.atan2(globalGreenDy, globalGreenDx);
+
+             const redResult = traceRay(globalRedX, globalRedY, rayAngle, comp.id, allComponents, 8, 12);
+             const greenResult = traceRay(globalGreenX, globalGreenY, greenRayAngle, comp.id, allComponents, 8, 18);
+             const whiteGuideResult = traceRay(globalWhiteX, globalWhiteY, rayAngle, comp.id, allComponents, 8, 12);
+             const spectrumResults = [
+               { key: "red", color: "#ff1f1f", bend: 10 },
+               { key: "orange", color: "#ff7a00", bend: 12 },
+               { key: "yellow", color: "#ffe600", bend: 14 },
+               { key: "green", color: "#28ff28", bend: 16 },
+               { key: "blue", color: "#1996ff", bend: 18 },
+               { key: "indigo", color: "#3145ff", bend: 20 },
+               { key: "violet", color: "#8b2cff", bend: 22 },
+             ].map((ray) => ({
+               ...ray,
+               result: traceRay(globalWhiteX, globalWhiteY, rayAngle, comp.id, allComponents, 8, ray.bend),
+             }));
+
+             const redPointsGlobal = redResult.path;
+             const greenPointsGlobal = greenResult.path;
+             const whiteGuidePointsGlobal = whiteGuideResult.path.length >= 3
+               ? whiteGuideResult.path.slice(0, 3)
+               : whiteGuideResult.path;
+
+             const startXOffset = (178 / 240) * w;
+             const yRedOffset = (32 / 80) * h;
+             const yGreenOffset = (48 / 80) * h;
+             const yWhiteOffset = (40 / 80) * h;
+
+             const toLocalPoint = (globalX: number, globalY: number) => {
+               const outerX = globalX - comp.x;
+               const outerY = globalY - comp.y;
+               const cx = w / 2;
+               const cy = h / 2;
+               const dx = outerX - cx;
+               const dy = outerY - cy;
+               const unrotX = dx * Math.cos(-rad) - dy * Math.sin(-rad);
+               const unrotY = dx * Math.sin(-rad) + dy * Math.cos(-rad);
+               return [unrotX * scaleXDir + cx, unrotY * scaleYDir + cy];
+             };
+
+             const redLinePoints = redPointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
+             const greenLinePoints = greenPointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
+             const whiteLinePoints = whiteGuidePointsGlobal.flatMap(p => toLocalPoint(p.x, p.y));
+             const spectrumLines = spectrumResults
+               .map((ray) => ({
+                 ...ray,
+                 points: ray.result.path.length >= 4
+                   ? ray.result.path.slice(2).flatMap(p => toLocalPoint(p.x, p.y))
+                   : [],
+               }))
+               .filter((ray) => ray.points.length >= 4);
+
+             const redVirtualLines = redResult.virtualPaths.map(vp => vp.flatMap(p => toLocalPoint(p.x, p.y)));
+             const greenVirtualLines = greenResult.virtualPaths.map(vp => vp.flatMap(p => toLocalPoint(p.x, p.y)));
+
+             // Replace the start point with the precise local start point for clean visual connection
+             if (redLinePoints.length >= 2) {
+               redLinePoints[0] = startXOffset;
+               redLinePoints[1] = yRedOffset;
+             }
+             if (greenLinePoints.length >= 2) {
+               greenLinePoints[0] = startXOffset;
+               greenLinePoints[1] = yGreenOffset;
+             }
+             if (whiteLinePoints.length >= 2) {
+               whiteLinePoints[0] = startXOffset;
+               whiteLinePoints[1] = yWhiteOffset;
+             }
+
+             const laserMode = comp.opticsLaserMode || (comp.powerEnabled ? "Both" : "Off");
+             const showRed = laserMode === "Both" || laserMode === "Red";
+             const showGreen = laserMode === "Both" || laserMode === "Green";
+             const showWhite = laserMode === "White";
+
+             return (
+              <>
+                {/* White Light Prism Spectrum */}
+                {showWhite && (
+                  <>
+                    <Line
+                      points={whiteLinePoints}
+                      stroke="#ffffff"
+                      strokeWidth={3}
+                      lineJoin="round"
+                      lineCap="round"
+                      shadowColor="#ffffff"
+                      shadowBlur={12}
+                      opacity={0.95}
+                      listening={false}
+                    />
+                    <Line
+                      points={whiteLinePoints}
+                      stroke="#dbeafe"
+                      strokeWidth={1}
+                      lineJoin="round"
+                      lineCap="round"
+                      opacity={0.9}
+                      listening={false}
+                    />
+                    {spectrumLines.map((ray) => (
+                      <Line
+                        key={`white-spectrum-${ray.key}`}
+                        points={ray.points}
+                        stroke={ray.color}
+                        strokeWidth={2.4}
+                        lineJoin="round"
+                        lineCap="round"
+                        shadowColor={ray.color}
+                        shadowBlur={10}
+                        opacity={0.95}
+                        listening={false}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Top Red Beam */}
+                {showRed && (
+                  <>
+                    <Line
+                      points={redLinePoints}
+                      stroke="#ff4444"
+                      strokeWidth={2.5}
+                      lineJoin="round"
+                      lineCap="round"
+                      shadowColor="#ff4444"
+                      shadowBlur={10}
+                      opacity={0.9}
+                      listening={false}
+                    />
+                    <Line
+                      points={redLinePoints}
+                      stroke="#ffffff"
+                      strokeWidth={1}
+                      lineJoin="round"
+                      lineCap="round"
+                      opacity={0.8}
+                      listening={false}
+                    />
+                    {redVirtualLines.map((pts, i) => (
+                      <Line
+                        key={`red-vp-${i}`}
+                        points={pts}
+                        stroke="#ff4444"
+                        strokeWidth={1}
+                        dash={[5, 5]}
+                        listening={false}
+                      />
+                    ))}
+                  </>
+                )}
+
+                {/* Bottom Green Beam */}
+                {showGreen && (
+                  <>
+                    <Line
+                      points={greenLinePoints}
+                      stroke="#44ff44"
+                      strokeWidth={2.5}
+                      lineJoin="round"
+                      lineCap="round"
+                      shadowColor="#44ff44"
+                      shadowBlur={10}
+                      opacity={0.9}
+                      listening={false}
+                    />
+                    <Line
+                      points={greenLinePoints}
+                      stroke="#ffffff"
+                      strokeWidth={1}
+                      lineJoin="round"
+                      lineCap="round"
+                      opacity={0.8}
+                      listening={false}
+                    />
+                    {greenVirtualLines.map((pts, i) => (
+                      <Line
+                        key={`green-vp-${i}`}
+                        points={pts}
+                        stroke="#44ff44"
+                        strokeWidth={1}
+                        dash={[5, 5]}
+                        listening={false}
+                      />
+                    ))}
+                  </>
+                )}
+              </>
+             );
+          })()}
 
 
           {/* Visual Effects (Glow/Animations) driven by AI/Simulation state */}
@@ -470,11 +1502,15 @@ const ComponentNode = ({
                return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} speed={brightness} />;
             }
 
+            if (comp.componentId === 'bulb_holder') {
+              return null;
+            }
+
             // Default glow for LEDs and bulbs
             const ledOpt = LED_COLOR_OPTIONS.find(o => o.value === comp.ledColor) || LED_COLOR_OPTIONS[0];
             const colorHex = comp.componentId === 'ac_bulb' ? '#FBC02D' : ledOpt.hex;
-            const glowY = comp.componentId === 'ac_bulb' ? h * 0.45 : h * 0.38;
-            const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * 0.45 : Math.max(w, h) * 0.38;
+            const glowY = comp.componentId === 'ac_bulb' ? h * (45 / 140) : h * 0.38;
+            const glowRadius = comp.componentId === 'ac_bulb' ? Math.max(w, h) * (45 / 140) : Math.max(w, h) * 0.38;
 
             return (
               <>
@@ -541,23 +1577,439 @@ const ComponentNode = ({
           })()}
 
           {isShortCircuit && <SparkEffect x={w / 2} y={h / 2} />}
-
-
-          {visualPins.map((pin, i) => (
-            <PinDot
-              key={i}
-              x={pin.x}
-              y={pin.y}
-              index={i}
-              name={comp.relativePins?.[i]?.name}
-              isActive={connectingFrom?.compId === comp.id && connectingFrom?.portIndex === i}
-              isAvailable={isConnecting && !isThisComponentConnecting}
-              compact={isSphere}
-              onClick={() => onPinClick(comp.id, i)}
+          {capacitorSparkPoint && (
+            <CapacitorSparkEffect
+              x={capacitorSparkPoint.x}
+              y={capacitorSparkPoint.y}
+              intensity={capacitorSparkIntensity}
             />
-          ))}
+          )}
+
+          {(comp.componentId === "battery9v" || comp.componentId === "batteryaa" || comp.componentId === "battery3v") && simulationState?.isPrimaryBattery !== false && !!simulationState?.inParallel && (
+            <BatteryDischargeOverlay isSimulating={!!isSimulating} w={w} h={h} />
+          )}
+
+          {comp.componentId === "battery9v" && (
+            <Text
+              x={w / 2}
+              y={h * 0.73}
+              text="9V"
+              fontFamily="sans-serif"
+              fontSize={28 * Math.min(scaleX, scaleY)}
+              fontStyle="bold"
+              align="center"
+              verticalAlign="middle"
+              fill="#FFFFFF"
+              opacity={0.9}
+              width={w}
+              height={50 * Math.min(scaleX, scaleY)}
+              offsetX={w / 2}
+              offsetY={25 * Math.min(scaleX, scaleY)}
+              scaleX={comp.mirrored ? -1 : 1}
+              scaleY={comp.flipped ? -1 : 1}
+            />
+          )}
+
+          {visualPins.map((pin, i) => {
+            if (isSnapped) {
+              if (comp.componentId === "ac_bulb") {
+                return null;
+              }
+              if (comp.componentId === "bulb_holder" && (i === 2 || i === 3)) {
+                return null;
+              }
+            }
+            const def = STATIC_COMPONENTS.find((item) => item.id === comp.componentId);
+            const pinDef = (def ? def.relativePins?.[i] : null) || comp.relativePins?.[i];
+            return (
+              <PinDot
+                key={i}
+                x={pin.x}
+                y={pin.y}
+                index={i}
+                name={pinDef?.name}
+                isActive={connectingFrom?.compId === comp.id && connectingFrom?.portIndex === i}
+                isAvailable={isConnecting && !isThisComponentConnecting}
+                compact={isSphere}
+                onClick={() => onPinClick(comp.id, i)}
+              />
+            );
+          })}
         </Group>
       </Group>
+  );
+};
+
+interface DCPowerSupplyOverlaysProps {
+  comp: PlacedComponent;
+  width: number;
+  height: number;
+  simulationState?: SimulatedComponentState;
+  onUpdate: (id: string, updates: Partial<PlacedComponent>) => void;
+}
+
+const DCPowerSupplyOverlays = ({
+  comp,
+  width,
+  height,
+  simulationState,
+  onUpdate,
+}: DCPowerSupplyOverlaysProps) => {
+  const scaleX = width / 180;
+  const scaleY = height / 170;
+  const isAC = comp.componentId === "ac_power_supply";
+  const runtimeState = simulationState as (SimulatedComponentState & {
+    outputVoltage?: number;
+    outputCurrent?: number;
+    fault?: boolean;
+  }) | undefined;
+  const isOn = comp.powerEnabled !== false;
+  const hasFault = !!runtimeState?.isShortCircuit || !!runtimeState?.fault;
+  const voltageMax = isAC ? 260 : 100;
+  const voltageStep = isAC ? 1 : 0.1;
+  const currentStep = 0.01;
+  const voltageSet = comp.powerVoltageSet ?? (isAC ? 230.5 : 12.5);
+  const currentLimit = comp.powerCurrentLimit ?? (isAC ? 1.15 : 0.25);
+  
+  // For AC Power Supply, show the set voltage so the user can see their knob adjustments even if tripped.
+  // For DC, show the actual output voltage (which drops in CC mode).
+  const displayVoltage = isOn ? (isAC ? voltageSet : (runtimeState?.outputVoltage ?? voltageSet)) : 0;
+  
+  // For current, show the current limit for AC so the knob feels responsive.
+  // The actual drawn current is visible in the Circuit Stats panel.
+  const displayCurrent = isOn ? (isAC ? currentLimit : (runtimeState?.outputCurrent ?? 0)) : 0;
+  
+  const voltageAngle = (Math.min(Math.max(voltageSet, 0), voltageMax) / voltageMax) * 270 - 135;
+  const currentAngle = (Math.min(Math.max(currentLimit, 0), 5) / 5) * 270 - 135;
+
+  const updateVoltage = (delta: number) => {
+    onUpdate(comp.id, {
+      powerVoltageSet: Math.max(0, Math.min(voltageMax, Number((voltageSet + delta).toFixed(1)))),
+    });
+  };
+
+  const updateCurrent = (delta: number) => {
+    onUpdate(comp.id, {
+      powerCurrentLimit: Math.max(0.01, Math.min(5, Number((currentLimit + delta).toFixed(2)))),
+    });
+  };
+
+  const togglePower = () => onUpdate(comp.id, { powerEnabled: !isOn });
+
+  const renderKnob = (x: number, y: number, label: string, angle: number) => (
+    <Group x={x} y={y} listening={false}>
+      <Circle radius={24} fill="rgba(15,23,42,0.22)" />
+      <Group rotation={angle}>
+        <Circle
+          radius={21}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={21}
+          fillRadialGradientColorStops={[0, "#f8fafc", 0.34, "#94a3b8", 0.68, "#334155", 1, "#020617"]}
+          stroke="#1f2937"
+          strokeWidth={1.3}
+        />
+        <Circle
+          radius={15}
+          fillRadialGradientStartRadius={0}
+          fillRadialGradientEndRadius={15}
+          fillRadialGradientColorStops={[0, "#ffffff", 0.36, "#9ca3af", 0.82, "#334155", 1, "#111827"]}
+          stroke="#8aa0b6"
+          strokeWidth={0.8}
+        />
+        <Line points={[0, -18, 0, -10]} stroke="#ffffff" strokeWidth={2.4} lineCap="round" />
+      </Group>
+      <Text
+        x={-11}
+        y={-9}
+        width={22}
+        text={label}
+        fontFamily="Georgia, serif"
+        fontSize={17}
+        fontStyle="bold"
+        align="center"
+        fill="#ffffff"
+      />
+    </Group>
+  );
+
+  const renderFineButton = (
+    x: number,
+    y: number,
+    label: string,
+    onPress: () => void,
+    tone: "voltage" | "current" | "dc"
+  ) => {
+    const fillStops =
+      tone === "voltage"
+        ? [0, "#f5d0fe", 0.48, "#a855f7", 1, "#6b21a8"]
+        : tone === "current"
+          ? [0, "#fed7aa", 0.5, "#f59e0b", 1, "#b45309"]
+          : [0, "#ffffff", 0.38, "#cbd5e1", 1, "#64748b"];
+    const strokeColor = tone === "voltage" ? "#581c87" : tone === "current" ? "#7c2d12" : "#475569";
+    const textColor = tone === "dc" ? "#0f172a" : "#ffffff";
+
+    return (
+      <Group
+        x={x}
+        y={y}
+        onMouseDown={(event) => {
+          event.cancelBubble = true;
+        }}
+        onTouchStart={(event) => {
+          event.cancelBubble = true;
+        }}
+        onMouseEnter={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "pointer";
+        }}
+        onMouseLeave={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "default";
+        }}
+        onClick={(event) => {
+          event.cancelBubble = true;
+          onPress();
+        }}
+        onTap={(event) => {
+          event.cancelBubble = true;
+          onPress();
+        }}
+      >
+        <KonvaRect x={-4} y={-4} width={20} height={18} fill="#000000" opacity={0.01} />
+        <KonvaRect
+          width={13}
+          height={11}
+          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+          fillLinearGradientEndPoint={{ x: 0, y: 11 }}
+          fillLinearGradientColorStops={fillStops}
+          stroke={strokeColor}
+          strokeWidth={0.8}
+          cornerRadius={2}
+          shadowColor="#000000"
+          shadowBlur={1.5}
+          shadowOpacity={0.25}
+          shadowOffset={{ x: 0.5, y: 0.7 }}
+        />
+        <Text
+          y={label === "+" ? 0 : -1}
+          width={13}
+          text={label}
+          fontFamily="system-ui, -apple-system, sans-serif"
+          fontSize={9}
+          fontStyle="bold"
+          align="center"
+          fill={textColor}
+        />
+      </Group>
+    );
+  };
+
+  return (
+    <Group scaleX={scaleX} scaleY={scaleY}>
+      {isOn && (
+        <Group x={22} y={30} listening={false}>
+          <Text
+            width={96}
+            text={isAC ? "888.8Vrms" : "88.8V"}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#3b0764" : "#083344"}
+            opacity={0.26}
+          />
+          <Text
+            y={21}
+            width={96}
+            text={isAC ? "8.88Arms" : "8.88A"}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill="#451a03"
+            opacity={0.25}
+          />
+          <Text
+            width={96}
+            text={isAC ? `${displayVoltage.toFixed(1)}Vrms` : `${displayVoltage.toFixed(1)}V`}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#d946ef" : "#00f3fc"}
+            shadowColor={isAC ? "#d946ef" : "#06b6d4"}
+            shadowBlur={4}
+          />
+          <Text
+            y={21}
+            width={96}
+            text={isAC ? `${displayCurrent.toFixed(2)}Arms` : `${displayCurrent.toFixed(2)}A`}
+            fontFamily="Share Tech Mono, monospace"
+            fontSize={isAC ? 15 : 17}
+            align="right"
+            fill={isAC ? "#facc15" : "#f59e0b"}
+            shadowColor="#d97706"
+            shadowBlur={4}
+          />
+        </Group>
+      )}
+
+      {(hasFault || isOn) && (
+        <Group x={146} y={45} listening={false}>
+          <Circle
+            radius={8.2}
+            fill={hasFault ? "#ef2917" : "#f97316"}
+            opacity={hasFault ? 0.98 : 0.55}
+            shadowColor={hasFault ? "#ef4444" : "#fb923c"}
+            shadowBlur={hasFault ? 10 : 4}
+          />
+          <Circle x={-3.4} y={-4.3} radius={2.5} fill="#fff7ed" opacity={0.9} />
+        </Group>
+      )}
+
+      {renderKnob(52, 108, "V", voltageAngle)}
+      {renderKnob(122, 108, "A", currentAngle)}
+      {renderFineButton(78, 93, "+", () => updateVoltage(voltageStep), isAC ? "voltage" : "dc")}
+      {renderFineButton(78, 114, "-", () => updateVoltage(-voltageStep), isAC ? "voltage" : "dc")}
+      {renderFineButton(148, 93, "+", () => updateCurrent(currentStep), isAC ? "current" : "dc")}
+      {renderFineButton(148, 114, "-", () => updateCurrent(-currentStep), isAC ? "current" : "dc")}
+
+      <Group
+        x={29}
+        y={137}
+        onMouseDown={(event) => {
+          event.cancelBubble = true;
+        }}
+        onTouchStart={(event) => {
+          event.cancelBubble = true;
+        }}
+        onMouseEnter={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "pointer";
+        }}
+        onMouseLeave={(event) => {
+          const stage = event.target.getStage();
+          if (stage) stage.container().style.cursor = "default";
+        }}
+        onClick={(event) => {
+          event.cancelBubble = true;
+          togglePower();
+        }}
+        onTap={(event) => {
+          event.cancelBubble = true;
+          togglePower();
+        }}
+      >
+        <KonvaRect x={-2} y={-2} width={24} height={30} fill="#000000" opacity={0.01} />
+        <KonvaRect
+          x={2}
+          y={isOn ? 10 : 2}
+          width={16}
+          height={12}
+          fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+          fillLinearGradientEndPoint={{ x: 0, y: 12 }}
+          fillLinearGradientColorStops={
+            isOn
+              ? [0, "#fef2f2", 0.35, "#ef4444", 1, "#991b1b"]
+              : [0, "#f8fafc", 0.45, "#cbd5e1", 1, "#64748b"]
+          }
+          stroke={isOn ? "#7f1d1d" : "#475569"}
+          strokeWidth={0.7}
+          cornerRadius={1.5}
+          shadowColor={isOn ? "#ef4444" : "#000000"}
+          shadowBlur={isOn ? 3 : 1}
+          shadowOpacity={0.45}
+        />
+      </Group>
+    </Group>
+  );
+};
+
+const BulbSeatedInHolderOverlay = ({
+  width,
+  height,
+  isLit,
+}: {
+  width: number;
+  height: number;
+  isLit: boolean;
+}) => {
+  const sx = width / 100;
+  const sy = height / 140;
+
+  return (
+    <Group y={-3 * sy} scaleX={sx} scaleY={sy} listening={false}>
+      {isLit && (
+        <>
+          <Circle
+            x={50}
+            y={42}
+            radius={34}
+            fill="rgba(251, 191, 36, 0.22)"
+            shadowColor="#fbbf24"
+            shadowBlur={18}
+            opacity={0.82}
+          />
+          <Circle x={50} y={47} radius={20} fill="rgba(255, 237, 146, 0.28)" opacity={0.7} />
+        </>
+      )}
+      <Path
+        data="M 35 70 C 32 62, 27 54, 27 42 C 27 25, 37 15, 50 15 C 63 15, 73 25, 73 42 C 73 54, 68 62, 65 70 C 61 74, 39 74, 35 70 Z"
+        fill={isLit ? "rgba(255, 214, 86, 0.5)" : "rgba(241, 245, 249, 0.34)"}
+        stroke={isLit ? "#f59e0b" : "#8f98a3"}
+        strokeWidth={1.15}
+        shadowColor={isLit ? "#f59e0b" : "#cbd5e1"}
+        shadowBlur={isLit ? 8 : 2}
+        opacity={0.92}
+      />
+      <Path
+        data="M 31 42 C 33 27, 44 19, 58 21 C 47 24, 37 32, 34 47"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth={2.2}
+        opacity={isLit ? 0.58 : 0.42}
+        lineCap="round"
+      />
+      <Path
+        data="M 42 68 L 44 48 M 58 68 L 56 48 M 44 48 Q 46 44, 48 48 Q 50 44, 52 48 Q 54 44, 56 48"
+        fill="none"
+        stroke={isLit ? "#fff7ad" : "#4b5563"}
+        strokeWidth={isLit ? 1.6 : 1.1}
+        shadowColor="#fbbf24"
+        shadowBlur={isLit ? 8 : 0}
+        lineCap="round"
+      />
+      <Path
+        data="M 40 70 C 43 73, 57 73, 60 70 L 60 81 C 57 84, 43 84, 40 81 Z"
+        fill="rgba(82, 90, 98, 0.94)"
+        stroke="#2f353a"
+        strokeWidth={0.5}
+      />
+      {[72, 75.5, 79].map((y) => (
+        <Path
+          key={y}
+          data={`M 37 ${y} C 42 ${y + 3}, 58 ${y + 3}, 63 ${y}`}
+          fill="none"
+          stroke="#d1d5db"
+          strokeWidth={1.4}
+          opacity={0.85}
+          lineCap="round"
+        />
+      ))}
+      <Path
+        data="M 32 80 C 37 83, 63 83, 68 80"
+        fill="none"
+        stroke={isLit ? "#fde68a" : "#f3f4f6"}
+        strokeWidth={1.3}
+        opacity={isLit ? 0.85 : 0.72}
+        lineCap="round"
+      />
+      <Path
+        data="M 31 80 C 35 85, 65 85, 69 80"
+        fill="none"
+        stroke="#111827"
+        strokeWidth={2}
+        opacity={0.65}
+        lineCap="round"
+      />
+    </Group>
   );
 };
 
@@ -1789,6 +3241,88 @@ const SmokeAnimation = ({ x, y }: { x: number; y: number }) => {
           opacity={p.o}
         />
       ))}
+    </Group>
+  );
+};
+
+const CapacitorSparkEffect = ({ x, y, intensity }: { x: number; y: number; intensity: number }) => {
+  const [phase, setPhase] = useState(0);
+  const safeIntensity = Math.max(0, Math.min(1, intensity));
+  const arcWidth = 18 + safeIntensity * 20;
+  const arcHeight = 8 + safeIntensity * 10;
+
+  useEffect(() => {
+    const interval = setInterval(() => setPhase((value) => (value + 1) % 4), 85);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (safeIntensity <= 0) return null;
+
+  const jitter = (phase - 1.5) * 1.4;
+  const mainPoints = [
+    -arcWidth / 2,
+    0,
+    -arcWidth * 0.28,
+    -arcHeight * 0.45 + jitter,
+    -arcWidth * 0.08,
+    arcHeight * 0.4 - jitter,
+    arcWidth * 0.14,
+    -arcHeight * 0.28,
+    arcWidth * 0.34,
+    arcHeight * 0.25 + jitter,
+    arcWidth / 2,
+    0,
+  ];
+  const particleAngles = [-155, -118, -58, -24, 28, 62, 116, 152];
+
+  return (
+    <Group x={x} y={y} listening={false}>
+      <Circle
+        radius={arcWidth * 0.62}
+        fillRadialGradientStartRadius={0}
+        fillRadialGradientEndRadius={arcWidth * 0.62}
+        fillRadialGradientColorStops={[0, "rgba(255,255,255,0.85)", 0.28, "rgba(96,165,250,0.45)", 1, "rgba(96,165,250,0)"]}
+        opacity={0.45 + safeIntensity * 0.4}
+      />
+      <Line
+        points={mainPoints}
+        stroke="#ffffff"
+        strokeWidth={2.2 + safeIntensity * 1.7}
+        lineCap="round"
+        lineJoin="round"
+        shadowColor="#60a5fa"
+        shadowBlur={12 + safeIntensity * 16}
+      />
+      <Line
+        points={mainPoints}
+        stroke="#2563eb"
+        strokeWidth={1.1 + safeIntensity}
+        lineCap="round"
+        lineJoin="round"
+        opacity={0.85}
+      />
+      {particleAngles.map((angle, index) => {
+        const theta = (angle * Math.PI) / 180;
+        const distance = 11 + safeIntensity * 28 + ((phase + index) % 3) * 3;
+        const particleOpacity = Math.max(0, safeIntensity - index * 0.035);
+        return (
+          <Line
+            key={angle}
+            points={[
+              Math.cos(theta) * (arcWidth * 0.35),
+              Math.sin(theta) * 3,
+              Math.cos(theta) * distance,
+              Math.sin(theta) * distance,
+            ]}
+            stroke={index % 2 === 0 ? "#f97316" : "#facc15"}
+            strokeWidth={0.8 + safeIntensity * 1.1}
+            opacity={particleOpacity}
+            lineCap="round"
+            shadowColor="#fb923c"
+            shadowBlur={4 + safeIntensity * 8}
+          />
+        );
+      })}
     </Group>
   );
 };

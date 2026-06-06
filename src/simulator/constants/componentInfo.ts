@@ -152,39 +152,38 @@ const BATTERY_AA_INFO: ComponentInfo = {
 };
 
 const CAPACITOR_INFO: ComponentInfo = {
-  displayName: "Capacitor",
-  tagline: "Energy-storing passive component",
+  displayName: "Electrolytic Capacitor",
+  tagline: "Polarized energy storage and DC smoothing component",
   description:
-    "A capacitor stores and releases electrical energy in an electric field formed between two conductive plates separated by a dielectric.",
+    "An electrolytic capacitor temporarily stores electrical energy and is commonly used for DC filtering, voltage smoothing, power stabilization, and noise reduction.",
   sections: [
     {
-      title: "How it works",
+      title: "What it means",
       content:
-        "Applying voltage causes charge to accumulate on the plates (Q = C × V). When voltage is removed, the capacitor discharges, providing current to the circuit. It blocks DC but allows AC signals.",
+        "A marking such as 1000uF 25V means the capacitance is 1000 microfarads and the capacitor should be used only up to 25 volts.",
     },
     {
-      title: "Connect it",
+      title: "Polarity safety",
       content:
-        "Electrolytic capacitors are polarised — the longer leg (Anode) connects to the more positive voltage. The white stripe on the body marks the negative (Cathode) leg. Ceramic and film capacitors are non-polarised.",
+        "Electrolytic capacitors are polarized. Positive must connect to the more positive side and the negative striped side must connect to ground/negative. Reverse polarity can heat or burst it.",
     },
     {
-      title: "How it is used",
+      title: "How it is used in Inventa",
       content:
-        "Power supply decoupling (filtering), timing circuits (RC networks), signal coupling and bypassing, energy storage in flash circuits.",
+        "Use it for power supply smoothing, sensor stabilization, LED flicker reduction, and DC noise filtering.",
     },
     {
-      title: "Get started",
+      title: "Recommended values",
       content:
-        "Add a 100 µF electrolytic capacitor across a power supply rail (+ to VCC, − to GND) to smooth voltage ripple. Always check polarity before powering on.",
+        "Typical safe choices: 5V circuit -> 100uF/16V, 9V circuit -> 220uF/16V, 12V circuit -> 470uF/25V, 24V circuit -> 1000uF/50V.",
     },
     {
-      title: "More information",
+      title: "Formula",
       content:
-        "Common values: 0.1 µF (ceramic decoupling), 10 – 1000 µF (electrolytic bulk storage). Voltage rating must exceed circuit voltage. ESR affects performance at high frequencies.",
+        "Stored energy is E = 1/2 x C x V^2, where C is capacitance in farads and V is voltage in volts.",
     },
   ],
 };
-
 const DIODE_INFO: ComponentInfo = {
   displayName: "Diode",
   tagline: "Unidirectional current valve",
@@ -376,3 +375,4 @@ export function getComponentInfo(componentId: string): ComponentInfo | null {
   const prefix = Object.keys(COMPONENT_INFO_MAP).find((k) => componentId.startsWith(k));
   return prefix ? COMPONENT_INFO_MAP[prefix] : null;
 }
+

@@ -191,6 +191,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
   const isLed = component.componentId.startsWith('led');
   const isMicrobit = component.componentId === 'microbit';
   const isChargedSphere = component.componentId.startsWith('sphere_');
+  const isPowerSupply = component.componentId === "dc_power_supply" || component.componentId === "ac_power_supply";
+  const isAcPowerSupply = component.componentId === "ac_power_supply";
   const showColor = isLed || isMicrobit;
   const [showTooltip, setShowTooltip] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -345,6 +347,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
               className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none"
             />
           </div>
+
+          {component.componentId === "pushbutton" && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                Status
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.isPressed ? "On" : "Off"}
+                  onChange={(e) => onUpdate(component.id, { isPressed: e.target.value === "On" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="On">On</option>
+                  <option value="Off">Off</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {isChargedSphere && (
             <>
@@ -752,6 +775,29 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
             </div>
           )}
 
+          {/* AC Bulb Wattage selection */}
+          {component.componentId === 'ac_bulb' && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                Watt
+              </div>
+              <input
+                type="number"
+                value={component.wattageValue ?? 9}
+                onChange={(e) => {
+                  let val = parseFloat(e.target.value);
+                  if (isNaN(val)) val = 0;
+                  onUpdate(component.id, { wattageValue: Math.max(0, val) });
+                }}
+                className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none"
+                min="0"
+              />
+              <div className="w-12 bg-white flex items-center justify-center text-xs font-bold text-[#02adea] border-l-2 border-[#02adea]">
+                W
+              </div>
+            </div>
+          )}
+
           {/* Resistor-specific: Value and Unit */}
           {component.componentId === 'resistor' && (
             <>
@@ -817,6 +863,313 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
                 </div>
               </div>
             </div>
+          )}
+
+          {component.componentId === 'capacitor' && (
+            <div className="flex gap-1 h-9">
+              <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[85px]">
+                  Working V
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  value={component.voltageValue ?? 25}
+                  onChange={(e) => onUpdate(component.id, { voltageValue: Math.max(0, parseFloat(e.target.value) || 0) })}
+                  className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                />
+              </div>
+              <div className="w-20 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                V
+              </div>
+            </div>
+          )}
+
+          {['plane_mirror', 'concave_mirror', 'convex_mirror'].includes(component.componentId) && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                View
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.opticsMirrorView || "Front View"}
+                  onChange={(e) => onUpdate(component.id, { opticsMirrorView: e.target.value as "Front View" | "Side View" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="Front View">Front View</option>
+                  <option value="Side View">Side View</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['concave_lens', 'convex_lens'].includes(component.componentId) && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                View
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.opticsLensView || "Front View"}
+                  onChange={(e) => onUpdate(component.id, { opticsLensView: e.target.value as "Front View" | "Side View" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="Front View">Front View</option>
+                  <option value="Side View">Side View</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['concave_lens', 'convex_lens', 'plane_mirror', 'concave_mirror', 'convex_mirror'].includes(component.componentId) && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9 mt-2">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Status
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.opticsStatus || "Unactive"}
+                    onChange={(e) => onUpdate(component.id, { opticsStatus: e.target.value as "Active" | "Unactive" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Unactive">Unactive</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9 mt-2">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Radius
+                </div>
+                <input
+                  type="number"
+                  value={component.opticsRadiusValue ?? 15}
+                  onChange={(e) => onUpdate(component.id, { opticsRadiusValue: Number(e.target.value) })}
+                  className="flex-1 min-w-0 px-2 text-sm text-[#02adea] font-bold bg-transparent outline-none"
+                />
+                <div className="w-[1px] bg-[#02adea]"></div>
+                <select
+                  value={component.opticsRadiusUnit || "cm"}
+                  onChange={(e) => onUpdate(component.id, { opticsRadiusUnit: e.target.value as "cm" | "m" })}
+                  className="bg-[#02adea]/10 text-[#02adea] text-xs font-bold px-2 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {component.componentId === 'laser' && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Switch
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.opticsLaserMode || (component.powerEnabled ? "Both" : "Off")}
+                    onChange={(e) => onUpdate(component.id, { 
+                      opticsLaserMode: e.target.value as PlacedComponent["opticsLaserMode"],
+                      powerEnabled: e.target.value !== "Off"
+                    })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Off">Off</option>
+                    <option value="Both">Both</option>
+                    <option value="Red">Red Only</option>
+                    <option value="Green">Green Only</option>
+                    <option value="White">White Light</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              {(component.opticsLaserMode === "Both" || component.opticsLaserMode === "Green" || (component.powerEnabled && !component.opticsLaserMode)) && (
+                <div className="flex gap-2 h-9 items-center mt-2 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 h-full flex items-center font-bold text-xs min-w-[70px]">
+                    Green &deg;
+                  </div>
+                  <input
+                    type="range"
+                    min={-45}
+                    max={45}
+                    step={1}
+                    value={component.opticsGreenLaserAngle || 0}
+                    onChange={(e) => onUpdate(component.id, { opticsGreenLaserAngle: Number(e.target.value) })}
+                    className="flex-1 min-w-0 mx-2"
+                  />
+                  <div className="text-xs text-[#02adea] font-bold w-8 text-right pr-2">
+                    {component.opticsGreenLaserAngle || 0}&deg;
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {component.componentId === 'laser_stand' && (
+            <div className="flex gap-2 h-9 items-center border-2 border-[#02adea] rounded-md overflow-hidden">
+              <div className="bg-[#02adea] text-white px-3 h-full flex items-center font-bold text-xs min-w-[70px]">
+                Length
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={30}
+                step={1}
+                value={component.opticsStandLength || 14}
+                onChange={(e) => onUpdate(component.id, { opticsStandLength: Number(e.target.value) })}
+                className="flex-1 min-w-0 mx-2"
+              />
+              <div className="text-xs text-[#02adea] font-bold w-12 text-right pr-2">
+                {component.opticsStandLength || 14} cm
+              </div>
+            </div>
+          )}
+
+          {isPowerSupply && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[82px]">
+                  Output
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.powerEnabled === false ? "Off" : "On"}
+                    onChange={(e) => onUpdate(component.id, { powerEnabled: e.target.value === "On" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="On">On</option>
+                    <option value="Off">Off</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    {isAcPowerSupply ? "Voltage RMS" : "Voltage Set"}
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={isAcPowerSupply ? 260 : 100}
+                    step={isAcPowerSupply ? 1 : 0.1}
+                    value={component.powerVoltageSet ?? (isAcPowerSupply ? 230.5 : 12.5)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      const maxVoltage = isAcPowerSupply ? 260 : 100;
+                      onUpdate(component.id, {
+                        powerVoltageSet: Math.max(0, Math.min(maxVoltage, Number.isFinite(nextValue) ? nextValue : 0)),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  {isAcPowerSupply ? "Vrms" : "V"}
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    {isAcPowerSupply ? "Current RMS" : "Current Set"}
+                  </div>
+                  <input
+                    type="number"
+                    min={0.001}
+                    step={0.01}
+                    value={component.powerCurrentLimit ?? (isAcPowerSupply ? 1.15 : 0.25)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      onUpdate(component.id, {
+                        powerCurrentLimit: Math.max(0.001, Number.isFinite(nextValue) ? nextValue : 0.001),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  {isAcPowerSupply ? "Arms" : "A"}
+                </div>
+              </div>
+
+              <div className="flex gap-1 h-9">
+                <div className="flex flex-1 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[92px]">
+                    Frequency
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={400}
+                    step={1}
+                    value={component.powerFrequency ?? (isAcPowerSupply ? 50 : 0)}
+                    onChange={(e) => {
+                      const nextValue = parseFloat(e.target.value);
+                      onUpdate(component.id, {
+                        powerFrequency: Math.max(0, Math.min(400, Number.isFinite(nextValue) ? nextValue : (isAcPowerSupply ? 50 : 0))),
+                      });
+                    }}
+                    className="flex-1 px-3 py-1 text-sm text-[#02adea] font-medium outline-none min-w-0"
+                  />
+                </div>
+                <div className="w-16 border-2 border-[#02adea] rounded-md flex items-center justify-center text-xs font-bold text-[#02adea]">
+                  Hz
+                </div>
+              </div>
+
+              <div className="rounded-md border border-[#02adea]/30 bg-sky-50 px-3 py-2">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-[#0284c7]">
+                  Theory
+                </div>
+                <p className="mt-1 text-[11px] leading-5 text-slate-700">
+                  {isAcPowerSupply
+                    ? "AC supply outputs a sine wave. Peak voltage = Vrms x 1.414 and instantaneous voltage changes with frequency."
+                    : "DC supply works in CV and CC modes. Ideal current is I = V / R."}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {isAcPowerSupply ? (
+                    <>
+                      <p className="text-[10px] leading-4 text-slate-600">- Vrms is the effective AC voltage shown on the display.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Vpeak = Vrms x 1.414.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Instant voltage: V(t) = Vpeak x sin(2*pi*f*t).</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Current limit protects the connected circuit from overload.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- Frequency controls how many sine cycles occur per second.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] leading-4 text-slate-600">- CV mode: current is below limit, so output voltage stays at Vset.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- CC mode: overload clamps current and drops voltage.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- New voltage in overload: Vout = I_limit x R.</p>
+                      <p className="text-[10px] leading-4 text-slate-600">- DC frequency is 0 Hz because output is constant.</p>
+                    </>
+                  )}
+                </div>
+                <div className="mt-2 rounded bg-white/80 px-2 py-1.5 text-[10px] text-slate-600">
+                  Range: <span className="font-semibold text-slate-800">{isAcPowerSupply ? "0 to 260 Vrms" : "0 to 100 V"}</span>
+                  {" "} - Current limit: <span className="font-semibold text-slate-800">{component.powerCurrentLimit ?? (isAcPowerSupply ? 1.15 : 0.25)} A</span>
+                  {" "} - Frequency: <span className="font-semibold text-slate-800">{component.powerFrequency ?? (isAcPowerSupply ? 50 : 0)} Hz</span>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Learn more button at bottom if info available */}

@@ -23,6 +23,7 @@ interface WireSVGOverlayProps {
   onWireClick: (wireId: string) => void;
   onWireDoubleClick: (wireId: string) => void;
   onMidPointsChange: (wireId: string, pts: { x: number; y: number }[]) => void;
+  onComponentClick?: (componentId: string) => void;
 }
 
 function normalizeRoutePoints(points: WirePoint[]): WirePoint[] {
@@ -89,6 +90,23 @@ function buildWireRoute(start: WirePoint, midPoints: WirePoint[], end: WirePoint
   return [start, ...midPoints, end];
 }
 
+function isPointInsideComponent(point: WirePoint, comp: PlacedComponent): boolean {
+  const padding = comp.componentId === "capacitor" ? 14 : 6;
+  const width = comp.width ?? 100;
+  const height = comp.height ?? 100;
+  return (
+    point.x >= comp.x - padding &&
+    point.x <= comp.x + width + padding &&
+    point.y >= comp.y - padding &&
+    point.y <= comp.y + height + padding
+  );
+}
+
+function getComponentAtPointer(event: React.MouseEvent, components: PlacedComponent[], domToCanvas: (cx: number, cy: number) => WirePoint) {
+  const point = domToCanvas(event.clientX, event.clientY);
+  return [...components].reverse().find((component) => isPointInsideComponent(point, component)) ?? null;
+}
+
 function Spark({ x, y, onDone }: { x: number; y: number; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 700);
@@ -149,6 +167,7 @@ export default function WireSVGOverlay({
   onWireClick,
   onWireDoubleClick: _onWireDoubleClick,
   onMidPointsChange,
+  onComponentClick,
 }: WireSVGOverlayProps) {
   void _onWireDoubleClick;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -216,6 +235,7 @@ export default function WireSVGOverlay({
 
   const onWirePathDblClick = useCallback((e: React.MouseEvent, wire: Wire) => {
     e.stopPropagation();
+    if (getComponentAtPointer(e, components, domToCanvas)) return;
     const fromComp = components.find((c) => c.id === wire.from.compId);
     const toComp = components.find((c) => c.id === wire.to.compId);
     if (!fromComp || !toComp) return;
@@ -280,6 +300,12 @@ export default function WireSVGOverlay({
                 strokeWidth={16}
                 style={{ cursor: "pointer" }}
                 onClick={(e) => {
+                  const component = getComponentAtPointer(e, components, domToCanvas);
+                  if (component) {
+                    e.stopPropagation();
+                    onComponentClick?.(component.id);
+                    return;
+                  }
                   e.stopPropagation();
                   onWireClick(wire.id);
                 }}
@@ -307,6 +333,12 @@ export default function WireSVGOverlay({
                 strokeLinejoin="round"
                 style={{ pointerEvents: "all", cursor: "pointer" }}
                 onClick={(e) => {
+                  const component = getComponentAtPointer(e, components, domToCanvas);
+                  if (component) {
+                    e.stopPropagation();
+                    onComponentClick?.(component.id);
+                    return;
+                  }
                   e.stopPropagation();
                   onWireClick(wire.id);
                 }}
