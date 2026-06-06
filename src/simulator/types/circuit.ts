@@ -56,7 +56,15 @@ export interface PlacedComponent {
   physicsMedium?: string;
   physicsDielectric?: number;
   physicsSphereType?: "Conducting" | "Non-Conducting";
+  opticsMirrorView?: "Front View" | "Side View";
+  opticsLensView?: "Front View" | "Side View";
   physicsObservationDistance?: number;
+  opticsLaserMode?: "Off" | "Red" | "Green" | "White" | "Both";
+  opticsGreenLaserAngle?: number;
+  opticsStandLength?: number;
+  opticsStatus?: "Active" | "Unactive";
+  opticsRadiusValue?: number;
+  opticsRadiusUnit?: "m" | "cm";
   physicsFluxSurfaceType?: "Triangular" | "Disc" | "Cylindrical" | "Spherical";
   physicsFluxArea?: number;
   physicsFluxAngle?: number;

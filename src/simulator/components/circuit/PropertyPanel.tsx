@@ -885,6 +885,161 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
             </div>
           )}
 
+          {['plane_mirror', 'concave_mirror', 'convex_mirror'].includes(component.componentId) && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                View
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.opticsMirrorView || "Front View"}
+                  onChange={(e) => onUpdate(component.id, { opticsMirrorView: e.target.value as "Front View" | "Side View" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="Front View">Front View</option>
+                  <option value="Side View">Side View</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['concave_lens', 'convex_lens'].includes(component.componentId) && (
+            <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+              <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                View
+              </div>
+              <div className="flex-1 relative">
+                <select
+                  value={component.opticsLensView || "Front View"}
+                  onChange={(e) => onUpdate(component.id, { opticsLensView: e.target.value as "Front View" | "Side View" })}
+                  className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                >
+                  <option value="Front View">Front View</option>
+                  <option value="Side View">Side View</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['concave_lens', 'convex_lens', 'plane_mirror', 'concave_mirror', 'convex_mirror'].includes(component.componentId) && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9 mt-2">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Status
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.opticsStatus || "Unactive"}
+                    onChange={(e) => onUpdate(component.id, { opticsStatus: e.target.value as "Active" | "Unactive" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Unactive">Unactive</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9 mt-2">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Radius
+                </div>
+                <input
+                  type="number"
+                  value={component.opticsRadiusValue ?? 15}
+                  onChange={(e) => onUpdate(component.id, { opticsRadiusValue: Number(e.target.value) })}
+                  className="flex-1 min-w-0 px-2 text-sm text-[#02adea] font-bold bg-transparent outline-none"
+                />
+                <div className="w-[1px] bg-[#02adea]"></div>
+                <select
+                  value={component.opticsRadiusUnit || "cm"}
+                  onChange={(e) => onUpdate(component.id, { opticsRadiusUnit: e.target.value as "cm" | "m" })}
+                  className="bg-[#02adea]/10 text-[#02adea] text-xs font-bold px-2 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {component.componentId === 'laser' && (
+            <>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Switch
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.opticsLaserMode || (component.powerEnabled ? "Both" : "Off")}
+                    onChange={(e) => onUpdate(component.id, { 
+                      opticsLaserMode: e.target.value as PlacedComponent["opticsLaserMode"],
+                      powerEnabled: e.target.value !== "Off"
+                    })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Off">Off</option>
+                    <option value="Both">Both</option>
+                    <option value="Red">Red Only</option>
+                    <option value="Green">Green Only</option>
+                    <option value="White">White Light</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              {(component.opticsLaserMode === "Both" || component.opticsLaserMode === "Green" || (component.powerEnabled && !component.opticsLaserMode)) && (
+                <div className="flex gap-2 h-9 items-center mt-2 border-2 border-[#02adea] rounded-md overflow-hidden">
+                  <div className="bg-[#02adea] text-white px-3 h-full flex items-center font-bold text-xs min-w-[70px]">
+                    Green &deg;
+                  </div>
+                  <input
+                    type="range"
+                    min={-45}
+                    max={45}
+                    step={1}
+                    value={component.opticsGreenLaserAngle || 0}
+                    onChange={(e) => onUpdate(component.id, { opticsGreenLaserAngle: Number(e.target.value) })}
+                    className="flex-1 min-w-0 mx-2"
+                  />
+                  <div className="text-xs text-[#02adea] font-bold w-8 text-right pr-2">
+                    {component.opticsGreenLaserAngle || 0}&deg;
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {component.componentId === 'laser_stand' && (
+            <div className="flex gap-2 h-9 items-center border-2 border-[#02adea] rounded-md overflow-hidden">
+              <div className="bg-[#02adea] text-white px-3 h-full flex items-center font-bold text-xs min-w-[70px]">
+                Length
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={30}
+                step={1}
+                value={component.opticsStandLength || 14}
+                onChange={(e) => onUpdate(component.id, { opticsStandLength: Number(e.target.value) })}
+                className="flex-1 min-w-0 mx-2"
+              />
+              <div className="text-xs text-[#02adea] font-bold w-12 text-right pr-2">
+                {component.opticsStandLength || 14} cm
+              </div>
+            </div>
+          )}
+
           {isPowerSupply && (
             <>
               <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">

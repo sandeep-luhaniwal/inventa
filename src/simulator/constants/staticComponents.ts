@@ -2123,8 +2123,377 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
     `,
     relativePins: [],
   },
-];
+  {
+    id: "triangular_glass_prism",
+    name: "Triangular Glass Prism",
+    category: "Optics",
+    viewBoxW: 160,
+    viewBoxH: 130,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="prism_face_front" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fbff" stop-opacity="0.88"/>
+          <stop offset="42%" stop-color="#dcecf9" stop-opacity="0.7"/>
+          <stop offset="68%" stop-color="#ffffff" stop-opacity="0.82"/>
+          <stop offset="100%" stop-color="#b7d3e7" stop-opacity="0.68"/>
+        </linearGradient>
+        <linearGradient id="prism_face_side" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d9ecfa" stop-opacity="0.75"/>
+          <stop offset="50%" stop-color="#9bb9d2" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#526b82" stop-opacity="0.85"/>
+        </linearGradient>
+        <linearGradient id="prism_base" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#c8dceb" stop-opacity="0.72"/>
+          <stop offset="50%" stop-color="#f8fbff" stop-opacity="0.62"/>
+          <stop offset="100%" stop-color="#8aa7bf" stop-opacity="0.75"/>
+        </linearGradient>
+        <linearGradient id="prism_highlight" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="48%" stop-color="#ffffff" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="prism_shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.18"/>
+        </filter>
+      </defs>
 
+      <g filter="url(#prism_shadow)">
+        <!-- Main glass triangle -->
+        <path d="M80 8 L14 114 L146 114 Z" fill="url(#prism_face_front)" stroke="#07111f" stroke-width="2.6" stroke-linejoin="round"/>
+
+        <!-- Right refractive side face -->
+        <path d="M80 8 L146 114 L125 114 L83 35 Z" fill="url(#prism_face_side)" stroke="#30475f" stroke-width="1.5" stroke-linejoin="round" opacity="0.9"/>
+
+        <!-- Lower thick glass base -->
+        <path d="M14 114 L146 114 L125 101 L34 101 Z" fill="url(#prism_base)" stroke="#41576e" stroke-width="1.4" stroke-linejoin="round"/>
+
+        <!-- Left inner edge -->
+        <path d="M80 8 L34 101 L14 114" fill="none" stroke="#6d849b" stroke-width="1.4" opacity="0.9"/>
+
+        <!-- Front inner edge -->
+        <path d="M83 35 L125 101" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.75"/>
+
+        <!-- Soft diagonal glass sheen -->
+        <path d="M52 96 L94 33 L109 58 L67 112 Z" fill="url(#prism_highlight)" opacity="0.56"/>
+        <path d="M72 101 L106 54" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.16"/>
+
+        <!-- Bottom rim -->
+        <path d="M14 114 L146 114" stroke="#07111f" stroke-width="2.4" stroke-linecap="round"/>
+      </g>
+    `,
+  },
+  {
+    id: "rectangular_glass_slab",
+    name: "Rectangular Glass Slab",
+    category: "Optics",
+    viewBoxW: 160,
+    viewBoxH: 120,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="slab_face_front" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f8fbff" stop-opacity="0.88"/>
+          <stop offset="42%" stop-color="#dcecf9" stop-opacity="0.7"/>
+          <stop offset="68%" stop-color="#ffffff" stop-opacity="0.82"/>
+          <stop offset="100%" stop-color="#b7d3e7" stop-opacity="0.68"/>
+        </linearGradient>
+        <linearGradient id="slab_face_side" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d9ecfa" stop-opacity="0.75"/>
+          <stop offset="50%" stop-color="#9bb9d2" stop-opacity="0.72"/>
+          <stop offset="100%" stop-color="#526b82" stop-opacity="0.85"/>
+        </linearGradient>
+        <linearGradient id="slab_face_top" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#d9ecfa" stop-opacity="0.8"/>
+        </linearGradient>
+      </defs>
+      <g filter="url(#prism_shadow)">
+        <!-- Back inner edges -->
+        <path d="M 40 20 L 40 100 L 10 110" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.4"/>
+        <path d="M 40 100 L 140 100" fill="none" stroke="#6d849b" stroke-width="1.2" opacity="0.4"/>
+
+        <!-- Top face -->
+        <path d="M 10 30 L 110 30 L 140 20 L 40 20 Z" fill="url(#slab_face_top)" stroke="#41576e" stroke-width="1.5" stroke-linejoin="round"/>
+        
+        <!-- Front face -->
+        <path d="M 10 30 L 110 30 L 110 110 L 10 110 Z" fill="url(#slab_face_front)" stroke="#07111f" stroke-width="2.6" stroke-linejoin="round"/>
+        
+        <!-- Right side face -->
+        <path d="M 110 30 L 140 20 L 140 100 L 110 110 Z" fill="url(#slab_face_side)" stroke="#30475f" stroke-width="1.5" stroke-linejoin="round"/>
+        
+        <!-- Highlights -->
+        <path d="M 15 35 L 105 35" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 15 35 L 15 105" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+      </g>
+    `
+  },
+  {
+    id: "plane_mirror",
+    name: "Plane Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="plane_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="30%" stop-color="#b6bbc2"/>
+          <stop offset="50%" stop-color="#e9eaed"/>
+          <stop offset="70%" stop-color="#9da3ab"/>
+          <stop offset="100%" stop-color="#555a61"/>
+        </linearGradient>
+        <linearGradient id="plane_metal_v" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="50%" stop-color="#d3d7dc"/>
+          <stop offset="100%" stop-color="#464a51"/>
+        </linearGradient>
+        <linearGradient id="plane_glass" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d4e6f1"/>
+          <stop offset="40%" stop-color="#a9cce3"/>
+          <stop offset="45%" stop-color="#ffffff"/>
+          <stop offset="55%" stop-color="#ffffff"/>
+          <stop offset="60%" stop-color="#7fb3d5"/>
+          <stop offset="100%" stop-color="#5499c7"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Base -->
+      <path d="M 25 135 L 25 140 A 35 6 0 0 0 95 140 L 95 135 Z" fill="#464a51"/>
+      <ellipse cx="60" cy="135" rx="35" ry="6" fill="url(#plane_metal)"/>
+
+      <!-- Stem -->
+      <path d="M 48 135 C 48 120, 54 110, 56 95 L 64 95 C 66 110, 72 120, 72 135 Z" fill="url(#plane_metal)"/>
+      <path d="M 52 135 C 52 120, 56 110, 58 95 L 62 95 C 64 110, 68 120, 68 135 Z" fill="#ffffff" opacity="0.4"/>
+
+      <!-- Bracket (U-shape) -->
+      <path d="M 18 55 L 18 70 A 42 42 0 0 0 102 70 L 102 55 L 94 55 L 94 70 A 34 34 0 0 1 26 70 L 26 55 Z" fill="url(#plane_metal)"/>
+
+      <!-- Side Knobs -->
+      <rect x="14" y="50" width="6" height="10" rx="2" fill="url(#plane_metal_v)"/>
+      <rect x="100" y="50" width="6" height="10" rx="2" fill="url(#plane_metal_v)"/>
+
+      <!-- Mirror Frame -->
+      <circle cx="60" cy="55" r="41" fill="url(#plane_metal)"/>
+      <circle cx="60" cy="55" r="39" fill="#1f2328"/>
+      <circle cx="60" cy="55" r="37.5" fill="url(#plane_metal_v)"/>
+
+      <!-- Mirror Surface -->
+      <circle cx="60" cy="55" r="36" fill="url(#plane_glass)"/>
+    `
+  },
+  {
+    id: "concave_mirror",
+    name: "Concave Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="sidebar_cm_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#707680"/>
+          <stop offset="50%" stop-color="#b6bbc2"/>
+          <stop offset="100%" stop-color="#464a51"/>
+        </linearGradient>
+        <linearGradient id="sidebar_cm_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#90caf9"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Metal Back Body (Thin) -->
+      <path d="M 50 10 C 79 42.5, 79 107.5, 50 140 C 75 107.5, 75 42.5, 50 10 Z" fill="url(#sidebar_cm_metal)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Glass Front Face -->
+      <path d="M 50 10 C 75 42.5, 75 107.5, 50 140 C 70 107.5, 70 42.5, 50 10 Z" fill="url(#sidebar_cm_glass)" stroke="#147ac7" stroke-width="1.5"/>
+      
+      <!-- Inner Highlight -->
+      <path d="M 53 15 C 71 45, 71 105, 53 135" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    `
+  },
+  {
+    id: "convex_mirror",
+    name: "Convex Mirror",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="sidebar_cv_metal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#464a51"/>
+          <stop offset="50%" stop-color="#b6bbc2"/>
+          <stop offset="100%" stop-color="#707680"/>
+        </linearGradient>
+        <linearGradient id="sidebar_cv_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#90caf9"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Metal Back Body (Thin) -->
+      <path d="M 70 10 C 70 42.5, 70 107.5, 70 140 C 74 107.5, 74 42.5, 70 10 Z" fill="url(#sidebar_cv_metal)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Glass Front Face (Bulges Left) -->
+      <path d="M 70 10 C 70 42.5, 70 107.5, 70 140 C 30 107.5, 30 42.5, 70 10 Z" fill="url(#sidebar_cv_glass)" stroke="#147ac7" stroke-width="1.5"/>
+      
+      <!-- Inner Highlight -->
+      <path d="M 64 15 C 34 45, 34 105, 64 135" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+    `
+  },
+  {
+    id: "concave_lens",
+    name: "Concave Lens",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="concave_lens_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="20%" stop-color="#bbdefb"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="80%" stop-color="#90caf9"/>
+          <stop offset="100%" stop-color="#64b5f6"/>
+        </linearGradient>
+      </defs>
+      <!-- Glass Body -->
+      <path d="M 30 10 L 90 10 Q 65 75, 90 140 L 30 140 Q 55 75, 30 10 Z" fill="url(#concave_lens_glass)" stroke="#1976d2" stroke-width="2"/>
+      <!-- Inner Highlight -->
+      <path d="M 34 14 L 86 14 Q 63 75, 86 136 L 34 136 Q 57 75, 34 14 Z" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.7"/>
+    `
+  },
+  {
+    id: "convex_lens",
+    name: "Convex Lens",
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="convex_lens_glass" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#e3f2fd"/>
+          <stop offset="20%" stop-color="#bbdefb"/>
+          <stop offset="50%" stop-color="#ffffff"/>
+          <stop offset="80%" stop-color="#90caf9"/>
+          <stop offset="100%" stop-color="#64b5f6"/>
+        </linearGradient>
+      </defs>
+      <!-- Glass Body -->
+      <path d="M 60 10 Q 110 75, 60 140 Q 10 75, 60 10 Z" fill="url(#convex_lens_glass)" stroke="#1976d2" stroke-width="2"/>
+      <!-- Inner Highlight -->
+      <path d="M 60 15 Q 102 75, 60 135 Q 18 75, 60 15 Z" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.7"/>
+    `
+  },
+  {
+    id: "laser",
+    name: "Laser",
+    category: "Optics",
+    viewBoxW: 240,
+    viewBoxH: 80,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="laser_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="20%" stop-color="#555" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="80%" stop-color="#222" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="laser_switch" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#111" />
+          <stop offset="100%" stop-color="#333" />
+        </linearGradient>
+      </defs>
+      <!-- Body -->
+      <rect x="20" y="25" width="160" height="30" rx="6" fill="url(#laser_body)" />
+      <!-- Switch Indent -->
+      <rect x="70" y="30" width="40" height="20" rx="10" fill="#000" />
+      <rect x="75" y="36" width="4" height="8" rx="2" fill="#880000" />
+      <rect x="101" y="36" width="4" height="8" rx="2" fill="#008800" />
+      <!-- Switch Slider (OFF position - Left) -->
+      <rect x="72" y="32" width="20" height="16" rx="4" fill="url(#laser_switch)" stroke="#555" stroke-width="1" />
+      <!-- Right Face -->
+      <ellipse cx="175" cy="40" rx="5" ry="15" fill="#111" />
+      <!-- Unlit Laser Dots -->
+      <circle cx="175" cy="32" r="3" fill="#880000" />
+      <circle cx="175" cy="48" r="3" fill="#008800" />
+    `,
+    litSvgBody: `
+      <defs>
+        <linearGradient id="laser_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="20%" stop-color="#555" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="80%" stop-color="#222" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="laser_switch" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#111" />
+          <stop offset="100%" stop-color="#333" />
+        </linearGradient>
+      </defs>
+      <!-- Body -->
+      <rect x="20" y="25" width="160" height="30" rx="6" fill="url(#laser_body)" />
+      <!-- Switch Indent -->
+      <rect x="70" y="30" width="40" height="20" rx="10" fill="#000" />
+      <rect x="75" y="36" width="4" height="8" rx="2" fill="#ff4444" />
+      <rect x="101" y="36" width="4" height="8" rx="2" fill="#44ff44" />
+      <!-- Switch Slider (ON position - Right) -->
+      <rect x="88" y="32" width="20" height="16" rx="4" fill="url(#laser_switch)" stroke="#555" stroke-width="1" />
+      <!-- Right Face -->
+      <ellipse cx="175" cy="40" rx="5" ry="15" fill="#111" />
+      <!-- Lit Laser Dots -->
+      <circle cx="175" cy="32" r="3" fill="#ff4444" />
+      <circle cx="175" cy="48" r="3" fill="#44ff44" />
+    `
+  },
+  {
+    id: "laser_stand",
+    name: "Laser Stand",
+    category: "Optics",
+    viewBoxW: 240,
+    viewBoxH: 80,
+    relativePins: [],
+    svgBody: `
+      <defs>
+        <linearGradient id="stand_body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e63946" />
+          <stop offset="20%" stop-color="#ff4d4d" />
+          <stop offset="50%" stop-color="#cc0000" />
+          <stop offset="80%" stop-color="#990000" />
+          <stop offset="100%" stop-color="#660000" />
+        </linearGradient>
+        <linearGradient id="stand_cap" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#444" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+        <linearGradient id="stand_head" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#333" />
+          <stop offset="50%" stop-color="#111" />
+          <stop offset="100%" stop-color="#000" />
+        </linearGradient>
+      </defs>
+      <!-- Left Cap -->
+      <rect x="20" y="25" width="10" height="30" rx="3" fill="url(#stand_cap)" />
+      <!-- Red Body -->
+      <rect x="30" y="27" width="140" height="26" fill="url(#stand_body)" />
+      <!-- Vertical Mount Head -->
+      <path d="M 160 15 L 160 65 A 12 6 0 0 0 184 65 L 184 15 A 12 6 0 0 1 160 15 Z" fill="url(#stand_head)" />
+      <ellipse cx="172" cy="15" rx="12" ry="6" fill="#333" />
+      <ellipse cx="172" cy="65" rx="12" ry="6" fill="#111" />
+      <ellipse cx="172" cy="65" rx="6" ry="3" fill="#000" />
+    `
+  }
+];
 /**
  * Returns { imageSrc, litImageSrc } data URLs for any LED color value (e.g. "blue", "red").
  * Safe to call at any time â€” STATIC_COMPONENTS is already initialised by the time
@@ -2375,3 +2744,217 @@ export function getSphereDataUrls(
     imageSrc: svgToDataUrl(modifiedDef, false, outlined),
   };
 } */
+
+export function getMirrorDataUrl(componentId: string, view: "Front View" | "Side View" | "Back View" = "Front View", outlined = false, uniqueId = ""): string {
+  if (view === "Front View") {
+    const def = STATIC_COMPONENTS.find(d => d.id === componentId);
+    return svgToDataUrl(def!, false, outlined, uniqueId);
+  }
+
+  let svgBody = `
+      <defs>
+         <linearGradient id="prem_metal_base_top" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f0f3f5"/>
+            <stop offset="100%" stop-color="#b8c0c8"/>
+         </linearGradient>
+         <linearGradient id="prem_metal_base_front" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7a858e"/>
+            <stop offset="100%" stop-color="#3d454d"/>
+         </linearGradient>
+         <linearGradient id="prem_metal_stem" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#556069"/>
+            <stop offset="25%" stop-color="#a3b0b8"/>
+            <stop offset="50%" stop-color="#e3eaed"/>
+            <stop offset="85%" stop-color="#7a858e"/>
+            <stop offset="100%" stop-color="#4a535c"/>
+         </linearGradient>
+         <linearGradient id="prem_glass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#4aa3df"/>
+            <stop offset="50%" stop-color="#a4d3f5"/>
+            <stop offset="100%" stop-color="#147ac7"/>
+         </linearGradient>
+        <radialGradient id="prem_dome" cx="40%" cy="30%" r="60%">
+          <stop offset="0%" stop-color="#e3eaed"/>
+          <stop offset="50%" stop-color="#8f9ca6"/>
+          <stop offset="100%" stop-color="#4a535c"/>
+        </radialGradient>
+      </defs>
+      
+      <!-- Base Bottom Shadow -->
+      <ellipse cx="60" cy="144" rx="42" ry="5" fill="#000000" opacity="0.3"/>
+      
+      <!-- Base Front Slab -->
+      <polygon points="20,136 100,136 100,144 20,144" fill="url(#prem_metal_base_front)" stroke="#2b3137" stroke-width="1.5"/>
+      <!-- Base Top Slab -->
+      <polygon points="30,128 90,128 100,136 20,136" fill="url(#prem_metal_base_top)" stroke="#556069" stroke-width="1.5"/>
+
+      <!-- Curved Stem -->
+      <path d="M 45 128 C 45 100, 52 80, 56 60 L 64 60 C 68 80, 75 100, 75 128 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+`;
+
+  if (view === "Back View") {
+    svgBody += `
+      <!-- Mirror Dome (Back) -->
+      <circle cx="60" cy="55" r="42" fill="url(#prem_dome)" stroke="#3d454d" stroke-width="1.5"/>
+      
+      <!-- Back U-Bracket -->
+      <path d="M 18 55 L 18 65 A 42 42 0 0 0 102 65 L 102 55 L 95 55 L 95 65 A 35 35 0 0 1 25 65 L 25 55 Z" fill="url(#prem_metal_stem)"/>
+      <rect x="55" y="45" width="10" height="25" rx="3" fill="url(#prem_metal_stem)"/>
+      
+      <!-- Side Knobs -->
+      <rect x="14" y="50" width="8" height="12" rx="3" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1"/>
+      <rect x="98" y="50" width="8" height="12" rx="3" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1"/>
+
+      <!-- Center Knob -->
+      <circle cx="60" cy="55" r="6" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1"/>
+      <circle cx="60" cy="55" r="3" fill="#e3eaed"/>
+    `;
+  } else if (view === "Side View") {
+    let mirrorProfile = "";
+    if (componentId === "plane_mirror") {
+      mirrorProfile = `
+        <polygon points="50,10 60,10 60,110 50,110" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <polygon points="45,10 50,10 50,110 45,110" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    } else if (componentId === "concave_mirror") {
+      mirrorProfile = `
+        <!-- Metal Back Body (Thin) -->
+        <path d="M 50 10 C 79 35, 79 85, 50 110 C 75 85, 75 35, 50 10 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <!-- Glass Front Face -->
+        <path d="M 50 10 C 75 35, 75 85, 50 110 C 70 85, 70 35, 50 10 Z" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <!-- Pivot Joint on the back -->
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    } else if (componentId === "convex_mirror") {
+      mirrorProfile = `
+        <!-- Metal Back Body (Thin) -->
+        <path d="M 70 10 C 70 35, 70 85, 70 110 C 74 85, 74 35, 70 10 Z" fill="url(#prem_metal_stem)" stroke="#3d454d" stroke-width="1.5"/>
+        <!-- Glass Front Face (Bulges Left) -->
+        <path d="M 70 10 C 70 35, 70 85, 70 110 C 30 85, 30 35, 70 10 Z" fill="url(#prem_glass)" stroke="#147ac7" stroke-width="1"/>
+        <circle cx="60" cy="60" r="10" fill="url(#prem_metal_base_top)" stroke="#3d454d" stroke-width="1.5"/>
+        <circle cx="60" cy="60" r="5" fill="#e3eaed" stroke="#7a858e" stroke-width="1"/>
+      `;
+    }
+
+    svgBody += `
+      ${mirrorProfile}
+    `;
+  }
+
+  const def: StaticComponentDef = {
+    id: componentId,
+    name: componentId,
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody
+  };
+
+  return svgToDataUrl(def, false, outlined, uniqueId);
+}
+
+export function getLensDataUrl(componentId: string, view: "Front View" | "Side View" | "Edge View" = "Front View", outlined = false, uniqueId = ""): string {
+  if (view === "Front View") {
+    const def = STATIC_COMPONENTS.find(d => d.id === componentId);
+    return svgToDataUrl(def!, false, outlined, uniqueId);
+  }
+
+  let svgBody = `
+    <defs>
+      <linearGradient id="lens_glass_view" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#e3f2fd"/>
+        <stop offset="20%" stop-color="#bbdefb"/>
+        <stop offset="50%" stop-color="#ffffff"/>
+        <stop offset="80%" stop-color="#90caf9"/>
+        <stop offset="100%" stop-color="#64b5f6"/>
+      </linearGradient>
+    </defs>
+  `;
+
+  if (view === "Side View") {
+    if (componentId === "concave_lens") {
+      svgBody += `
+        <defs>
+          <linearGradient id="concave_glass_front" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#e3f2fd"/>
+            <stop offset="30%" stop-color="#ffffff"/>
+            <stop offset="70%" stop-color="#90caf9"/>
+            <stop offset="100%" stop-color="#55a5e3"/>
+          </linearGradient>
+          <linearGradient id="concave_glass_edge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#55a5e3"/>
+            <stop offset="50%" stop-color="#84c5f5"/>
+            <stop offset="100%" stop-color="#3d91cc"/>
+          </linearGradient>
+        </defs>
+        <!-- Bottom Face -->
+        <polygon points="35,130 65,130 80,123 50,123" fill="#3d91cc" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Right Edge Face (Thickness) -->
+        <path d="M 65 20 L 80 13 Q 65 68, 80 123 L 65 130 Q 50 75, 65 20 Z" fill="url(#concave_glass_edge)" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Top Face -->
+        <polygon points="35,20 65,20 80,13 50,13" fill="#e3f2fd" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Front Face -->
+        <path d="M 35 20 L 65 20 Q 50 75, 65 130 L 35 130 Q 50 75, 35 20 Z" fill="url(#concave_glass_front)" stroke="#1c6ca1" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Inner Highlights -->
+        <path d="M 38 23 Q 50 75, 38 127" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+        <path d="M 62 23 Q 48 75, 62 127" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <path d="M 68 20 Q 53 72, 68 126" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+      `;
+    } else if (componentId === "convex_lens") {
+      svgBody += `
+        <defs>
+          <linearGradient id="lens_glass_front" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#e3f2fd"/>
+            <stop offset="30%" stop-color="#ffffff"/>
+            <stop offset="70%" stop-color="#90caf9"/>
+            <stop offset="100%" stop-color="#55a5e3"/>
+          </linearGradient>
+          <linearGradient id="lens_glass_edge" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#55a5e3"/>
+            <stop offset="50%" stop-color="#84c5f5"/>
+            <stop offset="100%" stop-color="#3d91cc"/>
+          </linearGradient>
+        </defs>
+        <!-- Right Face (Thickness) -->
+        <path d="M 50 10 Q 80 75, 50 140 Q 95 75, 50 10 Z" fill="url(#lens_glass_edge)" stroke="#1c6ca1" stroke-width="2" stroke-linejoin="round"/>
+        <!-- Front Face -->
+        <path d="M 50 10 Q 20 75, 50 140 Q 80 75, 50 10 Z" fill="url(#lens_glass_front)" stroke="#1c6ca1" stroke-width="2" stroke-linejoin="round"/>
+        <!-- Inner Left Highlight -->
+        <path d="M 50 15 Q 26 75, 50 135" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+        <!-- Inner Right Highlight -->
+        <path d="M 50 16 Q 74 75, 50 134" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      `;
+    }
+  } else if (view === "Edge View") {
+    if (componentId === "concave_lens") {
+      svgBody += `
+        <!-- Edge View (Thin hourglass profile) -->
+        <polygon points="57,10 63,10 65,15 65,135 63,140 57,140 55,135 55,15" fill="url(#lens_glass_view)" stroke="#1976d2" stroke-width="1.5"/>
+        <polygon points="59,12 61,12 63,16 63,134 61,138 59,138 57,134 57,16" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+      `;
+    } else if (componentId === "convex_lens") {
+      svgBody += `
+        <!-- Edge View (Thin rectangle profile) -->
+        <rect x="55" y="10" width="10" height="130" rx="3" fill="url(#lens_glass_view)" stroke="#1976d2" stroke-width="1.5"/>
+        <rect x="57" y="12" width="6" height="126" rx="2" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+      `;
+    }
+  }
+
+  const def: StaticComponentDef = {
+    id: componentId,
+    name: componentId,
+    category: "Optics",
+    viewBoxW: 120,
+    viewBoxH: 150,
+    relativePins: [],
+    svgBody
+  };
+
+  return svgToDataUrl(def, false, outlined, uniqueId);
+}
+

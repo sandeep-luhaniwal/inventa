@@ -1,7 +1,7 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint, Drawing } from "../types/circuit";
-import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls } from "../constants/staticComponents";
+import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl } from "../constants/staticComponents";
 import { METAL_PHYSICS } from "../constants/physics";
 import { relativePinsToPorts } from "../utils/circuitUtils";
 
@@ -622,6 +622,41 @@ function snapBulbAndHolder(components: PlacedComponent[], movedId: string): Plac
   return components;
 }
 
+function moveAttachedOptics(components: PlacedComponent[], movedId: string, newX: number, newY: number): PlacedComponent[] {
+  const movedIdx = components.findIndex((c) => c.id === movedId);
+  if (movedIdx === -1) return components;
+  
+  const oldComp = components[movedIdx];
+  const isStand = oldComp.componentId === 'laser_stand';
+  
+  if (!isStand) {
+    return components.map((c) => (c.id === movedId ? { ...c, x: newX, y: newY } : c));
+  }
+
+  const dx = newX - oldComp.x;
+  const dy = newY - oldComp.y;
+
+  const opticsIds = ['laser', 'convex_lens', 'concave_lens', 'convex_mirror', 'concave_mirror', 'plane_mirror'];
+  const attachedIds = new Set<string>();
+  
+  for (const c of components) {
+    if (opticsIds.includes(c.componentId)) {
+      const dist = Math.hypot(c.x - oldComp.x, c.y - oldComp.y);
+      if (dist < 100) {
+        attachedIds.add(c.id);
+      }
+    }
+  }
+
+  return components.map(c => {
+    if (c.id === movedId) return { ...c, x: newX, y: newY };
+    if (attachedIds.has(c.id)) {
+      return { ...c, x: c.x + dx, y: c.y + dy };
+    }
+    return c;
+  });
+}
+
 function loadFromStorage(): { components: PlacedComponent[]; wires: Wire[]; notes: Note[]; drawings: Drawing[] } {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -733,7 +768,7 @@ export function useCircuitStore() {
 
   const moveComponent = useCallback((id: string, x: number, y: number) => {
     setComponents((prev) => {
-      let positioned = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      let positioned = moveAttachedOptics(prev, id, x, y);
       positioned = snapBulbAndHolder(positioned, id);
       const constrained = clampPotentialDifferenceProbes(positioned);
       const interacted = applySphereInteractions(
@@ -753,7 +788,7 @@ export function useCircuitStore() {
       const oldComp = prev[movedIdx];
       if (oldComp.x === x && oldComp.y === y) return prev;
 
-      let nextComps = prev.map((c) => (c.id === id ? { ...c, x, y } : c));
+      let nextComps = moveAttachedOptics(prev, id, x, y);
       nextComps = snapBulbAndHolder(nextComps, id);
       nextComps = clampPotentialDifferenceProbes(nextComps);
       nextComps = applySphereInteractions(
@@ -790,6 +825,16 @@ export function useCircuitStore() {
           resolvedUpdates = {
             ...resolvedUpdates,
             imageSrc: getSphereDataUrls(updates.physicsMetal, false, comp.id).imageSrc
+          };
+        } else if (["plane_mirror", "concave_mirror", "convex_mirror"].includes(comp.componentId) && updates.opticsMirrorView !== undefined) {
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            imageSrc: getMirrorDataUrl(comp.componentId, updates.opticsMirrorView, false, comp.id)
+          };
+        } else if (["concave_lens", "convex_lens"].includes(comp.componentId) && updates.opticsLensView !== undefined) {
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            imageSrc: getLensDataUrl(comp.componentId, updates.opticsLensView, false, comp.id)
           };
         }
       }

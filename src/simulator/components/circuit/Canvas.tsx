@@ -15,7 +15,7 @@ import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulato
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
-import { getLedDataUrls, getSphereDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl } from "@/simulator/constants/staticComponents";
+import { STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getLedDataUrls, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl } from "@/simulator/constants/staticComponents";
 import { ZoomIn, ZoomOut, Maximize, RefreshCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
@@ -723,7 +723,11 @@ const Canvas = ({
           ))}
         </Layer>
         <Layer>
-          {placedComponents.map((comp) =>
+          {[...placedComponents].sort((a, b) => {
+             const zA = a.componentId.includes('stand') || a.componentId === 'breadboard' ? 0 : 1;
+             const zB = b.componentId.includes('stand') || b.componentId === 'breadboard' ? 0 : 1;
+             return zA - zB;
+          }).map((comp) =>
             comp.componentId === "breadboard" ? (
               <BreadboardNode
                 key={comp.id}
@@ -742,6 +746,8 @@ const Canvas = ({
                 const staticDef = STATIC_COMPONENTS.find((d) => d.id === comp.componentId);
                 const isSphere = comp.componentId.startsWith('sphere_');
                 const isCapacitor = comp.componentId === 'capacitor';
+                const isMirror = ['plane_mirror', 'concave_mirror', 'convex_mirror'].includes(comp.componentId);
+                const isLens = ['concave_lens', 'convex_lens'].includes(comp.componentId);
                 const isPowerSupply = comp.componentId === 'dc_power_supply' || comp.componentId === 'ac_power_supply';
                 const sphereUrls = isSphere ? getSphereDataUrls(comp.physicsMetal || "Copper", isSelected && !isSphere, comp.id) : null;
                 const capacitorImageSrc = isCapacitor
@@ -753,7 +759,13 @@ const Canvas = ({
                       comp.id
                     )
                   : null;
-                const resolvedBaseImageSrc = capacitorImageSrc || (sphereUrls ? sphereUrls.imageSrc : (staticDef
+                const mirrorImageSrc = isMirror
+                  ? getMirrorDataUrl(comp.componentId, comp.opticsMirrorView, isSelected, comp.id)
+                  : null;
+                const lensImageSrc = isLens
+                  ? getLensDataUrl(comp.componentId, comp.opticsLensView, isSelected, comp.id)
+                  : null;
+                const resolvedBaseImageSrc = lensImageSrc || mirrorImageSrc || capacitorImageSrc || (sphereUrls ? sphereUrls.imageSrc : (staticDef
                   ? svgToDataUrl(staticDef, false, isSelected && !isPowerSupply, comp.id)
                   : comp.imageSrc));
                 // For LEDs, resolve the live image URLs from the current ledColor

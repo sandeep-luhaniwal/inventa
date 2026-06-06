@@ -86,7 +86,7 @@ const CAPACITOR_UNIT_MULTIPLIERS: Record<string, number> = {
 const CAPACITOR_TIME_STEP_SECONDS = 0.05;
 const CAPACITOR_DEFAULT_ESR_OHMS = 0.001;
 const CAPACITOR_LED_DISCHARGE_RESISTANCE_OHMS = 3000;
-const CAPACITOR_SPARK_HOLD_MS = 650;
+const CAPACITOR_SPARK_HOLD_MS = 2500;
 const LED_FORWARD_VOLTAGE = 2.0;
 const LED_MAX_SAFE_CURRENT_AMPS = 0.02;
 const LED_INTERNAL_RESISTANCE_OHMS = 350;
@@ -96,6 +96,7 @@ type CapacitorRuntimeState = {
   voltage: number;
   sparkUntil?: number;
   sparkIntensity?: number;
+  standaloneSparked?: boolean;
 };
 
 const capacitorRuntimeStates = new Map<string, CapacitorRuntimeState>();
@@ -629,6 +630,20 @@ function simulateCapacitors(
     }
 
     const now = Date.now();
+    let standaloneSparked = runtime.standaloneSparked ?? false;
+    if (!isTerminalShorted) {
+      standaloneSparked = false;
+    }
+    if (
+      isTerminalShorted &&
+      batteries.length === 0 &&
+      !standaloneSparked &&
+      Math.abs(runtime.voltage) <= 0.02 &&
+      voltageLimit > 0
+    ) {
+      sourceVoltageForSpark = voltageLimit;
+      standaloneSparked = true;
+    }
     const sparkVoltage = Math.max(Math.abs(runtime.voltage), sourceVoltageForSpark);
     const sparkEnergy = 0.5 * capacitance * sparkVoltage * sparkVoltage;
     let sparkUntil = runtime.sparkUntil;
@@ -658,6 +673,7 @@ function simulateCapacitors(
       voltage: nextVoltage,
       sparkUntil,
       sparkIntensity: activeSparkIntensity,
+      standaloneSparked,
     });
 
     states[comp.id] = {
@@ -754,6 +770,26 @@ export function simulateCircuit(
   }
 
   if (batteries.length === 0) {
+    const capacitorOnlyStates = simulateCapacitors(components, graph, [], Infinity);
+    const hasCapacitorSpark = Object.values(capacitorOnlyStates).some(
+      (state) => (state.capacitorSparkIntensity ?? 0) > 0 || state.capacitorShorted
+    );
+    if (hasCapacitorSpark) {
+      return {
+        runnable: true,
+        litComponents: [],
+        poweredComponents: [],
+        poweredWires: [],
+        componentStates: capacitorOnlyStates,
+        summary: "Capacitor terminals shorted: spark discharge.",
+        voltage: 0,
+        totalResistance: 0,
+        currentMA: 0,
+        powerWatts: 0,
+        isShortCircuit: true,
+      };
+    }
+
     return {
       runnable: false,
       litComponents: [],
