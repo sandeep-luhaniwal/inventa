@@ -794,48 +794,47 @@ export function ChemicalContainerAsset({
     const isAmber = symbol === "KMnO4" || symbol === "AgNO3" || symbol === "HNO3" || symbol === "I2" || symbol === "H2O2" || symbol === "Cl2" || symbol === "Br2" || symbol === "Fuchsin" || symbol === "Methyl orange";
 
     return (
-      <svg viewBox="0 0 130 160" className="h-40 w-40 overflow-visible drop-shadow-[0_18px_28px_rgba(0,0,0,0.2)]">
-        <GlassDefs />
-        <g filter="url(#ultraGlass)">
-          {/* Gas Jar Body - Cylinder with rounded shoulders inside 130x160 */}
+      <svg viewBox="0 0 130 160" className="h-40 w-40 overflow-visible drop-shadow-[0_18px_28px_rgba(0,0,0,0.25)]">
+        <defs>
+          <linearGradient id={`metalGrad-${symbol}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#475569" />
+            <stop offset="35%" stopColor="#94a3b8" />
+            <stop offset="50%" stopColor="#f8fafc" />
+            <stop offset="65%" stopColor="#94a3b8" />
+            <stop offset="100%" stopColor="#334155" />
+          </linearGradient>
+          <linearGradient id={`brassGrad-${symbol}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#78350f" />
+            <stop offset="35%" stopColor="#d97706" />
+            <stop offset="50%" stopColor="#fef08a" />
+            <stop offset="65%" stopColor="#d97706" />
+            <stop offset="100%" stopColor="#78350f" />
+          </linearGradient>
+          <linearGradient id={`cylinderBodyGrad-${symbol}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#1e293b" stopOpacity="0.35" />
+            <stop offset="25%" stopColor={accent || "#64748b"} stopOpacity="0.25" />
+            <stop offset="50%" stopColor="#f1f5f9" stopOpacity="0.15" />
+            <stop offset="75%" stopColor={accent || "#64748b"} stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#0f172a" stopOpacity="0.35" />
+          </linearGradient>
+          <linearGradient id={`cylinderGloss-${symbol}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+            <stop offset="15%" stopColor="#ffffff" stopOpacity="0.15" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="85%" stopColor="#ffffff" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0.3" />
+          </linearGradient>
+        </defs>
+
+        <g>
+          {/* Transparent Gas Contents */}
           <path
-            d="M 48 48 C 43 48, 40 54, 40 60 V 120 C 40 126, 45 130, 52 130 H 78 C 85 130, 90 126, 90 120 V 60 C 90 54, 87 48, 82 48 Z"
-            fill={isAmber ? "url(#amberGlassBody)" : "url(#glassBody)"}
-            stroke="#ffffff"
-            strokeWidth="0.7"
-            strokeOpacity="0.08"
-          />
-          <path
-            d="M 48 48 C 43 48, 40 54, 40 60 V 120 C 40 126, 45 130, 52 130 H 78 C 85 130, 90 126, 90 120 V 60 C 90 54, 87 48, 82 48 Z"
-            fill="url(#internalReflection)"
+            d="M 36 56 C 36 44, 48 40, 52 40 H 78 C 82 40, 94 44, 94 56 V 130 C 94 138, 85 142, 65 142 C 45 142, 36 138, 36 130 Z"
+            fill={accent || "#ffffff"}
+            fillOpacity="0.35"
           />
 
-          {/* Neck of Gas Jar */}
-          <rect x="48" y="27" width="34" height="24" rx="5" fill={isAmber ? "url(#amberGlassBody)" : "url(#glassBody)"} stroke="#ffffff" strokeWidth="0.7" strokeOpacity="0.06" />
-
-          {/* Stopper / Cap (Same as standard glass stopper) */}
-          {!isOpen && (
-            <g>
-              {/* Stopper Plug */}
-              <path d="M 52 27 H 78 L 75 41 H 55 Z" fill={isAmber ? "url(#amberGlassBody)" : "url(#glassBody)"} stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-              {/* Stopper Collar */}
-              <rect x="47" y="23" width="36" height="4" rx="1.5" fill={isAmber ? "url(#amberGlassBody)" : "url(#glassBody)"} stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-              {/* Stopper Handle */}
-              <circle cx="65" cy="13" r="10" fill={isAmber ? "url(#amberGlassBody)" : "url(#glassBody)"} stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-              {/* Stopper Highlights */}
-              <ellipse cx="61" cy="9" rx="3.5" ry="2" transform="rotate(-30, 61, 9)" fill="#ffffff" fillOpacity="0.45" />
-              <path d="M 49 24 H 81" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.25" />
-            </g>
-          )}
-
-          {/* Gas Contents */}
-          <path
-            d="M 48 50 C 43 50, 41 55, 41 60 V 120 C 41 125, 45 129, 52 129 H 78 C 85 129, 89 125, 89 120 V 60 C 89 55, 87 50, 82 50 Z"
-            fill={accent}
-            fillOpacity="0.45"
-          />
-
-          {/* Floating Gas Particles */}
+          {/* Floating gas bubbles to visually distinguish it as a transparent gas container */}
           <g opacity="0.6">
             <circle cx="52" cy="70" r="2.5" fill="#ffffff" opacity="0.4" />
             <circle cx="78" cy="90" r="2" fill="#ffffff" opacity="0.3" />
@@ -845,18 +844,103 @@ export function ChemicalContainerAsset({
             <circle cx="82" cy="75" r="2.5" fill="#ffffff" opacity="0.3" />
           </g>
 
+          {/* Cylinder Body (Glassy Metal Gas Tank) */}
+          <path
+            d="M 36 56 C 36 44, 48 40, 52 40 H 78 C 82 40, 94 44, 94 56 V 130 C 94 138, 85 142, 65 142 C 45 142, 36 138, 36 130 Z"
+            fill={`url(#cylinderBodyGrad-${symbol})`}
+            stroke="#ffffff"
+            strokeWidth="0.8"
+            strokeOpacity="0.35"
+          />
+
+          {/* Gloss Reflection Overlay */}
+          <path
+            d="M 36 56 C 36 44, 48 40, 52 40 H 78 C 82 40, 94 44, 94 56 V 130 C 94 138, 85 142, 65 142 C 45 142, 36 138, 36 130 Z"
+            fill={`url(#cylinderGloss-${symbol})`}
+            pointerEvents="none"
+          />
+
+          {/* Protective Valve Guard / Metal Collar */}
+          <path
+            d="M 50 40 V 24 C 50 20, 55 18, 60 20 V 28 H 70 V 20 C 75 18, 80 20, 80 24 V 40 Z"
+            fill={`url(#metalGrad-${symbol})`}
+            stroke="#475569"
+            strokeWidth="0.5"
+          />
+
+          {/* Valve Block (Brass/Gold Connection Point) */}
+          <rect x="61" y="24" width="8" height="16" fill={`url(#brassGrad-${symbol})`} stroke="#78350f" strokeWidth="0.5" />
+          {/* Nozzle outlet (Centered at 65, 25) */}
+          <rect x="58" y="22" width="14" height="4" rx="1" fill={`url(#brassGrad-${symbol})`} stroke="#78350f" strokeWidth="0.5" />
+
+          {/* Rotary Valve Handle / Knob */}
+          <g
+            style={{
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transformOrigin: '65px 18px',
+              transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+          >
+            <circle cx="65" cy="18" r="9" fill="none" stroke="#334155" strokeWidth="2.5" />
+            <line x1="56" y1="18" x2="74" y2="18" stroke="#334155" strokeWidth="2" />
+            <line x1="65" y1="9" x2="65" y2="27" stroke="#334155" strokeWidth="2" />
+            <circle cx="65" cy="18" r="3.5" fill={`url(#metalGrad-${symbol})`} />
+          </g>
+
+          {/* Pressure Gauge (Analog Regulator) */}
+          <g>
+            {/* Gauge Case */}
+            <circle cx="78" cy="30" r="7.5" fill={`url(#metalGrad-${symbol})`} stroke="#334155" strokeWidth="0.8" />
+            {/* Gauge Dial face */}
+            <circle cx="78" cy="30" r="5.8" fill="#f8fafc" />
+            {/* Red warning zone arc */}
+            <path d="M 81 25.5 A 5.8 5.8 0 0 1 83.8 30" fill="none" stroke="#ef4444" strokeWidth="1.2" />
+            {/* Green safe zone arc */}
+            <path d="M 73 27 A 5.8 5.8 0 0 1 81 25.5" fill="none" stroke="#22c55e" strokeWidth="1.2" />
+            {/* Pressure Gauge Needle */}
+            <line
+              x1="78"
+              y1="30"
+              x2="78"
+              y2="25.2"
+              stroke="#dc2626"
+              strokeWidth="1"
+              strokeLinecap="round"
+              style={{
+                transform: isOpen ? 'rotate(35deg)' : 'rotate(-85deg)',
+                transformOrigin: '78px 30px',
+                transition: 'transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            />
+          </g>
+
+          {/* ON/OFF Status Indicator LED and Panel */}
+          <g>
+            <rect x="53" y="47" width="24" height="10" rx="2" fill="#0f172a" stroke="#334155" strokeWidth="0.8" />
+            <circle cx="58" cy="52" r="2" fill={isOpen ? "#22c55e" : "#ef4444"} style={{ transition: 'fill 0.4s' }} />
+            {isOpen && (
+              <circle cx="58" cy="52" r="2.5" fill="none" stroke="#22c55e" strokeWidth="0.5" opacity="0.8">
+                <animate attributeName="r" values="2;5" dur="1.2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.8;0" dur="1.2s" repeatCount="indefinite" />
+              </circle>
+            )}
+            <text x="70" y="54.5" fill="#e2e8f0" fontSize="5.5" fontWeight="bold" fontFamily="system-ui" textAnchor="middle" style={{ userSelect: 'none' }}>
+              {isOpen ? "ON" : "OFF"}
+            </text>
+          </g>
+
           {/* Label Sticker */}
           <path
-            d="M 44 67 H 86 L 90 71 V 93 L 86 97 H 44 L 40 93 V 71 Z"
+            d="M 44 70 H 86 L 90 74 V 96 L 86 100 H 44 L 40 96 V 74 Z"
             fill="#e5e7eb"
-            fillOpacity="0.8"
+            fillOpacity="0.85"
             stroke="#3b82f6"
             strokeWidth="1.8"
           />
-          <text x="65" y="82" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="700" fontFamily="system-ui">
+          <text x="65" y="85" textAnchor="middle" fill="#111827" fontSize="10.5" fontWeight="800" fontFamily="system-ui">
             {symbol}
           </text>
-          <text x="65" y="90" textAnchor="middle" fill="#374151" fontSize="5.5" fontFamily="system-ui">
+          <text x="65" y="93" textAnchor="middle" fill="#374151" fontSize="5.5" fontWeight="700" fontFamily="system-ui">
             {label.slice(0, 13)}
           </text>
         </g>
@@ -864,20 +948,32 @@ export function ChemicalContainerAsset({
         {/* Escaping gas effect when open and no pipe connected */}
         {isOpen && !pipeConnected && (
           <g style={{ mixBlendMode: "screen" }}>
-            <circle cx="65" cy="25" r="4" fill={accent || "#ffffff"} opacity="0" filter="blur(2px)">
-              <animate attributeName="cy" values="25;-30" dur="2s" repeatCount="indefinite" begin="0s" />
-              <animate attributeName="opacity" values="0;0.55;0" dur="2s" repeatCount="indefinite" begin="0s" />
-              <animate attributeName="r" values="4;18" dur="2s" repeatCount="indefinite" begin="0s" />
+            {/* A soft glowing steam cloud at the nozzle */}
+            <ellipse cx="65" cy="18" rx="8" ry="4" fill={accent || "#ffffff"} opacity="0.6" filter="blur(3px)">
+              <animate attributeName="opacity" values="0.4;0.7;0.4" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="rx" values="6;10;6" dur="2s" repeatCount="indefinite" />
+            </ellipse>
+            
+            {/* Rising vapor particles */}
+            <circle cx="65" cy="18" r="3" fill={accent || "#ffffff"} opacity="0" filter="blur(1.5px)">
+              <animate attributeName="cy" values="18;-40" dur="1.8s" repeatCount="indefinite" begin="0s" />
+              <animate attributeName="opacity" values="0;0.75;0" dur="1.8s" repeatCount="indefinite" begin="0s" />
+              <animate attributeName="r" values="3;16" dur="1.8s" repeatCount="indefinite" begin="0s" />
+              <animate attributeName="cx" values="65;58;68" dur="1.8s" repeatCount="indefinite" begin="0s" />
             </circle>
-            <circle cx="58" cy="25" r="3" fill={accent || "#ffffff"} opacity="0" filter="blur(2px)">
-              <animate attributeName="cy" values="25;-20" dur="2.5s" repeatCount="indefinite" begin="0.8s" />
-              <animate attributeName="opacity" values="0;0.45;0" dur="2.5s" repeatCount="indefinite" begin="0.8s" />
-              <animate attributeName="r" values="3;14" dur="2.5s" repeatCount="indefinite" begin="0.8s" />
+
+            <circle cx="65" cy="18" r="2.5" fill={accent || "#ffffff"} opacity="0" filter="blur(2px)">
+              <animate attributeName="cy" values="18;-30" dur="2.2s" repeatCount="indefinite" begin="0.6s" />
+              <animate attributeName="opacity" values="0;0.65;0" dur="2.2s" repeatCount="indefinite" begin="0.6s" />
+              <animate attributeName="r" values="2.5;12" dur="2.2s" repeatCount="indefinite" begin="0.6s" />
+              <animate attributeName="cx" values="65;72;62" dur="2.2s" repeatCount="indefinite" begin="0.6s" />
             </circle>
-            <circle cx="72" cy="25" r="5" fill={accent || "#ffffff"} opacity="0" filter="blur(2px)">
-              <animate attributeName="cy" values="25;-40" dur="1.8s" repeatCount="indefinite" begin="1.2s" />
-              <animate attributeName="opacity" values="0;0.65;0" dur="1.8s" repeatCount="indefinite" begin="1.2s" />
-              <animate attributeName="r" values="5;22" dur="1.8s" repeatCount="indefinite" begin="1.2s" />
+
+            <circle cx="65" cy="18" r="4" fill={accent || "#ffffff"} opacity="0" filter="blur(2.5px)">
+              <animate attributeName="cy" values="18;-50" dur="1.5s" repeatCount="indefinite" begin="1.2s" />
+              <animate attributeName="opacity" values="0;0.85;0" dur="1.5s" repeatCount="indefinite" begin="1.2s" />
+              <animate attributeName="r" values="4;20" dur="1.5s" repeatCount="indefinite" begin="1.2s" />
+              <animate attributeName="cx" values="65;60;70" dur="1.5s" repeatCount="indefinite" begin="1.2s" />
             </circle>
           </g>
         )}

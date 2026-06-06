@@ -93,12 +93,12 @@ body {
 .chemistry-steam span {
   position: absolute;
   bottom: 0;
-  width: 8px;
-  height: 48px;
+  width: 14px;
+  height: 52px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.42));
-  filter: blur(4px);
-  animation: chemistry-steam-rise 1.45s ease-in-out infinite;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.45));
+  filter: blur(5px);
+  animation: chemistry-steam-rise 1.8s ease-in-out infinite;
 }
 
 .chemistry-steam span:nth-child(1) {
@@ -172,17 +172,63 @@ body {
 @keyframes chemistry-steam-rise {
   0% {
     opacity: 0;
-    transform: translateY(18px) scaleX(0.7);
+    transform: translateY(20px) translateX(0) scale(0.65);
   }
 
-  45% {
-    opacity: 0.75;
+  25% {
+    opacity: 0.65;
+    transform: translateY(-20px) translateX(8px) scale(0.95);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: translateY(-70px) translateX(-6px) scale(1.25);
+    filter: blur(8px);
+  }
+
+  75% {
+    opacity: 0.35;
+    transform: translateY(-120px) translateX(10px) scale(1.5);
   }
 
   100% {
     opacity: 0;
-    transform: translateY(-36px) scaleX(1.35);
+    transform: translateY(-180px) translateX(-10px) scale(1.8);
+    filter: blur(14px);
   }
+}
+
+@keyframes chemistry-bubble-rise-css {
+  0% {
+    transform: translateY(0px) translateX(0px) scale(var(--bubble-scale-start, 0.4));
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+  }
+  25% {
+    transform: translateY(calc(-0.25 * var(--liquid-h))) translateX(var(--wobble-1)) scale(var(--bubble-scale-start, 0.4));
+  }
+  50% {
+    transform: translateY(calc(-0.5 * var(--liquid-h))) translateX(var(--wobble-2)) scale(var(--bubble-scale-mid, 0.8));
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(calc(-0.75 * var(--liquid-h))) translateX(var(--wobble-3)) scale(var(--bubble-scale-mid, 0.8));
+  }
+  95% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(calc(-1 * var(--liquid-h) + 12px)) translateX(var(--wobble-4)) scale(var(--bubble-scale-end, 1.15));
+    opacity: 0;
+  }
+}
+
+.chemistry-bubble-item {
+  animation: chemistry-bubble-rise-css var(--bubble-dur) linear infinite;
+  animation-delay: var(--bubble-delay);
+  transform-origin: center;
 }
 
 @keyframes chemistry-gas-float {
