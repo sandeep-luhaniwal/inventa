@@ -219,10 +219,98 @@ function getRoundedPolylinePath(points: { x: number, y: number }[], radius = 25)
   return d;
 }
 
-function DynamicGlassPipe({
+const getVesselMouths = (v: PlacedInorganicItem) => {
+  if (v.id === "three-neck-flask") {
+    return [
+      { x: v.x + 41, y: v.y + 32, open: !!v.isOpenLeft },
+      { x: v.x + 106, y: v.y + 17, open: !!v.isOpenMiddle },
+      { x: v.x + 170, y: v.y + 32, open: !!v.isOpenRight },
+    ];
+  }
+  if (v.id === "evaporation-chamber") {
+    return [
+      { x: v.x + 15, y: v.y + 107, open: !!v.isOpenLeft },
+      { x: v.x + 100, y: v.y + 10, open: !!v.isOpenMiddle },
+      { x: v.x + 185, y: v.y + 107, open: !!v.isOpenRight },
+    ];
+  }
+  const dims = getItemUnscaledDims(v.id, v.state);
+  const scale = getItemCanvasScale(v.id, v.state);
+  const mouthX = v.x + dims.w / 2;
+  const mouthY = v.state === "gas" ? v.y + 25 : (v.y + dims.h - dims.h * scale + 15);
+  
+  const isOpen = v.id.includes("beaker") || v.id.includes("funnel") || v.id === "china-dish" || v.id === "mortar-pestle" || v.id === "crucible"
+    ? true
+    : (v.isOpen !== false && !v.hasRubberStopper);
+
+  return [{ x: mouthX, y: mouthY, open: isOpen }];
+};
+
+const isPipeConnectedToMouth = (mouth: { x: number; y: number }, pipes: PlacedInorganicItem[]) => {
+  return pipes.some((pipe) => {
+    const points = pipe.metadata?.points || [
+      { x: 20, y: 100 },
+      { x: 20, y: 20 },
+      { x: 100, y: 20 },
+    ];
+    if (points.length < 2) return false;
+    const startP = { x: pipe.x + points[0].x, y: pipe.y + points[0].y };
+    const endP = { x: pipe.x + points[points.length - 1].x, y: pipe.y + points[points.length - 1].y };
+    return Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 50 || Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 50;
+  });
+};
+
+const isVesselPipeConnected = (v: PlacedInorganicItem, pipes: PlacedInorganicItem[]) => {
+  const mouths = getVesselMouths(v);
+  return mouths.some(mouth => mouth.open && isPipeConnectedToMouth(mouth, pipes));
+};
+
+const isVesselNeckConnectedToPipe = (v: PlacedInorganicItem, neckName: "left" | "middle" | "right", pipes: PlacedInorganicItem[]) => {
+  let mouth: { x: number; y: number } | null = null;
+  if (v.id === "three-neck-flask") {
+    if (neckName === "left") mouth = { x: v.x + 41, y: v.y + 32 };
+    else if (neckName === "middle") mouth = { x: v.x + 106, y: v.y + 17 };
+    else if (neckName === "right") mouth = { x: v.x + 170, y: v.y + 32 };
+  } else if (v.id === "evaporation-chamber") {
+    if (neckName === "left") mouth = { x: v.x + 15, y: v.y + 107 };
+    else if (neckName === "middle") mouth = { x: v.x + 100, y: v.y + 10 };
+    else if (neckName === "right") mouth = { x: v.x + 185, y: v.y + 107 };
+  }
+  if (!mouth) return false;
+  return isPipeConnectedToMouth(mouth, pipes);
+};
+
+const hasOpenMouthToAir = (v: PlacedInorganicItem, pipes: PlacedInorganicItem[]) => {
+  if (v.id === "three-neck-flask" || v.id === "evaporation-chamber") {
+    const necks: ("left" | "middle" | "right")[] = ["left", "middle", "right"];
+    return necks.some(neck => {
+      const isOpen = neck === "left" ? v.isOpenLeft : neck === "middle" ? v.isOpenMiddle : v.isOpenRight;
+      return isOpen && !isVesselNeckConnectedToPipe(v, neck, pipes);
+    });
+  }
+  
+  const isOpen = v.id.includes("beaker") || v.id.includes("funnel") || v.id === "china-dish" || v.id === "mortar-pestle" || v.id === "crucible"
+    ? true
+    : (v.isOpen !== false && !v.hasRubberStopper);
+  
+  return isOpen && !isVesselPipeConnected(v, pipes);
+};
+
+const isVesselOpenForPouring = (v: PlacedInorganicItem) => {
+  if (v.id === "three-neck-flask" || v.id === "evaporation-chamber") {
+    return !!v.isOpenMiddle;
+  }
+  return v.id.includes("beaker") || v.id.includes("funnel") || v.id === "china-dish" || v.id === "mortar-pestle" || v.id === "crucible"
+    ? true
+    : (v.isOpen !== false && !v.hasRubberStopper);
+};
+
+
+export function DynamicGlassPipe({
   points,
   isSelected,
   gasFlow,
+  isExitConnected,
   onNodeMouseDown,
   onNodeDoubleClick,
   onPathDoubleClick
@@ -230,14 +318,16 @@ function DynamicGlassPipe({
   points: { x: number, y: number }[];
   isSelected: boolean;
   gasFlow?: { color: string; reverse: boolean };
+  isExitConnected?: boolean;
   onNodeMouseDown: (e: React.MouseEvent, index: number, x: number, y: number) => void;
   onNodeDoubleClick: (index: number) => void;
-  onPathDoubleClick: (e: React.MouseEvent) => void;
+  onPathDoubleClick?: (e: React.MouseEvent) => void;
 }) {
   const pathD = getRoundedPolylinePath(points, 0);
   const flowPathD = gasFlow?.reverse ? getRoundedPolylinePath([...points].reverse(), 0) : pathD;
   const highlightPoints = points.map(p => ({ x: p.x - 1, y: p.y - 1 }));
   const highlightD = getRoundedPolylinePath(highlightPoints, 0);
+  const exitPoint = gasFlow?.reverse ? points[0] : points[points.length - 1];
 
   return (
     <svg className="absolute inset-0 overflow-visible pointer-events-none drop-shadow-[0_18px_28px_rgba(0,0,0,0.2)]">
@@ -275,6 +365,7 @@ function DynamicGlassPipe({
           }}
         />
       ))}
+      
       {/* Gas flow animation through the pipe */}
       {gasFlow && (
         <g style={{ mixBlendMode: "screen" }}>
@@ -291,29 +382,6 @@ function DynamicGlassPipe({
           ))}
         </g>
       )}
-      {/* Gas escaping from the exit end of the pipe */}
-      {gasFlow && (() => {
-        const exitPt = gasFlow.reverse ? points[0] : points[points.length - 1];
-        return (
-          <g style={{ mixBlendMode: "screen" }}>
-            <circle cx={exitPt.x} cy={exitPt.y} r="5" fill={gasFlow.color} opacity="0" filter="blur(3px)">
-              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 50}`} dur="2s" repeatCount="indefinite" begin="0s" />
-              <animate attributeName="opacity" values="0;0.6;0" dur="2s" repeatCount="indefinite" begin="0s" />
-              <animate attributeName="r" values="5;16" dur="2s" repeatCount="indefinite" begin="0s" />
-            </circle>
-            <circle cx={exitPt.x - 6} cy={exitPt.y} r="3" fill={gasFlow.color} opacity="0" filter="blur(3px)">
-              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 40}`} dur="2.4s" repeatCount="indefinite" begin="0.7s" />
-              <animate attributeName="opacity" values="0;0.5;0" dur="2.4s" repeatCount="indefinite" begin="0.7s" />
-              <animate attributeName="r" values="3;12" dur="2.4s" repeatCount="indefinite" begin="0.7s" />
-            </circle>
-            <circle cx={exitPt.x + 7} cy={exitPt.y} r="4" fill={gasFlow.color} opacity="0" filter="blur(3px)">
-              <animate attributeName="cy" values={`${exitPt.y};${exitPt.y - 55}`} dur="1.8s" repeatCount="indefinite" begin="1.3s" />
-              <animate attributeName="opacity" values="0;0.55;0" dur="1.8s" repeatCount="indefinite" begin="1.3s" />
-              <animate attributeName="r" values="4;18" dur="1.8s" repeatCount="indefinite" begin="1.3s" />
-            </circle>
-          </g>
-        );
-      })()}
     </svg>
   );
 }
@@ -513,6 +581,7 @@ export default function InorganicCanvas({
   }, [items]);
 
   const lastHeatedTimesRef = useRef<Record<string, number>>({});
+  const pipeFlowLocksRef = useRef<Record<string, "start-to-end" | "end-to-start">>({});
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -549,27 +618,8 @@ export default function InorganicCanvas({
         return v.reactionState ?? "idle";
       };
 
-      const getVesselMouth = (v: PlacedInorganicItem) => {
-        const dims = getItemUnscaledDims(v.id, v.state);
-        const scale = getItemCanvasScale(v.id, v.state);
-        const mouthX = v.x + dims.w / 2;
-        const mouthY = v.state === "gas" ? v.y + 25 : (v.y + dims.h - dims.h * scale + 15);
-        return { x: mouthX, y: mouthY };
-      };
-
       const isPipeConnected = (v: PlacedInorganicItem) => {
-        const mouth = getVesselMouth(v);
-        return pipes.some((pipe) => {
-          const points = pipe.metadata?.points || [
-            { x: 20, y: 100 },
-            { x: 20, y: 20 },
-            { x: 100, y: 20 },
-          ];
-          if (points.length < 2) return false;
-          const startP = { x: pipe.x + points[0].x, y: pipe.y + points[0].y };
-          const endP = { x: pipe.x + points[points.length - 1].x, y: pipe.y + points[points.length - 1].y };
-          return Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 45 || Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 45;
-        });
+        return isVesselPipeConnected(v, pipes);
       };
 
       pipes.forEach((pipe) => {
@@ -583,42 +633,82 @@ export default function InorganicCanvas({
         const startP = { x: pipe.x + points[0].x, y: pipe.y + points[0].y };
         const endP = { x: pipe.x + points[points.length - 1].x, y: pipe.y + points[points.length - 1].y };
 
-        // 1. Identify gas/steam source
-        const gasSource = currentItems.find((i) => {
-          if (!i.isOpen) return false;
-          const mouth = getVesselMouth(i);
-          if (i.state === "gas") {
-            return Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 45 || Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 45;
-          }
-          if (i.state === "glassware") {
+        // 1. Identify source and target items connected to the pipe ends
+        let startMouth: { x: number; y: number; open: boolean } | null = null;
+        const startItem = currentItems.find((i) => {
+          const mouths = getVesselMouths(i);
+          return mouths.some((mouth) => {
+            if (mouth.open && Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 50) {
+              startMouth = mouth;
+              return true;
+            }
+            return false;
+          });
+        });
+
+        let endMouth: { x: number; y: number; open: boolean } | null = null;
+        const endItem = currentItems.find((i) => {
+          const mouths = getVesselMouths(i);
+          return mouths.some((mouth) => {
+            if (mouth.open && Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 50) {
+              endMouth = mouth;
+              return true;
+            }
+            return false;
+          });
+        });
+
+        if (!startItem || !endItem) return;
+
+        // Determine which is the source and target
+        let gasSource: PlacedInorganicItem | null = null;
+        let targetVessel: PlacedInorganicItem | null = null;
+
+        if (startItem.state === "gas") {
+          gasSource = startItem;
+          targetVessel = endItem;
+        } else if (endItem.state === "gas") {
+          gasSource = endItem;
+          targetVessel = startItem;
+        } else {
+          // Both are glassware - determine source based on gas production/heat
+          const isProducingGas = (i: PlacedInorganicItem) => {
             const iReactionState = getLocalReactionState(i);
             const hasGasContent = i.contents && i.contents.some(c => c.state === "gas");
             const hasLiquidContent = i.contents && i.contents.some(c => c.state === "liquid");
             const isBoiling = iReactionState === "boiling" && hasLiquidContent;
-            if (iReactionState === "gas" || hasGasContent || isBoiling) {
-              return Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 45 || Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 45;
+            return iReactionState === "gas" || hasGasContent || isBoiling;
+          };
+
+          const startProd = isProducingGas(startItem);
+          const endProd = isProducingGas(endItem);
+
+          if (startProd && !endProd) {
+            gasSource = startItem;
+            targetVessel = endItem;
+          } else if (endProd && !startProd) {
+            gasSource = endItem;
+            targetVessel = startItem;
+          } else if (startProd && endProd) {
+            // Both producing, check heat
+            const startHeated = localVesselHeat[startItem.instanceId];
+            const endHeated = localVesselHeat[endItem.instanceId];
+            if (startHeated && !endHeated) {
+              gasSource = startItem;
+              targetVessel = endItem;
+            } else {
+              gasSource = endItem;
+              targetVessel = startItem;
             }
           }
-          return false;
-        });
+        }
 
-        if (!gasSource) return;
+        if (!gasSource || !targetVessel || targetVessel.state !== "glassware") return;
 
-        const sourceMouth = getVesselMouth(gasSource);
-        const distToStart = Math.hypot(startP.x - sourceMouth.x, startP.y - sourceMouth.y);
-        const targetEnd = distToStart < 45 ? endP : startP;
-
-        // 2. Find target vessel near the target end of the pipe
-        const targetVessel = currentItems.find((i) => {
-          if (i.instanceId === gasSource.instanceId || i.state !== "glassware") return false;
-          const dims = getItemUnscaledDims(i.id, i.state);
-          const scale = getItemCanvasScale(i.id, i.state);
-          const mouthX = i.x + dims.w / 2;
-          const mouthY = i.y + dims.h - dims.h * scale + 15;
-          return Math.hypot(targetEnd.x - mouthX, targetEnd.y - mouthY) < 55;
-        });
-
-        if (!targetVessel) return;
+        const currentDirection: "start-to-end" | "end-to-start" =
+          gasSource.instanceId === startItem.instanceId ? "start-to-end" : "end-to-start";
+        const lockedDirection = pipeFlowLocksRef.current[pipe.instanceId];
+        if (lockedDirection && lockedDirection !== currentDirection) return;
 
         // Check if distillation is active
         const gasSourceState = gasSource.state === "glassware" ? getLocalReactionState(gasSource) : "idle";
@@ -647,6 +737,7 @@ export default function InorganicCanvas({
           const finalTransferVol = Math.min(actualTransferVol, roomInTarget);
 
           if (finalTransferVol > 0) {
+            pipeFlowLocksRef.current[pipe.instanceId] = currentDirection;
             activePipeIds.add(pipe.instanceId);
 
             // 1. Deduct from source
@@ -742,6 +833,7 @@ export default function InorganicCanvas({
           if (targetTotalVolume < targetCapacity) {
             const addedVol = Math.min(gasContent.volume ?? 2, targetCapacity - targetTotalVolume);
             if (addedVol > 0) {
+              pipeFlowLocksRef.current[pipe.instanceId] = currentDirection;
               activePipeIds.add(pipe.instanceId);
 
               const updatedContents = [...(targetVessel.contents || [])];
@@ -814,11 +906,7 @@ export default function InorganicCanvas({
       // Evaporate water directly to air if heated, open, and NOT connected to a pipe
       currentItems.forEach((v) => {
         if (v.state === "glassware" && localVesselHeat[v.instanceId] && v.contents) {
-          const isVOpen = v.id === "three-neck-flask"
-            ? (v.isOpenLeft !== false || v.isOpenMiddle !== false || v.isOpenRight !== false)
-            : (v.isOpen !== false && !v.hasRubberStopper);
-
-          if (isVOpen && !isPipeConnected(v)) {
+          if (hasOpenMouthToAir(v, pipes)) {
             // Find water first, then fallback to any liquid
             let liquidContent = v.contents.find(c => c.id === "water" && c.state === "liquid");
             if (!liquidContent) {
@@ -843,62 +931,89 @@ export default function InorganicCanvas({
         }
       });
 
-      // Sublimate camphor if heated
+      // Escaping gases from open vessels directly to air if NOT connected to a pipe
       currentItems.forEach((v) => {
-        if (v.state === "glassware" && localVesselHeat[v.instanceId] && v.contents) {
-          const camphorSolid = v.contents.find(c => c.id === "camphor" && c.state === "solid");
-          if (camphorSolid && (camphorSolid.mass ?? 0) > 0.01) {
-            const sublimateAmt = 0.5; // 0.5 g per tick
-            const actualAmt = Math.min(sublimateAmt, camphorSolid.mass ?? 10);
+        if (v.state === "glassware" && v.contents) {
+          if (hasOpenMouthToAir(v, pipes)) {
+            const hasGas = v.contents.some(c => c.state === "gas");
+            if (hasGas) {
+              const gasEscapeRate = 1.0; // 1.0 mL per tick
+              const updatedContents = v.contents.map(c => {
+                if (c.state === "gas") {
+                  return {
+                    ...c,
+                    volume: Math.max(0, (c.volume ?? 0) - gasEscapeRate),
+                  };
+                }
+                return c;
+              }).filter(c => (c.volume ?? 0) > 0.01 || c.state !== "gas");
 
-            // Deduct from solid camphor
-            let updatedContents = v.contents.map(c => {
-              if (c.id === "camphor" && c.state === "solid") {
-                return {
-                  ...c,
-                  mass: Math.max(0, (c.mass ?? 0) - actualAmt),
-                  volume: Math.max(0, (c.volume ?? 0) - actualAmt)
-                };
-              }
-              return c;
-            }).filter(c => (c.mass ?? 0) > 0.01 || c.state !== "solid");
-
-            const isVOpen = v.id === "three-neck-flask"
-              ? (v.isOpenLeft !== false || v.isOpenMiddle !== false || v.isOpenRight !== false)
-              : (v.isOpen !== false && !v.hasRubberStopper);
-
-            // If closed/sealed, keep the vapor inside!
-            if (!isVOpen || isPipeConnected(v)) {
-              // Find or add camphor-vapor
-              const existingVaporIdx = updatedContents.findIndex(c => c.id === "camphor-vapor" && c.state === "gas");
-              if (existingVaporIdx !== -1) {
-                const existing = updatedContents[existingVaporIdx];
-                updatedContents[existingVaporIdx] = {
-                  ...existing,
-                  volume: (existing.volume ?? 0) + actualAmt
-                };
-              } else {
-                updatedContents.push({
-                  id: "camphor-vapor",
-                  module: "inorganic",
-                  category: "gases",
-                  name: "Camphor Vapor",
-                  symbol: "C10H16O (g)",
-                  state: "gas",
-                  accent: "#cbd5e1",
-                  description: "Colorless aromatic sublimated camphor vapor.",
-                  volume: actualAmt
-                });
-              }
+              onUpdate(v.instanceId, { contents: updatedContents });
             }
-
-            const reaction = resolveReaction(updatedContents, v.id, hasGloves, vesselHeat[v.instanceId]);
-            onUpdate(v.instanceId, {
-              contents: reaction.contents,
-              reactionState: reaction.state ?? "idle",
-              note: reaction.note
-            });
           }
+        }
+      });
+
+      // Sublimate camphor if heated OR if nitrogen is present (nitrogen carries camphor vapor)
+      currentItems.forEach((v) => {
+        if (v.state === "glassware" && v.contents) {
+          const camphorSolid = v.contents.find(c => c.id === "camphor" && c.state === "solid");
+          if (!camphorSolid || (camphorSolid.mass ?? 0) <= 0.01) return;
+
+          const hasNitrogen = v.contents.some(c => c.id === "nitrogen" || c.id === "nitrogen-gasbag");
+          const isHot = localVesselHeat[v.instanceId];
+
+          // Only sublimate if heated or nitrogen present
+          if (!isHot && !hasNitrogen) return;
+
+          // Nitrogen dissolves camphor faster (0.8g/tick) vs just heat (0.4g/tick)
+          const sublimateAmt = hasNitrogen ? 0.8 : 0.4;
+          const actualAmt = Math.min(sublimateAmt, camphorSolid.mass ?? 10);
+
+          // Deduct from solid camphor
+          let updatedContents = v.contents.map(c => {
+            if (c.id === "camphor" && c.state === "solid") {
+              return {
+                ...c,
+                mass: Math.max(0, (c.mass ?? 0) - actualAmt),
+                volume: Math.max(0, (c.volume ?? 0) - actualAmt)
+              };
+            }
+            return c;
+          }).filter(c => (c.mass ?? 0) > 0.01 || c.state !== "solid");
+
+          // If nitrogen is present or sealed: keep the vapor inside
+          const shouldKeepVapor = hasNitrogen || !hasOpenMouthToAir(v, pipes);
+          if (shouldKeepVapor) {
+            // Find or add camphor-vapor
+            const existingVaporIdx = updatedContents.findIndex(c => c.id === "camphor-vapor" && c.state === "gas");
+            if (existingVaporIdx !== -1) {
+              const existing = updatedContents[existingVaporIdx];
+              updatedContents[existingVaporIdx] = {
+                ...existing,
+                volume: (existing.volume ?? 0) + actualAmt
+              };
+            } else {
+              updatedContents.push({
+                id: "camphor-vapor",
+                module: "inorganic" as const,
+                category: "gases" as const,
+                name: "Camphor Vapor",
+                symbol: "C10H16O (g)",
+                state: "gas" as const,
+                accent: "#cbd5e1",
+                description: "Colorless aromatic sublimated camphor vapor.",
+                volume: actualAmt
+              });
+            }
+          }
+
+          const reaction = resolveReaction(updatedContents, v.id, hasGloves, vesselHeat[v.instanceId]);
+          onUpdate(v.instanceId, {
+            contents: reaction.contents,
+            reactionState: reaction.state ?? "idle",
+            note: reaction.note
+          });
         }
       });
 
@@ -1018,7 +1133,7 @@ export default function InorganicCanvas({
         // Increment target contents (if targetId !== "table")
         if (currentPrePour.targetId !== "table") {
           const targetItem = currentItems.find(i => i.instanceId === currentPrePour.targetId);
-          if (targetItem && targetItem.state === "glassware") {
+          if (targetItem && targetItem.state === "glassware" && isVesselOpenForPouring(targetItem)) {
             // Vacuum chamber valve constraints
             if (targetItem.id === "vacuum-chamber") {
               const isSourceGas = sourceContent.state === "gas";
@@ -1354,7 +1469,8 @@ export default function InorganicCanvas({
                 i.instanceId !== rotatingItem.instanceId &&
                 i.state === "glassware" &&
                 i.y > rotatingItem.y &&
-                Math.abs(i.x - rotatingItem.x) < 150
+                Math.abs(i.x - rotatingItem.x) < 150 &&
+                isVesselOpenForPouring(i)
             );
 
             const progressVal = clamp((Math.abs(normalizedRot) - 60) / 40, 0.2, 1.0);
@@ -1469,32 +1585,33 @@ export default function InorganicCanvas({
           return;
         } else if (!isDropper) {
           const stopperInstanceId = `lab-${Math.random().toString(36).slice(2, 10)}`;
-          const stopperType = isCork ? "cork-stopper" : "glass-stopper";
+          const isChamber = draggedItem.id === "evaporation-chamber";
+          const stopperType = (isCork && !isChamber) ? "cork-stopper" : "glass-stopper";
           const isTNF = draggedItem.id === "three-neck-flask";
           const targetNeck = dragState.draggedNeck;
 
-          let snapX = draggedItem.x + 44;
-          let snapY = isCork ? draggedItem.y + 10 : draggedItem.y;
+          let snapX = isChamber ? draggedItem.x + 79 : draggedItem.x + 44;
+          let snapY = isChamber ? draggedItem.y - 13 : (isCork ? draggedItem.y + 10 : draggedItem.y);
           let snapRot = 0;
 
-          if (isTNF && targetNeck) {
+          if ((isTNF || isChamber) && targetNeck) {
             if (targetNeck === "left") {
-              snapX = draggedItem.x + 20;
-              snapY = draggedItem.y + 8;
-              snapRot = -30;
+              snapX = isTNF ? (draggedItem.x + 20) : (draggedItem.x - 20);
+              snapY = isTNF ? (draggedItem.y + 8) : (draggedItem.y + 83);
+              snapRot = isTNF ? -30 : -90;
             } else if (targetNeck === "middle") {
-              snapX = draggedItem.x + 85;
-              snapY = draggedItem.y - 7;
+              snapX = isTNF ? (draggedItem.x + 85) : (draggedItem.x + 79);
+              snapY = isTNF ? (draggedItem.y - 7) : (draggedItem.y - 13);
               snapRot = 0;
             } else if (targetNeck === "right") {
-              snapX = draggedItem.x + 149;
-              snapY = draggedItem.y + 8;
-              snapRot = 30;
+              snapX = isTNF ? (draggedItem.x + 149) : (draggedItem.x + 178);
+              snapY = isTNF ? (draggedItem.y + 8) : (draggedItem.y + 83);
+              snapRot = isTNF ? 30 : 90;
             }
           }
 
           const updates: Partial<PlacedInorganicItem> = {};
-          if (isTNF && targetNeck) {
+          if ((isTNF || isChamber) && targetNeck) {
             if (targetNeck === "left") updates.isOpenLeft = true;
             else if (targetNeck === "middle") updates.isOpenMiddle = true;
             else if (targetNeck === "right") updates.isOpenRight = true;
@@ -1508,7 +1625,7 @@ export default function InorganicCanvas({
 
           onDrop(stopperType, snapX, snapY, {
             instanceId: stopperInstanceId,
-            note: `from-${draggedItem.instanceId}-${targetNeck || "middle"}${isAmber ? "-amber" : ""}`,
+            note: `from-${draggedItem.instanceId}-${targetNeck || "middle"}${isAmber && !isChamber ? "-amber" : ""}`,
             rotation: snapRot
           });
 
@@ -1516,7 +1633,7 @@ export default function InorganicCanvas({
           setDragState({
             id: stopperInstanceId,
             offsetX: 21,
-            offsetY: isTNF ? 24 : (isCork ? 11 : 24),
+            offsetY: isChamber ? 24 : (isTNF ? 24 : (isCork ? 11 : 24)),
           });
           return;
         } else {
@@ -1570,10 +1687,11 @@ export default function InorganicCanvas({
             isBurnerCap ?
               i.id === "burner" && i.isOpen
               :
-              (i.state === "solid" || i.state === "liquid" || i.state === "gas" || i.id === "three-neck-flask") &&
+              ((i.state === "solid" || i.state === "liquid" || i.state === "gas" || i.id === "three-neck-flask") &&
               (i.id.includes("bottle") || i.id.includes("jar") || i.id === "three-neck-flask" || i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
               !isBottleDropper(i.id) &&
-              isBottleCork(i.id) === isCork
+              isBottleCork(i.id) === isCork) ||
+              (i.id === "evaporation-chamber" && i.isOpen && !isCork)
         );
 
         let nearestBottle: PlacedInorganicItem | null = null;
@@ -1586,6 +1704,30 @@ export default function InorganicCanvas({
               { name: "left", snapX: bottle.x + 20, snapY: bottle.y + 8, rotation: -30, open: bottle.isOpenLeft },
               { name: "middle", snapX: bottle.x + 85, snapY: bottle.y - 7, rotation: 0, open: bottle.isOpenMiddle },
               { name: "right", snapX: bottle.x + 149, snapY: bottle.y + 8, rotation: 30, open: bottle.isOpenRight },
+            ];
+            necks.forEach((neck) => {
+              if (neck.open) {
+                const neckCenterX = neck.snapX + 21;
+                const neckCenterY = neck.snapY + 24;
+
+                const currentCenterX = nextX + 21;
+                const currentCenterY = nextY + 24;
+
+                const dx = currentCenterX - neckCenterX;
+                const dy = currentCenterY - neckCenterY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  nearestBottle = bottle;
+                  matchedNeck = neck;
+                }
+              }
+            });
+          } else if (bottle.id === "evaporation-chamber") {
+            const necks = [
+              { name: "left", snapX: bottle.x - 20, snapY: bottle.y + 83, rotation: -90, open: bottle.isOpenLeft },
+              { name: "middle", snapX: bottle.x + 79, snapY: bottle.y - 13, rotation: 0, open: bottle.isOpenMiddle },
+              { name: "right", snapX: bottle.x + 178, snapY: bottle.y + 83, rotation: 90, open: bottle.isOpenRight },
             ];
             necks.forEach((neck) => {
               if (neck.open) {
@@ -1748,7 +1890,8 @@ export default function InorganicCanvas({
           if (isBurnerCap) {
             return i.id === "burner" && i.isOpen && Math.abs((i.x + 85) - draggedItem.x) < 40 && Math.abs((i.y + 4) - draggedItem.y) < 40;
           }
-          if (i.id === "three-neck-flask") {
+          if (i.id === "three-neck-flask" || i.id === "evaporation-chamber") {
+            const isTNF = i.id === "three-neck-flask";
             const bottleEl = document.querySelector(`[data-instance-id="${i.instanceId}"]`);
             const svgEl = bottleEl?.querySelector("svg");
             const capEl = document.querySelector(`[data-instance-id="${draggedItem.instanceId}"]`);
@@ -1758,16 +1901,27 @@ export default function InorganicCanvas({
               const capCenterX = capRect.left + capRect.width / 2;
               const capCenterY = capRect.top + capRect.height / 2;
 
-              const scaleX = 220 / svgRect.width;
-              const scaleY = 220 / svgRect.height;
+              const scaleX = (isTNF ? 220 : 200) / svgRect.width;
+              const scaleY = (isTNF ? 220 : 250) / svgRect.height;
               const localX = (capCenterX - svgRect.left) * scaleX;
               const localY = (capCenterY - svgRect.top) * scaleY;
 
               let neck: "left" | "middle" | "right" | null = null;
-              if (localY >= -10 && localY <= 50) {
-                if (localX >= 30 && localX <= 85) neck = "left";
-                else if (localX >= 85 && localX <= 135) neck = "middle";
-                else if (localX >= 135 && localX <= 190) neck = "right";
+              if (isTNF) {
+                if (localY >= -10 && localY <= 50) {
+                  if (localX >= 30 && localX <= 85) neck = "left";
+                  else if (localX >= 85 && localX <= 135) neck = "middle";
+                  else if (localX >= 135 && localX <= 190) neck = "right";
+                }
+              } else {
+                // evaporation-chamber
+                if (localY >= 5 && localY <= 45 && localX >= 75 && localX <= 125) {
+                  neck = "middle";
+                } else if (localY >= 90 && localY <= 125 && localX >= -15 && localX <= 45) {
+                  neck = "left";
+                } else if (localY >= 90 && localY <= 125 && localX >= 155 && localX <= 215) {
+                  neck = "right";
+                }
               }
 
               if (neck) {
@@ -1782,10 +1936,14 @@ export default function InorganicCanvas({
               }
               return false;
             } else {
-              const necks = [
+              const necks = isTNF ? [
                 { name: "left" as const, snapX: i.x + 20, snapY: i.y + 8, open: i.isOpenLeft },
                 { name: "middle" as const, snapX: i.x + 85, snapY: i.y - 7, open: i.isOpenMiddle },
                 { name: "right" as const, snapX: i.x + 149, snapY: i.y + 8, open: i.isOpenRight },
+              ] : [
+                { name: "left" as const, snapX: i.x - 20, snapY: i.y + 83, open: i.isOpenLeft },
+                { name: "middle" as const, snapX: i.x + 79, snapY: i.y - 13, open: i.isOpenMiddle },
+                { name: "right" as const, snapX: i.x + 178, snapY: i.y + 83, open: i.isOpenRight },
               ];
               const foundNeck = necks.find(n => n.open && Math.abs(n.snapX - draggedItem.x) < 40 && Math.abs(n.snapY - draggedItem.y) < 40);
               if (foundNeck) {
@@ -1796,13 +1954,13 @@ export default function InorganicCanvas({
             }
           }
           return (
-            (i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
+            ((i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
             (i.id.includes("bottle") || i.id.includes("jar") || i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
             i.isOpen &&
             !isBottleDropper(i.id) &&
             isBottleCork(i.id) === isCork &&
             Math.abs((i.x + 44) - draggedItem.x) < 40 &&
-            Math.abs((isCork ? i.y + 10 : i.y) - draggedItem.y) < 40
+            Math.abs((isCork ? i.y + 10 : i.y) - draggedItem.y) < 40)
           );
         }
       );
@@ -1814,6 +1972,7 @@ export default function InorganicCanvas({
         playCapSound(false);
 
         const isTNF = targetBottle.id === "three-neck-flask";
+        const isChamber = targetBottle.id === "evaporation-chamber";
         let targetX = targetBottle.x + 44;
         let targetY = isCork ? targetBottle.y + 10 : targetBottle.y;
         let targetRotation = 0;
@@ -1832,12 +1991,26 @@ export default function InorganicCanvas({
             targetY = targetBottle.y + 8;
             targetRotation = 30;
           }
+        } else if (isChamber && matchedNeckName) {
+          if (matchedNeckName === "left") {
+            targetX = targetBottle.x - 20;
+            targetY = targetBottle.y + 83;
+            targetRotation = -90;
+          } else if (matchedNeckName === "middle") {
+            targetX = targetBottle.x + 79;
+            targetY = targetBottle.y - 13;
+            targetRotation = 0;
+          } else if (matchedNeckName === "right") {
+            targetX = targetBottle.x + 178;
+            targetY = targetBottle.y + 83;
+            targetRotation = 90;
+          }
         } else if (isBurnerCap) {
           targetX = targetBottle.x + 56;
           targetY = targetBottle.y;
         }
 
-        if (isTNF && matchedNeckName) {
+        if ((isTNF || isChamber) && matchedNeckName) {
           const updates: Partial<PlacedInorganicItem> = {};
           if (matchedNeckName === "left") updates.isOpenLeft = false;
           else if (matchedNeckName === "middle") updates.isOpenMiddle = false;
@@ -1864,7 +2037,8 @@ export default function InorganicCanvas({
           i.instanceId !== dragState.id &&
           i.state === "glassware" &&
           Math.abs(i.x + 50 - draggedItem.x) < 250 &&
-          Math.abs(i.y + 50 - draggedItem.y) < 250
+          Math.abs(i.y + 50 - draggedItem.y) < 250 &&
+          isVesselOpenForPouring(i)
       );
 
       if (target) {
@@ -1923,7 +2097,8 @@ export default function InorganicCanvas({
           i.instanceId !== dragState.id &&
           i.state === "glassware" &&
           Math.abs(i.x + 50 - draggedItem.x) < 250 &&
-          Math.abs(i.y + 50 - draggedItem.y) < 250
+          Math.abs(i.y + 50 - draggedItem.y) < 250 &&
+          isVesselOpenForPouring(i)
       );
 
       if (target && (draggedItem.state === "solid" || draggedItem.state === "liquid" || draggedItem.state === "gas") && draggedItem.isOpen) {
@@ -2081,6 +2256,97 @@ export default function InorganicCanvas({
       }
     }
 
+    // ---- Forceps Interaction ----
+    if (draggedItem && draggedItem.id === "forceps") {
+      const isAlreadyHolding = !!draggedItem.isOpen;
+
+      if (isAlreadyHolding) {
+        // Forceps are holding camphor — try to drop it into a nearby open vessel
+        const targetVessel = items.find(
+          (i) =>
+            i.instanceId !== draggedItem.instanceId &&
+            i.state === "glassware" &&
+            isVesselOpenForPouring(i) &&
+            Math.abs(i.x + 50 - draggedItem.x) < 200 &&
+            Math.abs(i.y + 50 - draggedItem.y) < 220
+        );
+
+        if (targetVessel) {
+          // Add camphor to the vessel contents
+          const existingCamphor = (targetVessel.contents ?? []).find(
+            (c) => c.id === "camphor" && c.state === "solid"
+          );
+          let newContents;
+          if (existingCamphor) {
+            newContents = (targetVessel.contents ?? []).map((c) =>
+              c.id === "camphor" && c.state === "solid"
+                ? { ...c, mass: (c.mass ?? 0) + 5, volume: (c.volume ?? 0) + 5 }
+                : c
+            );
+          } else {
+            newContents = [
+              ...(targetVessel.contents ?? []),
+              {
+                id: "camphor",
+                module: "inorganic" as const,
+                category: "solids" as const,
+                name: "Camphor",
+                symbol: "C10H16O",
+                formula: "C10H16O",
+                state: "solid" as const,
+                accent: "#f8fafc",
+                description: "White crystalline substance with a strong aromatic odor, undergoes sublimation when heated.",
+                mass: 5,
+                volume: 5,
+              },
+            ];
+          }
+
+          // Resolve reaction after adding camphor (resolveReaction already imported at top)
+          const reaction = resolveReaction(newContents, targetVessel.id, hasGloves, vesselHeat[targetVessel.instanceId]);
+
+          onUpdate(targetVessel.instanceId, {
+            contents: reaction.contents,
+            reactionState: reaction.state ?? "idle",
+            note: reaction.note,
+          });
+
+          // Release the forceps (empty them) and snap back above vessel
+          onUpdate(draggedItem.instanceId, {
+            isOpen: false,
+            note: undefined,
+            x: targetVessel.x + 30,
+            y: targetVessel.y - 80,
+            rotation: 0,
+          });
+          setDragState(null);
+          return;
+        }
+      } else {
+        // Forceps are empty — try to pick up camphor from a nearby solid camphor item
+        const camphorSource = items.find(
+          (i) =>
+            i.instanceId !== draggedItem.instanceId &&
+            i.id === "camphor" &&
+            i.state === "solid" &&
+            Math.abs(i.x + 40 - draggedItem.x) < 150 &&
+            Math.abs(i.y + 40 - draggedItem.y) < 180
+        );
+
+        if (camphorSource) {
+          onUpdate(draggedItem.instanceId, {
+            isOpen: true,
+            note: `holding-camphor-from-${camphorSource.instanceId}`,
+            x: camphorSource.x - 10,
+            y: camphorSource.y - 60,
+            rotation: 0,
+          });
+          setDragState(null);
+          return;
+        }
+      }
+    }
+
     setDragState(null);
   };
 
@@ -2212,11 +2478,13 @@ export default function InorganicCanvas({
           const dotsY = centerY - r * 0.707 - btnSize / 2;
 
           const isStopper = item.id === "glass-stopper" || item.id === "cork-stopper";
-          const isGlasswareBottle = item.id.includes("bottle") || item.id.includes("jar") || item.id === "three-neck-flask" || item.state === "solid" || item.state === "liquid";
+          const isGlasswareBottle = item.id.includes("bottle") || item.id.includes("jar") || item.id === "three-neck-flask" || item.id === "evaporation-chamber" || item.state === "solid" || item.state === "liquid";
           const isDropper = false;
 
           let gasFlow: { color: string; reverse: boolean } | undefined;
+          let isExitConnected = false;
           if (item.id === "glass-pipe") {
+            const activeTransfer = gasTransfers[item.instanceId];
             const points = item.metadata?.points || [
               { x: 20, y: 100 },
               { x: 20, y: 20 },
@@ -2226,36 +2494,107 @@ export default function InorganicCanvas({
               const startP = { x: item.x + points[0].x, y: item.y + points[0].y };
               const endP = { x: item.x + points[points.length - 1].x, y: item.y + points[points.length - 1].y };
 
-              const gasSource = items.find((i) => {
-                if (!i.isOpen) return false;
-                const iReactionState = i.state === "glassware" ? getLiveReactionState(i) : "idle";
+              let startMouth: any = null;
+              const startItem = items.find((i) => {
+                const mouths = getVesselMouths(i);
+                return mouths.some((mouth) => {
+                  if (mouth.open && Math.hypot(startP.x - mouth.x, startP.y - mouth.y) < 50) {
+                    startMouth = mouth;
+                    return true;
+                  }
+                  return false;
+                });
+              });
+
+              let endMouth: any = null;
+              const endItem = items.find((i) => {
+                const mouths = getVesselMouths(i);
+                return mouths.some((mouth) => {
+                  if (mouth.open && Math.hypot(endP.x - mouth.x, endP.y - mouth.y) < 50) {
+                    endMouth = mouth;
+                    return true;
+                  }
+                  return false;
+                });
+              });
+
+              let sourceItem: PlacedInorganicItem | null = activeTransfer
+                ? items.find((i) => i.instanceId === activeTransfer.sourceId) ?? null
+                : null;
+              let targetItem: PlacedInorganicItem | null = activeTransfer
+                ? items.find((i) => i.instanceId === activeTransfer.targetId) ?? null
+                : null;
+              let reverse = false;
+
+              const isProducingGas = (i: PlacedInorganicItem) => {
+                if (i.state === "gas") return true;
+                const iReactionState = getLiveReactionState(i);
                 const hasGasContent = i.contents && i.contents.some(c => c.state === "gas");
                 const hasLiquidContent = i.contents && i.contents.some(c => c.state === "liquid");
                 const isBoiling = iReactionState === "boiling" && hasLiquidContent;
+                return iReactionState === "gas" || hasGasContent || isBoiling;
+              };
 
-                if (i.state !== "gas" && iReactionState !== "gas" && !hasGasContent && !isBoiling) return false;
+              if (activeTransfer && sourceItem) {
+                reverse = endItem?.instanceId === activeTransfer.sourceId;
+              } else if (startItem && endItem) {
+                if (startItem.state === "gas") {
+                  sourceItem = startItem;
+                  targetItem = endItem;
+                  reverse = false;
+                } else if (endItem.state === "gas") {
+                  sourceItem = endItem;
+                  targetItem = startItem;
+                  reverse = true;
+                } else {
+                  const startProd = isProducingGas(startItem);
+                  const endProd = isProducingGas(endItem);
 
-                const dims = getItemUnscaledDims(i.id, i.state);
-                const scale = getItemCanvasScale(i.id, i.state);
-                const mouthX = i.x + dims.w / 2;
-                const mouthY = i.state === "gas" ? i.y + 25 : (i.y + dims.h - dims.h * scale + 15);
-
-                return Math.hypot(startP.x - mouthX, startP.y - mouthY) < 45 || Math.hypot(endP.x - mouthX, endP.y - mouthY) < 45;
-              });
-
-              if (gasSource) {
-                const dims = getItemUnscaledDims(gasSource.id, gasSource.state);
-                const scale = getItemCanvasScale(gasSource.id, gasSource.state);
-                const mouthX = gasSource.x + dims.w / 2;
-                const mouthY = gasSource.state === "gas" ? gasSource.y + 25 : (gasSource.y + dims.h - dims.h * scale + 15);
-
-                const distToStart = Math.hypot(startP.x - mouthX, startP.y - mouthY);
-                const iReactionState = gasSource.state === "glassware" ? getLiveReactionState(gasSource) : "idle";
-                let color = gasSource.accent || "#ffffff";
-                if (gasSource.state === "glassware") {
-                  color = iReactionState === "boiling" ? "#e0f2fe" : "#ffffff";
+                  if (startProd && !endProd) {
+                    sourceItem = startItem;
+                    targetItem = endItem;
+                    reverse = false;
+                  } else if (endProd && !startProd) {
+                    sourceItem = endItem;
+                    targetItem = startItem;
+                    reverse = true;
+                  } else if (startProd && endProd) {
+                    const startHeated = vesselHeat[startItem.instanceId];
+                    const endHeated = vesselHeat[endItem.instanceId];
+                    if (startHeated && !endHeated) {
+                      sourceItem = startItem;
+                      targetItem = endItem;
+                      reverse = false;
+                    } else {
+                      sourceItem = endItem;
+                      targetItem = startItem;
+                      reverse = true;
+                    }
+                  }
                 }
-                gasFlow = { color, reverse: distToStart > 40 };
+              } else if (startItem) {
+                if (isProducingGas(startItem)) {
+                  sourceItem = startItem;
+                  reverse = false;
+                }
+              } else if (endItem) {
+                if (isProducingGas(endItem)) {
+                  sourceItem = endItem;
+                  reverse = true;
+                }
+              }
+
+              if (sourceItem) {
+                const iReactionState = sourceItem.state === "glassware" ? getLiveReactionState(sourceItem) : "idle";
+                let color = sourceItem.accent || "#ffffff";
+                if (sourceItem.state === "glassware") {
+                  color = iReactionState === "boiling" ? "#e0f2fe" : color;
+                }
+                // If it's a gas cylinder, it must be OPEN to flow
+                if (sourceItem.state !== "gas" || sourceItem.isOpen) {
+                  gasFlow = { color, reverse };
+                  isExitConnected = !!targetItem || !!activeTransfer?.targetId;
+                }
               }
             }
           }
@@ -2274,13 +2613,13 @@ export default function InorganicCanvas({
               if (pts.length < 2) return false;
               const startP = { x: pipe.x + pts[0].x, y: pipe.y + pts[0].y };
               const endP = { x: pipe.x + pts[pts.length - 1].x, y: pipe.y + pts[pts.length - 1].y };
-              return Math.hypot(startP.x - neckX, startP.y - neckY) < 40 || Math.hypot(endP.x - neckX, endP.y - neckY) < 40;
+              return Math.hypot(startP.x - neckX, startP.y - neckY) < 50 || Math.hypot(endP.x - neckX, endP.y - neckY) < 50;
             });
           }
 
           const isHoveringCap =
-            (isGlasswareBottle && item.id !== "three-neck-flask" && hoveringCapId === item.instanceId && !item.isOpen && !dragState) ||
-            (item.id === "three-neck-flask" && hoveringCapId === item.instanceId && hoveringNeck && !dragState) ||
+            (isGlasswareBottle && item.id !== "three-neck-flask" && item.id !== "evaporation-chamber" && hoveringCapId === item.instanceId && !item.isOpen && !dragState) ||
+            ((item.id === "three-neck-flask" || item.id === "evaporation-chamber") && hoveringCapId === item.instanceId && hoveringNeck && !dragState) ||
             (item.state === "gas" && hoveringCapId === item.instanceId && !dragState);
           const cursorClass = (item.state === "gas" && hoveringCapId === item.instanceId && !dragState)
             ? "cursor-pointer"
@@ -2314,7 +2653,7 @@ export default function InorganicCanvas({
                   return;
                 }
 
-                const isFlaskClosed = item.id === "three-neck-flask"
+                const isFlaskClosed = item.id === "three-neck-flask" || item.id === "evaporation-chamber"
                   ? (!item.isOpenLeft || !item.isOpenMiddle || !item.isOpenRight)
                   : !item.isOpen;
                 if ((isGlasswareBottle || item.id === "burner") && isFlaskClosed) {
@@ -2329,17 +2668,29 @@ export default function InorganicCanvas({
                       const localX = (event.clientX - rect.left) * scaleX;
                       const localY = (event.clientY - rect.top) * scaleY;
                       isOverCap = localY >= 0 && localY <= 80 && localX >= 60 && localX <= 160;
-                    } else if (item.id === "three-neck-flask") {
-                      const scaleX = 220 / rect.width;
-                      const scaleY = 220 / rect.height;
+                    } else if (item.id === "three-neck-flask" || item.id === "evaporation-chamber") {
+                      const isTNF = item.id === "three-neck-flask";
+                      const scaleX = (isTNF ? 220 : 200) / rect.width;
+                      const scaleY = (isTNF ? 220 : 250) / rect.height;
                       const localX = (event.clientX - rect.left) * scaleX;
                       const localY = (event.clientY - rect.top) * scaleY;
 
                       let neck: "left" | "middle" | "right" | null = null;
-                      if (localY >= 0 && localY <= 40) {
-                        if (localX >= 35 && localX <= 80) neck = "left";
-                        else if (localX >= 90 && localX <= 130) neck = "middle";
-                        else if (localX >= 140 && localX <= 185) neck = "right";
+                      if (isTNF) {
+                        if (localY >= 0 && localY <= 40) {
+                          if (localX >= 35 && localX <= 80) neck = "left";
+                          else if (localX >= 90 && localX <= 130) neck = "middle";
+                          else if (localX >= 140 && localX <= 185) neck = "right";
+                        }
+                      } else {
+                        // evaporation-chamber
+                        if (localY >= 10 && localY <= 40 && localX >= 80 && localX <= 120) {
+                          neck = "middle";
+                        } else if (localY >= 90 && localY <= 125 && localX >= -15 && localX <= 45) {
+                          neck = "left";
+                        } else if (localY >= 90 && localY <= 125 && localX >= 155 && localX <= 215) {
+                          neck = "right";
+                        }
                       }
 
                       const isNeckClosed = neck === "left" ? !item.isOpenLeft
@@ -2396,7 +2747,7 @@ export default function InorganicCanvas({
 
                 const zoom = rect.width / surfaceRef.current.offsetWidth;
 
-                const isFlaskClosed = item.id === "three-neck-flask"
+                const isFlaskClosed = item.id === "three-neck-flask" || item.id === "evaporation-chamber"
                   ? (!item.isOpenLeft || !item.isOpenMiddle || !item.isOpenRight)
                   : !item.isOpen;
                 if ((isGlasswareBottle || item.id === "burner") && isFlaskClosed) {
@@ -2411,17 +2762,29 @@ export default function InorganicCanvas({
                       const localX = (event.clientX - svgRect.left) * scaleX;
                       const localY = (event.clientY - svgRect.top) * scaleY;
                       isOverCap = localY >= 0 && localY <= 80 && localX >= 60 && localX <= 160;
-                    } else if (item.id === "three-neck-flask") {
-                      const scaleX = 220 / svgRect.width;
-                      const scaleY = 220 / svgRect.height;
+                    } else if (item.id === "three-neck-flask" || item.id === "evaporation-chamber") {
+                      const isTNF = item.id === "three-neck-flask";
+                      const scaleX = (isTNF ? 220 : 200) / svgRect.width;
+                      const scaleY = (isTNF ? 220 : 250) / svgRect.height;
                       const localX = (event.clientX - svgRect.left) * scaleX;
                       const localY = (event.clientY - svgRect.top) * scaleY;
 
                       let neck: "left" | "middle" | "right" | null = null;
-                      if (localY >= 0 && localY <= 40) {
-                        if (localX >= 35 && localX <= 80) neck = "left";
-                        else if (localX >= 90 && localX <= 130) neck = "middle";
-                        else if (localX >= 140 && localX <= 185) neck = "right";
+                      if (isTNF) {
+                        if (localY >= 0 && localY <= 40) {
+                          if (localX >= 35 && localX <= 80) neck = "left";
+                          else if (localX >= 90 && localX <= 130) neck = "middle";
+                          else if (localX >= 140 && localX <= 185) neck = "right";
+                        }
+                      } else {
+                        // evaporation-chamber
+                        if (localY >= 10 && localY <= 40 && localX >= 80 && localX <= 120) {
+                          neck = "middle";
+                        } else if (localY >= 90 && localY <= 125 && localX >= -15 && localX <= 45) {
+                          neck = "left";
+                        } else if (localY >= 90 && localY <= 125 && localX >= 155 && localX <= 215) {
+                          neck = "right";
+                        }
                       }
 
                       const isNeckClosed = neck === "left" ? !item.isOpenLeft
@@ -2476,7 +2839,7 @@ export default function InorganicCanvas({
                   }
                 }
               }}
-              className={`absolute ${cursorClass} transition-transform ${active ? "z-50 scale-105" : "z-10"}`}
+              className={`absolute ${cursorClass} transition-transform ${(active && item.id !== "evaporation-chamber") ? "z-50 scale-105" : (active ? "z-50" : "z-10")}`}
               onDoubleClick={(event) => {
                 event.stopPropagation();
                 if (item.state === "glassware") {
@@ -2536,11 +2899,123 @@ export default function InorganicCanvas({
                 } else if (
                   item.id.includes("bottle") ||
                   item.id.includes("jar") ||
+                  item.id === "evaporation-chamber" ||
                   item.id === "rubber-stopper" ||
                   item.state === "solid" ||
                   item.state === "liquid" ||
                   item.state === "gas"
                 ) {
+                  if (item.id === "three-neck-flask" || item.id === "evaporation-chamber") {
+                    const isTNF = item.id === "three-neck-flask";
+                    const svgEl = event.currentTarget.querySelector("svg");
+                    if (svgEl) {
+                      const svgRect = svgEl.getBoundingClientRect();
+                      const scaleX = (isTNF ? 220 : 200) / svgRect.width;
+                      const scaleY = (isTNF ? 220 : 250) / svgRect.height;
+                      const localX = (event.clientX - svgRect.left) * scaleX;
+                      const localY = (event.clientY - svgRect.top) * scaleY;
+
+                      let clickedNeck: "left" | "middle" | "right" | null = null;
+                      if (isTNF) {
+                        if (localY >= 0 && localY <= 40) {
+                          if (localX >= 35 && localX <= 80) clickedNeck = "left";
+                          else if (localX >= 90 && localX <= 130) clickedNeck = "middle";
+                          else if (localX >= 140 && localX <= 185) clickedNeck = "right";
+                        }
+                      } else {
+                        // evaporation-chamber
+                        if (localY >= 10 && localY <= 40 && localX >= 80 && localX <= 120) {
+                          clickedNeck = "middle";
+                        } else if (localY >= 90 && localY <= 125 && localX >= -15 && localX <= 45) {
+                          clickedNeck = "left";
+                        } else if (localY >= 90 && localY <= 125 && localX >= 155 && localX <= 215) {
+                          clickedNeck = "right";
+                        }
+                      }
+
+                      if (clickedNeck) {
+                        const isOpenNeck = clickedNeck === "left" ? item.isOpenLeft
+                          : clickedNeck === "middle" ? item.isOpenMiddle
+                            : clickedNeck === "right" ? item.isOpenRight
+                              : false;
+
+                        if (isOpenNeck) {
+                          // Find matching stopper on canvas
+                          const matchingStopper = items.find(i => i.note === `from-${item.instanceId}-${clickedNeck}`);
+                          if (matchingStopper) {
+                            let targetX = item.x + 85;
+                            let targetY = item.y - 7;
+                            let targetRotation = 0;
+
+                            if (isTNF) {
+                              if (clickedNeck === "left") {
+                                targetX = item.x + 20;
+                                targetY = item.y + 8;
+                                targetRotation = -30;
+                              } else if (clickedNeck === "middle") {
+                                targetX = item.x + 85;
+                                targetY = item.y - 7;
+                                targetRotation = 0;
+                              } else if (clickedNeck === "right") {
+                                targetX = item.x + 149;
+                                targetY = item.y + 8;
+                                targetRotation = 30;
+                              }
+                            } else {
+                              // evaporation-chamber
+                              if (clickedNeck === "left") {
+                                targetX = item.x - 20;
+                                targetY = item.y + 83;
+                                targetRotation = -90;
+                              } else if (clickedNeck === "middle") {
+                                targetX = item.x + 79;
+                                targetY = item.y - 13;
+                                targetRotation = 0;
+                              } else if (clickedNeck === "right") {
+                                targetX = item.x + 178;
+                                targetY = item.y + 83;
+                                targetRotation = 90;
+                              }
+                            }
+
+                            onUpdate(matchingStopper.instanceId, { isStriking: true, x: targetX, y: targetY, rotation: targetRotation });
+                            playCapSound(false);
+                            setTimeout(() => {
+                              const updates: Partial<PlacedInorganicItem> = {};
+                              if (clickedNeck === "left") updates.isOpenLeft = false;
+                              else if (clickedNeck === "middle") updates.isOpenMiddle = false;
+                              else if (clickedNeck === "right") updates.isOpenRight = false;
+
+                              const openLeft = clickedNeck === "left" ? false : (item.isOpenLeft ?? false);
+                              const openMiddle = clickedNeck === "middle" ? false : (item.isOpenMiddle ?? false);
+                              const openRight = clickedNeck === "right" ? false : (item.isOpenRight ?? false);
+                              updates.isOpen = openLeft || openMiddle || openRight;
+
+                              onUpdate(item.instanceId, updates);
+                              onRemove(matchingStopper.instanceId);
+                              if (item.instanceId === prePour?.itemId) setPrePour(null);
+                            }, 450);
+                          } else {
+                            // If stopper not found, just close it
+                            const updates: Partial<PlacedInorganicItem> = {};
+                            if (clickedNeck === "left") updates.isOpenLeft = false;
+                            else if (clickedNeck === "middle") updates.isOpenMiddle = false;
+                            else if (clickedNeck === "right") updates.isOpenRight = false;
+
+                            const openLeft = clickedNeck === "left" ? false : (item.isOpenLeft ?? false);
+                            const openMiddle = clickedNeck === "middle" ? false : (item.isOpenMiddle ?? false);
+                            const openRight = clickedNeck === "right" ? false : (item.isOpenRight ?? false);
+                            updates.isOpen = openLeft || openMiddle || openRight;
+
+                            onUpdate(item.instanceId, updates);
+                            playCapSound(false);
+                          }
+                        }
+                      }
+                    }
+                    return;
+                  }
+
                   if (item.state === "gas") {
                     const svgEl = event.currentTarget.querySelector("svg");
                     if (svgEl) {
@@ -2669,7 +3144,11 @@ export default function InorganicCanvas({
                 ) : item.id === "heating-mantle" ? (
                   <HeatingMantleAsset lit={item.isLit} />
                 ) : item.id === "evaporation-chamber" ? (
-                  <EvaporationChamberAsset />
+                  <EvaporationChamberAsset
+                    isOpenLeft={item.isOpenLeft}
+                    isOpenMiddle={item.isOpenMiddle}
+                    isOpenRight={item.isOpenRight}
+                  />
                 ) : item.id === "vacuum-chamber" ? (
                   <VacuumChamberAsset />
                 ) : item.id === "gas-inlet-valve" ? (
@@ -2703,7 +3182,7 @@ export default function InorganicCanvas({
                 ) : item.id === "dropper" ? (
                   <DropperAsset isFilled={item.isOpen} isSqueezed={item.isStriking} />
                 ) : item.id === "forceps" ? (
-                  <ForcepsAsset />
+                  <ForcepsAsset isHolding={!!item.isOpen} />
                 ) : item.id === "clay-net" ? (
                   <ClayNetAsset />
                 ) : item.id === "retort-stand" ? (
@@ -2715,89 +3194,129 @@ export default function InorganicCanvas({
                 ) : item.id === "glass-conduit" ? (
                   <GlassConduitAsset />
                 ) : item.id === "glass-pipe" ? (
-                  <DynamicGlassPipe
-                    points={item.metadata?.points || [
-                      { x: 20, y: 100 },
-                      { x: 20, y: 20 },
-                      { x: 100, y: 20 },
-                    ]}
-                    isSelected={selectedId === item.instanceId}
-                    gasFlow={gasFlow}
-                    onNodeMouseDown={(e, index, nodeX, nodeY) => {
-                      e.stopPropagation();
-                      onSelect(item.instanceId);
-                      if (surfaceRef.current) {
-                        const canvasRect = surfaceRef.current.getBoundingClientRect();
-                        const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
-                        const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
-                        const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
-                        const itemAbsX = item.x + nodeX;
-                        const itemAbsY = item.y + nodeY;
-                        setActiveNodeDrag({
-                          id: item.instanceId,
-                          nodeIndex: index,
-                          offsetX: pointerX - itemAbsX,
-                          offsetY: pointerY - itemAbsY,
-                        });
-                      }
-                    }}
-                    onNodeDoubleClick={(index) => {
-                      const points = item.metadata?.points || [
+                  <>
+                    <DynamicGlassPipe
+                      points={item.metadata?.points || [
                         { x: 20, y: 100 },
                         { x: 20, y: 20 },
                         { x: 100, y: 20 },
-                      ];
-                      if (points.length <= 2) return;
-                      const newPoints = [...points];
-                      newPoints.splice(index, 1);
-                      onUpdate(item.instanceId, { metadata: { ...item.metadata, points: newPoints } });
-                    }}
-                    onPathDoubleClick={(e) => {
-                      e.stopPropagation();
-                      onSelect(item.instanceId);
-                      if (surfaceRef.current) {
-                        const canvasRect = surfaceRef.current.getBoundingClientRect();
-                        const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
-                        const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
-                        const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
-
-                        const localX = pointerX - item.x;
-                        const localY = pointerY - item.y;
-
+                      ]}
+                      isSelected={selectedId === item.instanceId}
+                      gasFlow={gasFlow}
+                      isExitConnected={isExitConnected}
+                      onNodeMouseDown={(e, index, nodeX, nodeY) => {
+                        e.stopPropagation();
+                        onSelect(item.instanceId);
+                        if (surfaceRef.current) {
+                          const canvasRect = surfaceRef.current.getBoundingClientRect();
+                          const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
+                          const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
+                          const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
+                          const itemAbsX = item.x + nodeX;
+                          const itemAbsY = item.y + nodeY;
+                          setActiveNodeDrag({
+                            id: item.instanceId,
+                            nodeIndex: index,
+                            offsetX: pointerX - itemAbsX,
+                            offsetY: pointerY - itemAbsY,
+                          });
+                        }
+                      }}
+                      onNodeDoubleClick={(index) => {
                         const points = item.metadata?.points || [
                           { x: 20, y: 100 },
                           { x: 20, y: 20 },
                           { x: 100, y: 20 },
                         ];
-
-                        // Find the closest segment to insert the new point
-                        let bestIndex = 1;
-                        let minDistance = Infinity;
-
-                        for (let i = 0; i < points.length - 1; i++) {
-                          const p1 = points[i];
-                          const p2 = points[i + 1];
-                          // Distance to line segment
-                          const l2 = Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2);
-                          let t = 0;
-                          if (l2 !== 0) {
-                            t = Math.max(0, Math.min(1, ((localX - p1.x) * (p2.x - p1.x) + (localY - p1.y) * (p2.y - p1.y)) / l2));
-                          }
-                          const proj = { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
-                          const dist = Math.sqrt(Math.pow(localX - proj.x, 2) + Math.pow(localY - proj.y, 2));
-
-                          if (dist < minDistance) {
-                            minDistance = dist;
-                            bestIndex = i + 1;
-                          }
-                        }
-
+                        if (points.length <= 2) return;
                         const newPoints = [...points];
-                        newPoints.splice(bestIndex, 0, { x: localX, y: localY });
+                        newPoints.splice(index, 1);
                         onUpdate(item.instanceId, { metadata: { ...item.metadata, points: newPoints } });
-                      }
-                    }}
-                  />
+                      }}
+                      onPathDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(item.instanceId);
+                        if (surfaceRef.current) {
+                          const canvasRect = surfaceRef.current.getBoundingClientRect();
+                          const zoom = canvasRect.width / surfaceRef.current.offsetWidth;
+                          const pointerX = (e.clientX - canvasRect.left) / zoom - panOffset.x;
+                          const pointerY = (e.clientY - canvasRect.top) / zoom - panOffset.y;
+
+                          const localX = pointerX - item.x;
+                          const localY = pointerY - item.y;
+
+                          const points = item.metadata?.points || [
+                            { x: 20, y: 100 },
+                            { x: 20, y: 20 },
+                            { x: 100, y: 20 },
+                          ];
+
+                          // Find the closest segment to insert the new point
+                          let bestIndex = 1;
+                          let minDistance = Infinity;
+
+                          for (let i = 0; i < points.length - 1; i++) {
+                            const p1 = points[i];
+                            const p2 = points[i + 1];
+                            // Distance to line segment
+                            const l2 = Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2);
+                            let t = 0;
+                            if (l2 !== 0) {
+                              t = Math.max(0, Math.min(1, ((localX - p1.x) * (p2.x - p1.x) + (localY - p1.y) * (p2.y - p1.y)) / l2));
+                            }
+                            const proj = { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+                            const dist = Math.sqrt(Math.pow(localX - proj.x, 2) + Math.pow(localY - proj.y, 2));
+
+                            if (dist < minDistance) {
+                              minDistance = dist;
+                              bestIndex = i + 1;
+                            }
+                          }
+
+                          const newPoints = [...points];
+                          newPoints.splice(bestIndex, 0, { x: localX, y: localY });
+                          onUpdate(item.instanceId, { metadata: { ...item.metadata, points: newPoints } });
+                        }
+                      }}
+                    />
+                    {gasFlow && !isExitConnected && (() => {
+                      const pts = item.metadata?.points || [
+                        { x: 20, y: 100 },
+                        { x: 20, y: 20 },
+                        { x: 100, y: 20 },
+                      ];
+                      const exitP = gasFlow.reverse ? pts[0] : pts[pts.length - 1];
+                      return (
+                        <div
+                          className="absolute pointer-events-none chemistry-escaping-smoke z-30"
+                          style={{
+                            left: `${exitP.x - 30}px`,
+                            top: `${exitP.y - 150}px`,
+                            width: '60px',
+                            height: '150px',
+                          }}
+                        >
+                          {Array.from({ length: 4 }).map((_, i) => {
+                            const delay = i * 0.5;
+                            const size = 16 + (i % 3) * 6;
+                            const leftOffset = 15 + (i % 3) * 8;
+                            return (
+                              <span
+                                key={`pipe-smoke-${item.instanceId}-${i}`}
+                                style={{
+                                  left: `${leftOffset}px`,
+                                  width: `${size}px`,
+                                  height: `${size}px`,
+                                  animationDelay: `${delay}s`,
+                                  background: `radial-gradient(circle, ${gasFlow.color} 0%, transparent 75%)`,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </>
                 ) : item.id === "scissor" ? (
                   <ScissorAsset />
                 ) : item.id === "knife" ? (
@@ -2885,6 +3404,7 @@ export default function InorganicCanvas({
                     isRotating={rotateState?.id === item.instanceId}
                     prePourId={prePour?.itemId}
                     prePourIsManual={prePour?.isManual}
+                    pipes={items.filter(i => i.id === "glass-pipe")}
                   />
                 )}
 
@@ -3377,6 +3897,7 @@ function VesselContents({
   isRotating = false,
   prePourId = null,
   prePourIsManual = false,
+  pipes = [],
 }: {
   item: PlacedInorganicItem;
   heated?: boolean;
@@ -3385,6 +3906,7 @@ function VesselContents({
   isRotating?: boolean;
   prePourId?: string | null;
   prePourIsManual?: boolean;
+  pipes?: PlacedInorganicItem[];
 }) {
   const contents = item.contents ?? [];
   const color = mixContentColor(contents);
@@ -3403,9 +3925,11 @@ function VesselContents({
   const [boilingIntensity, setBoilingIntensity] = useState(0);
   const lastHeatedTimeRef = useRef<number>(0);
 
-  const isVesselOpen = item.id === "three-neck-flask"
+  const isVesselOpen = item.id === "three-neck-flask" || item.id === "evaporation-chamber"
     ? (item.isOpenLeft !== false || item.isOpenMiddle !== false || item.isOpenRight !== false)
-    : (item.isOpen !== false && !item.hasRubberStopper);
+    : (item.id.includes("beaker") || item.id.includes("funnel") || item.id === "china-dish" || item.id === "mortar-pestle" || item.id === "crucible"
+        ? true
+        : (item.isOpen !== false && !item.hasRubberStopper));
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -3520,14 +4044,20 @@ function VesselContents({
   const hasMist = contents.some(c => c.id === "mist");
   const hasChloroformVapor = contents.some(c => c.id === "chloroform-vapor");
   const hasCamphorVapor = contents.some(c => c.id === "camphor-vapor");
-  const showBubbleParticles = showBubbles && !hasMist && !hasChloroformVapor && !hasCamphorVapor;
+  const hasSolidCamphor = contents.some(c => c.id === "camphor" && c.state === "solid");
+  const hasNitrogenGas = contents.some(c => c.id === "nitrogen" || c.id === "nitrogen-gasbag");
+  const isCamphorSublimationing = hasSolidCamphor && (isHeated || hasNitrogenGas);
+  const showBubbleParticles = showBubbles && hasLiquid && !hasMist && !hasChloroformVapor && !hasCamphorVapor;
 
-  const gasCloudY = hasMist ? geo.y - 10 : liquidY - 10;
-  const gasCloudH = hasMist ? geo.h + 20 : liquidH + 20;
-  const gasColor = hasMist ? "#f1f5f9" : color;
+  const gasCloudY = hasMist ? geo.y - 10 : geo.y;
+  const gasCloudH = hasMist ? geo.h + 20 : Math.max(0, liquidY - geo.y);
+  const gasColor = hasMist ? "#f1f5f9" : hasCamphorVapor ? "#e8f4fd" : color;
+  // Camphor vapor: soft pearly-white cloud; chloroform-vapor: invisible; others: normal
   const gasOpacity = hasMist
     ? 0.22
-    : ((hasChloroformVapor || hasCamphorVapor) ? 0 : (isVisuallyBoiling ? 0.04 * boilingIntensity : 0.04));
+    : hasCamphorVapor
+      ? 0.18
+      : (hasChloroformVapor ? 0 : (isVisuallyBoiling ? 0.05 * boilingIntensity : (hasGas && !hasLiquid ? 0.25 : 0.05)));
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">
@@ -3753,6 +4283,117 @@ function VesselContents({
                     );
                   }
 
+                  if (solid.id === "camphor") {
+                    const camphorMass = solid.mass ?? 10;
+                    const scale = Math.max(0.18, Math.min(1.0, camphorMass / 10)); // shrink as mass decreases!
+                    return (
+                      <g
+                        key={`solid-layer-${solid.id}`}
+                        transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY}) translate(${geo.x + geo.w / 2}, ${geo.y + geo.h - 5}) scale(${scale})`}
+                        style={{ transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1)" }}
+                      >
+                        {/* Pearlescent camphor crystal cluster */}
+                        <defs>
+                          <radialGradient id={`camphorShine-${item.instanceId}`} cx="35%" cy="30%" r="65%">
+                            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                            <stop offset="45%" stopColor="#e8f4fd" stopOpacity="0.9" />
+                            <stop offset="100%" stopColor="#b8cfe8" stopOpacity="0.7" />
+                          </radialGradient>
+                          <radialGradient id={`camphorShine2-${item.instanceId}`} cx="60%" cy="25%" r="55%">
+                            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                            <stop offset="60%" stopColor="#ddeef8" stopOpacity="0.8" />
+                            <stop offset="100%" stopColor="#a0b8d0" stopOpacity="0.6" />
+                          </radialGradient>
+                          <filter id={`camphorGlow-${item.instanceId}`} x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                          </filter>
+                        </defs>
+                        <g opacity="0.97" filter={isCamphorSublimationing ? `url(#camphorGlow-${item.instanceId})` : undefined}>
+                          {/* Main large crystal - rhombus shape, fades slightly as it sublimates */}
+                          <polygon
+                            points="-28,2 -8,-18 22,-8 6,14"
+                            fill={`url(#camphorShine-${item.instanceId})`}
+                            stroke="#cde0f0"
+                            strokeWidth="1.2"
+                            opacity={0.5 + scale * 0.5}
+                          />
+                          {/* Top facet highlight */}
+                          <polygon points="-28,2 -8,-18 6,14" fill="#ffffff" fillOpacity="0.45" />
+                          {/* Right facet shadow */}
+                          <polygon points="-8,-18 22,-8 6,14" fill="#90b0cc" fillOpacity="0.25" />
+                          {/* Glint spot on crystal 1 */}
+                          <ellipse cx="-12" cy="-10" rx="5" ry="3" fill="#ffffff" fillOpacity="0.7" transform="rotate(-20,-12,-10)" />
+
+                          {/* Second crystal block */}
+                          <polygon
+                            points="-2,-6 22,-24 38,-8 12,10"
+                            fill={`url(#camphorShine2-${item.instanceId})`}
+                            stroke="#cde0f0"
+                            strokeWidth="1.2"
+                            opacity={0.4 + scale * 0.6}
+                          />
+                          <polygon points="-2,-6 22,-24 12,10" fill="#ffffff" fillOpacity="0.4" />
+                          <polygon points="22,-24 38,-8 12,10" fill="#7090b0" fillOpacity="0.2" />
+                          {/* Glint on crystal 2 */}
+                          <ellipse cx="16" cy="-16" rx="4" ry="2.5" fill="#ffffff" fillOpacity="0.65" transform="rotate(-15,16,-16)" />
+
+                          {/* Third smaller crystal on top */}
+                          <polygon
+                            points="-18,6 2,-12 16,-2 -2,16"
+                            fill={`url(#camphorShine-${item.instanceId})`}
+                            stroke="#cde0f0"
+                            strokeWidth="1"
+                            opacity={0.4 + scale * 0.6}
+                          />
+                          <polygon points="-18,6 2,-12 -2,16" fill="#ffffff" fillOpacity="0.5" />
+                          {/* Sharp top glint */}
+                          <ellipse cx="-8" cy="-4" rx="3.5" ry="2" fill="#ffffff" fillOpacity="0.8" transform="rotate(-25,-8,-4)" />
+
+                          {/* Tiny accent crystal at base */}
+                          <polygon points="10,8 24,-4 30,4 16,14" fill="#e8f4fd" fillOpacity="0.85" stroke="#cde0f0" strokeWidth="0.8" opacity={scale} />
+                          <polygon points="10,8 24,-4 16,14" fill="#ffffff" fillOpacity="0.4" />
+                        </g>
+
+                        {/* Sublimation micro-particle wisps rising off crystals */}
+                        {isCamphorSublimationing && Array.from({ length: 12 }).map((_, pi) => {
+                          const pxOff = [-24, -14, -6, 2, 10, 18, 26, -18, -2, 8, 20, -10][pi];
+                          const pDur = [1.4, 1.9, 1.6, 2.2, 1.3, 1.8, 2.0, 1.5, 2.3, 1.7, 1.2, 2.1][pi];
+                          const pDelay = [0, 0.3, 0.7, 0.15, 0.9, 0.45, 0.6, 0.2, 0.8, 0.05, 1.1, 0.5][pi];
+                          // Nitrogen makes particles go higher and faster
+                          const heightMult = hasNitrogenGas ? 2.5 : 1.0;
+                          const topY = -30 * heightMult;
+                          const midY = -15 * heightMult;
+                          return (
+                            <circle key={`sublim-${pi}`} cx={pxOff} cy="-5" r={2.2 + (pi % 4) * 0.7}
+                              fill={hasNitrogenGas ? "#c8e8f8" : "#e0eef8"} fillOpacity="0">
+                              <animate attributeName="cy" values={`-5;${midY};${topY}`} dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="fillOpacity" values={`0;${hasNitrogenGas ? 0.9 : 0.7};0`} dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="r" values={`${2.2+(pi%4)*0.7};${3.5+(pi%4)*1.0};0.5`} dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="cx" values={`${pxOff};${pxOff + (pi%2===0?4:-4)};${pxOff + (pi%2===0?8:-8)}`} dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                            </circle>
+                          );
+                        })}
+
+                        {/* Nitrogen dissolution stream — large fast-rising plumes */}
+                        {hasNitrogenGas && Array.from({ length: 8 }).map((_, pi) => {
+                          const pxOff = [-20, -8, 4, 16, -14, 0, 12, -4][pi];
+                          const pDur = [0.9, 1.2, 0.8, 1.1, 1.0, 0.7, 1.3, 0.95][pi];
+                          const pDelay = [0, 0.25, 0.5, 0.1, 0.7, 0.4, 0.15, 0.6][pi];
+                          return (
+                            <ellipse key={`n2-plume-${pi}`} cx={pxOff} cy="-8" rx={3} ry={5}
+                              fill="#ddf0fc" fillOpacity="0">
+                              <animate attributeName="cy" values="-8;-30;-60;-90" dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="fillOpacity" values="0;0.85;0.5;0" dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="ry" values="5;9;14;18" dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                              <animate attributeName="rx" values="3;5;8;10" dur={`${pDur}s`} repeatCount="indefinite" begin={`${pDelay}s`} />
+                            </ellipse>
+                          );
+                        })}
+                      </g>
+                    );
+                  }
+
                   // Powder path with a beautiful curved central mound/heap
                   const powderPath = `M ${geo.x - 200} ${geo.y + geo.h + 200} L ${geo.x - 200} ${solidY} Q ${geo.x + geo.w / 2} ${solidY - 18} ${geo.x + geo.w + 200} ${solidY} L ${geo.x + geo.w + 200} ${geo.y + geo.h + 200} Z`;
 
@@ -3873,6 +4514,40 @@ function VesselContents({
                   transformOrigin: `${geo.x + geo.w / 2}px ${gasCloudY + gasCloudH / 2}px`,
                 }}
               />
+              {/* Camphor vapor swirling wisps inside vessel */}
+              {hasCamphorVapor && (() => {
+                const camphorWisps = Array.from({ length: 8 }).map((_, wi) => {
+                  const hash = (n: number) => { let h = Math.sin(n * 12.9898) * 43758.5453; return h - Math.floor(h); };
+                  return {
+                    cx: geo.x + geo.w * (0.15 + hash(wi * 3) * 0.7),
+                    r: 6 + hash(wi * 7) * 10,
+                    dur: 2.5 + hash(wi * 11) * 2.0,
+                    delay: hash(wi * 5) * 3.0,
+                    startY: geo.y + geo.h * (0.3 + hash(wi * 9) * 0.6),
+                    endY: geo.y + hash(wi * 13) * geo.h * 0.2,
+                  };
+                });
+                return camphorWisps.map((w, wi) => (
+                  <circle key={`camphor-wisp-${wi}`}
+                    cx={w.cx} cy={w.startY} r={w.r}
+                    fill="#e8f4fd" fillOpacity="0"
+                  >
+                    <animate attributeName="cy"
+                      values={`${w.startY};${w.startY - (w.startY - w.endY) * 0.5};${w.endY}`}
+                      dur={`${w.dur}s`} repeatCount="indefinite" begin={`${w.delay}s`}
+                    />
+                    <animate attributeName="fillOpacity"
+                      values="0;0.22;0.15;0"
+                      dur={`${w.dur}s`} repeatCount="indefinite" begin={`${w.delay}s`}
+                    />
+                    <animate attributeName="r"
+                      values={`${w.r * 0.6};${w.r};${w.r * 1.4};${w.r * 1.8}`}
+                      dur={`${w.dur}s`} repeatCount="indefinite" begin={`${w.delay}s`}
+                    />
+                  </circle>
+                ));
+              })()}
+
               {/* Rising real gas bubbles scaling with filled height */}
               {showBubbleParticles && (() => {
                 const bubbleSpecs = Array.from({ length: 40 }).map((_, idx) => {
@@ -3943,30 +4618,162 @@ function VesselContents({
                   );
                 });
               })()}
+
+              {/* Ambient slow-moving gas particles for vessels filled with pure gas (no liquid) */}
+              {hasGas && !hasLiquid && !hasMist && !hasChloroformVapor && !hasCamphorVapor && (() => {
+                const ambientSpecs = Array.from({ length: 15 }).map((_, idx) => {
+                  const hash = (n: number) => { let h = Math.sin(n * 12.9898) * 43758.5453; return h - Math.floor(h); };
+                  return {
+                    cx: geo.x + geo.w * (0.1 + hash(idx * 2) * 0.8),
+                    cy: geo.y + geo.h * (0.1 + hash(idx * 3) * 0.8),
+                    r: 8 + hash(idx * 5) * 12,
+                    dur: 4 + hash(idx * 7) * 3,
+                    delay: hash(idx * 11) * 5,
+                    moveX: (hash(idx * 13) - 0.5) * 20,
+                    moveY: (hash(idx * 17) - 0.5) * 20,
+                  };
+                });
+                return ambientSpecs.map((spec, idx) => (
+                  <circle
+                    key={`ambient-gas-${idx}`}
+                    cx={spec.cx}
+                    cy={spec.cy}
+                    r={spec.r}
+                    fill={color}
+                    fillOpacity="0.25"
+                    filter="blur(4px)"
+                  >
+                    <animate attributeName="cx" values={`${spec.cx};${spec.cx + spec.moveX};${spec.cx}`} dur={`${spec.dur}s`} repeatCount="indefinite" begin={`${spec.delay}s`} />
+                    <animate attributeName="cy" values={`${spec.cy};${spec.cy + spec.moveY};${spec.cy}`} dur={`${spec.dur}s`} repeatCount="indefinite" begin={`${spec.delay}s`} />
+                    <animate attributeName="fillOpacity" values="0.15;0.35;0.15" dur={`${spec.dur}s`} repeatCount="indefinite" begin={`${spec.delay}s`} />
+                  </circle>
+                ));
+              })()}
             </g>
           )}
+
         </svg>
       )}
 
-      {(heated || reactionState === "boiling" || reactionState === "heating") && isVesselOpen && (
-        <div 
-          className="absolute left-[20%] top-[10%] w-[60%] h-32 pointer-events-none chemistry-steam"
-          style={{ opacity: boilingIntensity }}
-        >
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span 
-              key={`steam-${i}`} 
-              style={{ 
-                left: `${10 + i * 20}%`, 
-                animationDelay: `${i * 0.35}s`,
-                width: '12px',
-                height: '60px',
-                filter: 'blur(6px)'
-              }} 
-            />
-          ))}
-        </div>
-      )}
+      {/* Escaping gas smoke particles rising from open mouths */}
+      {showBubbles && (() => {
+        const escapingMouths: { x: number; y: number }[] = [];
+        if (item.id === "three-neck-flask") {
+          if (item.isOpenLeft && !isVesselNeckConnectedToPipe(item, "left", pipes)) escapingMouths.push({ x: 41, y: 32 });
+          if (item.isOpenMiddle && !isVesselNeckConnectedToPipe(item, "middle", pipes)) escapingMouths.push({ x: 106, y: 17 });
+          if (item.isOpenRight && !isVesselNeckConnectedToPipe(item, "right", pipes)) escapingMouths.push({ x: 170, y: 32 });
+        } else if (item.id === "evaporation-chamber") {
+          if (item.isOpenLeft && !isVesselNeckConnectedToPipe(item, "left", pipes)) escapingMouths.push({ x: 15, y: 107 });
+          if (item.isOpenMiddle && !isVesselNeckConnectedToPipe(item, "middle", pipes)) escapingMouths.push({ x: 100, y: 10 });
+          if (item.isOpenRight && !isVesselNeckConnectedToPipe(item, "right", pipes)) escapingMouths.push({ x: 185, y: 107 });
+        } else {
+          const isOpen = item.id.includes("beaker") || item.id.includes("funnel") || item.id === "china-dish" || item.id === "mortar-pestle" || item.id === "crucible"
+            ? true
+            : (item.isOpen !== false && !item.hasRubberStopper);
+          if (isOpen && !isVesselPipeConnected(item, pipes)) {
+            escapingMouths.push({ x: vbW / 2, y: geo.y + 15 });
+          }
+        }
+
+        if (escapingMouths.length === 0) return null;
+
+        return (
+          <div className="absolute inset-0 pointer-events-none z-30">
+            {escapingMouths.map((mouth, mIdx) => {
+              const leftPercent = (mouth.x / vbW) * 100;
+              const topPercent = (mouth.y / vbH) * 100;
+
+              return (
+                <div
+                  key={`escaping-mouth-smoke-${mIdx}`}
+                  className="absolute pointer-events-none chemistry-escaping-smoke"
+                  style={{
+                    left: `calc(${leftPercent}% - 30px)`,
+                    top: `calc(${topPercent}% - 150px)`,
+                    width: '60px',
+                    height: '150px',
+                  }}
+                >
+                  {Array.from({ length: 4 }).map((_, i) => {
+                    const delay = i * 0.5;
+                    const size = 16 + (i % 3) * 6; // sizes between 16px and 28px
+                    const leftOffset = 15 + (i % 3) * 8; // horizontal offsets to stagger them
+                    return (
+                      <span
+                        key={`smoke-${mIdx}-${i}`}
+                        style={{
+                          left: `${leftOffset}px`,
+                          width: `${size}px`,
+                          height: `${size}px`,
+                          animationDelay: `${delay}s`,
+                          background: `radial-gradient(circle, ${gasColor} 0%, transparent 75%)`,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {(heated || reactionState === "boiling" || reactionState === "heating") && (() => {
+        const steamMouths: { x: number; y: number }[] = [];
+        if (item.id === "three-neck-flask") {
+          if (item.isOpenLeft && !isVesselNeckConnectedToPipe(item, "left", pipes)) steamMouths.push({ x: 41, y: 32 });
+          if (item.isOpenMiddle && !isVesselNeckConnectedToPipe(item, "middle", pipes)) steamMouths.push({ x: 106, y: 17 });
+          if (item.isOpenRight && !isVesselNeckConnectedToPipe(item, "right", pipes)) steamMouths.push({ x: 170, y: 32 });
+        } else if (item.id === "evaporation-chamber") {
+          if (item.isOpenLeft && !isVesselNeckConnectedToPipe(item, "left", pipes)) steamMouths.push({ x: 15, y: 107 });
+          if (item.isOpenMiddle && !isVesselNeckConnectedToPipe(item, "middle", pipes)) steamMouths.push({ x: 100, y: 10 });
+          if (item.isOpenRight && !isVesselNeckConnectedToPipe(item, "right", pipes)) steamMouths.push({ x: 185, y: 107 });
+        } else {
+          const isOpen = item.id.includes("beaker") || item.id.includes("funnel") || item.id === "china-dish" || item.id === "mortar-pestle" || item.id === "crucible"
+            ? true
+            : (item.isOpen !== false && !item.hasRubberStopper);
+          if (isOpen && !isVesselPipeConnected(item, pipes)) {
+            steamMouths.push({ x: vbW / 2, y: geo.y + 15 });
+          }
+        }
+
+        if (steamMouths.length === 0) return null;
+
+        return (
+          <div className="absolute inset-0 pointer-events-none" style={{ opacity: boilingIntensity }}>
+            {steamMouths.map((mouth, mIdx) => {
+              const leftPercent = (mouth.x / vbW) * 100;
+              const topPercent = (mouth.y / vbH) * 100;
+
+              return (
+                <div
+                  key={`steam-mouth-${mIdx}`}
+                  className="absolute pointer-events-none chemistry-steam"
+                  style={{
+                    left: `calc(${leftPercent}% - 30px)`,
+                    top: `calc(${topPercent}% - 120px)`,
+                    width: '60px',
+                    height: '120px',
+                  }}
+                >
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span
+                      key={`steam-${mIdx}-${i}`}
+                      style={{
+                        left: `${15 + i * 25}%`,
+                        animationDelay: `${i * 0.35}s`,
+                        width: '12px',
+                        height: '60px',
+                        filter: 'blur(6px)',
+                      }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {reactionState === "reduction" && (
         <div className="absolute left-[55px] top-[98px] h-12 w-16 rounded-full border border-orange-300/40 bg-orange-500/35 chemistry-heat-glow" />

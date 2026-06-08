@@ -204,6 +204,7 @@ export default function ChemistryPage() {
       item.id.includes("bottle") ||
       item.id.includes("jar") ||
       item.id === "three-neck-flask" ||
+      item.id === "evaporation-chamber" ||
       item.state === "solid" ||
       item.state === "liquid" ||
       item.state === "gas";
@@ -213,7 +214,7 @@ export default function ChemistryPage() {
       x: 90 + offset * 34,
       y: 90 + offset * 26,
       isOpen: isBottle ? false : undefined,
-      ...(item.id === "three-neck-flask" ? {
+      ...(item.id === "three-neck-flask" || item.id === "evaporation-chamber" ? {
         isOpenLeft: false,
         isOpenMiddle: false,
         isOpenRight: false,
@@ -299,6 +300,7 @@ export default function ChemistryPage() {
       item.id.includes("bottle") ||
       item.id.includes("jar") ||
       item.id === "three-neck-flask" ||
+      item.id === "evaporation-chamber" ||
       item.state === "solid" ||
       item.state === "liquid" ||
       item.state === "gas";
@@ -312,7 +314,7 @@ export default function ChemistryPage() {
       isStriking: item.id === "matchbox" ? false : undefined,
       isLit: item.id === "match", // Auto-light matches when spawned
       isOpen: isBottle ? false : undefined,
-      ...(item.id === "three-neck-flask" ? {
+      ...(item.id === "three-neck-flask" || item.id === "evaporation-chamber" ? {
         isOpenLeft: false,
         isOpenMiddle: false,
         isOpenRight: false,

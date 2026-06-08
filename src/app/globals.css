@@ -116,6 +116,38 @@ body {
   animation-delay: 0.5s;
 }
 
+.chemistry-escaping-smoke span {
+  position: absolute;
+  bottom: 0;
+  border-radius: 50%;
+  filter: blur(6px);
+  animation: chemistry-smoke-rise 2.2s ease-in-out infinite;
+}
+
+@keyframes chemistry-smoke-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.3) rotate(0deg);
+  }
+  15% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.45;
+    transform: translateY(-40px) scale(1.1) translateX(-8px) rotate(45deg);
+    filter: blur(9px);
+  }
+  75% {
+    opacity: 0.22;
+    transform: translateY(-90px) scale(1.6) translateX(10px) rotate(-45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-140px) scale(2.2) translateX(-12px) rotate(90deg);
+    filter: blur(15px);
+  }
+}
+
 .chemistry-gas-cloud {
   animation: chemistry-gas-float 2.4s ease-in-out infinite;
 }

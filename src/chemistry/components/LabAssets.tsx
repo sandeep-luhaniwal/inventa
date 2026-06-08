@@ -425,9 +425,17 @@ export function HeatingMantleAsset({ lit = false }: { lit?: boolean }) {
   );
 }
 
-export function EvaporationChamberAsset() {
+export function EvaporationChamberAsset({
+  isOpenLeft = false,
+  isOpenMiddle = false,
+  isOpenRight = false,
+}: {
+  isOpenLeft?: boolean;
+  isOpenMiddle?: boolean;
+  isOpenRight?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 200 250" className="h-48 w-40 drop-shadow-[0_16px_30px_rgba(0,0,0,0.18)]">
+    <svg viewBox="0 0 200 250" className="w-full h-full drop-shadow-[0_16px_30px_rgba(0,0,0,0.18)]" style={{ overflow: 'visible' }}>
       <GlassDefs />
       <g filter="url(#ultraGlass)">
         {/* Main Chamber Body (Wide cylinder) */}
@@ -449,6 +457,52 @@ export function EvaporationChamberAsset() {
         {/* Vertical reflection lines to enhance the glass 3D look */}
         <path d="M50 60 V180" fill="none" stroke="#ffffff" strokeWidth="6" strokeLinecap="round" strokeOpacity="0.14" filter="url(#ultraGlass)" />
       </g>
+
+      {/* Left Cap Group (rendered only when closed) */}
+      {!isOpenLeft && (
+        <g transform="translate(-50, 84) rotate(-90, 65, 23)" filter="url(#ultraGlass)">
+          {/* Stopper Plug */}
+          <path d="M 52 27 H 78 L 75 41 H 55 Z" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Collar */}
+          <rect x="47" y="23" width="36" height="4" rx="1.5" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Handle */}
+          <circle cx="65" cy="13" r="10" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Highlights */}
+          <ellipse cx="61" cy="9" rx="3.5" ry="2" transform="rotate(-30, 61, 9)" fill="#ffffff" fillOpacity="0.45" />
+          <path d="M 49 24 H 81" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.25" />
+        </g>
+      )}
+
+      {/* Middle (Top) Cap Group (rendered only when closed) */}
+      {!isOpenMiddle && (
+        <g transform="translate(35, -13)" filter="url(#ultraGlass)">
+          {/* Stopper Plug */}
+          <path d="M 52 27 H 78 L 75 41 H 55 Z" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Collar */}
+          <rect x="47" y="23" width="36" height="4" rx="1.5" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Handle */}
+          <circle cx="65" cy="13" r="10" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Highlights */}
+          <ellipse cx="61" cy="9" rx="3.5" ry="2" transform="rotate(-30, 61, 9)" fill="#ffffff" fillOpacity="0.45" />
+          <path d="M 49 24 H 81" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.25" />
+        </g>
+      )}
+
+      {/* Right Cap Group (rendered only when closed) */}
+      {!isOpenRight && (
+        <g transform="translate(120, 84) rotate(90, 65, 23)" filter="url(#ultraGlass)">
+          {/* Stopper Plug */}
+          <path d="M 52 27 H 78 L 75 41 H 55 Z" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Collar */}
+          <rect x="47" y="23" width="36" height="4" rx="1.5" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Handle */}
+          <circle cx="65" cy="13" r="10" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
+          {/* Stopper Highlights */}
+          <ellipse cx="61" cy="9" rx="3.5" ry="2" transform="rotate(-30, 61, 9)" fill="#ffffff" fillOpacity="0.45" />
+          <path d="M 49 24 H 81" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.25" />
+        </g>
+      )}
+
       <text x="100" y="145" textAnchor="middle" fill="#c8d8e8" fontSize="12" fontWeight="500" fontFamily="system-ui" fillOpacity="0.45" letterSpacing="0.8">
         VAPOR CHAMBER
       </text>
@@ -1240,6 +1294,21 @@ export function ChemicalContainerAsset({
               <rect x="65" y="108" width="18" height="14" rx="1" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
               <rect x="54" y="120" width="16" height="10" rx="1" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
             </g>
+          ) : id === "camphor" ? (
+            <g>
+              <path d="M 36 92 H 94 V 119 A 11 11 0 0 1 83 130 H 47 A 11 11 0 0 1 36 119 Z" fill={accent} fillOpacity="0.25" />
+              <g transform="translate(65, 114)">
+                {/* Chunk 1 */}
+                <polygon points="-20,5 -5,-8 15,-2 5,10" fill="#ffffff" fillOpacity="0.85" stroke="#cbd5e1" strokeWidth="0.8" />
+                <polygon points="-20,5 -5,-8 5,10" fill="#f8fafc" fillOpacity="0.6" />
+                {/* Chunk 2 */}
+                <polygon points="-5,0 15,-12 28,-3 10,10" fill="#f1f5f9" fillOpacity="0.9" stroke="#cbd5e1" strokeWidth="0.8" />
+                <polygon points="-5,0 15,-12 10,10" fill="#ffffff" fillOpacity="0.5" />
+                {/* Chunk 3 on top */}
+                <polygon points="-12,8 5,-4 12,4 -5,13" fill="#f8fafc" fillOpacity="0.95" stroke="#cbd5e1" strokeWidth="0.8" />
+                <polygon points="-12,8 5,-4 -5,13" fill="#ffffff" fillOpacity="0.6" />
+              </g>
+            </g>
           ) : (
             <g>
               {/* Solid chemical base block filling the bottom of the bottle */}
@@ -1709,9 +1778,9 @@ export function DropperAsset({
   );
 }
 
-export function ForcepsAsset() {
+export function ForcepsAsset({ isHolding = false }: { isHolding?: boolean }) {
   return (
-    <svg width="52" height="292" viewBox="0 0 52 292" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="52" height="292" viewBox="0 0 52 292" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
       <path d="M5.70058 1.14844C5.70058 1.14844 0.573587 6.238 1.02859 19.8194C1.48359 33.4028 3.72758 176.897 5.66158 193.987C7.59558 211.075 8.16559 241.246 12.0286 252.494C14.3666 259.299 32.6746 291.148 32.6746 291.148C32.6746 291.148 20.5376 264.099 17.9366 249.816C14.9266 233.298 20.5886 212.239 20.2846 191.7C19.9816 171.16 15.8896 28.4557 13.0406 15.576C10.1896 2.69916 5.70058 1.14844 5.70058 1.14844Z" fill="#FEFBFF" stroke="#002036" strokeWidth="2" strokeMiterlimit="10" />
       <path d="M6.48565 1.16357C6.48565 1.16357 1.67265 6.54308 2.93665 20.075C4.19865 33.6079 14.9897 176.721 17.9387 193.668C20.8877 210.615 23.2546 240.699 27.7806 251.703C30.5206 258.359 50.6967 289.085 50.6967 289.085C50.6967 289.085 36.9706 262.792 33.5206 248.686C29.5306 232.371 33.9266 211.02 32.3996 190.534C30.8726 170.047 18.2866 27.8306 14.6726 15.1398C11.0606 2.44907 6.48565 1.16357 6.48565 1.16357Z" fill="#FEFBFF" stroke="#002036" strokeWidth="2" strokeMiterlimit="10" />
       <path d="M10.9175 100.743C10.9465 101.385 11.4955 101.883 12.1465 101.855L22.5955 101.403C23.2455 101.375 23.7475 100.831 23.7205 100.189C23.6915 99.5464 23.1425 99.0486 22.4915 99.0763L12.0425 99.5286C11.3925 99.5572 10.8905 100.101 10.9175 100.743Z" fill="#B4B4B4" />
@@ -1725,6 +1794,34 @@ export function ForcepsAsset() {
       <path d="M15.1617 150.494C15.1907 151.135 15.7397 151.634 16.3907 151.607L26.8397 151.153C27.4897 151.126 27.9917 150.581 27.9647 149.938C27.9357 149.297 27.3867 148.799 26.7377 148.827L16.2867 149.278C15.6387 149.308 15.1347 149.852 15.1617 150.494Z" fill="#B4B4B4" />
       <path d="M15.3126 156.093C15.3416 156.736 15.8906 157.233 16.5416 157.206L26.9906 156.753C27.6406 156.726 28.1426 156.181 28.1156 155.538C28.0866 154.896 27.5376 154.398 26.8876 154.426L16.4386 154.879C15.7886 154.908 15.2846 155.451 15.3126 156.093Z" fill="#B4B4B4" />
       <path d="M16.0894 162.008C16.1184 162.651 16.6674 163.149 17.3164 163.122L27.7674 162.668C28.4154 162.641 28.9194 162.096 28.8904 161.454C28.8634 160.812 28.3144 160.314 27.6634 160.341L17.2144 160.794C16.5644 160.822 16.0624 161.366 16.0894 162.008Z" fill="#B4B4B4" />
+      {/* Camphor Chunk Held by Forceps */}
+      {isHolding && (
+        <g>
+          <defs>
+            <radialGradient id="forcepsCamphorShine" cx="35%" cy="28%" r="65%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="50%" stopColor="#e8f4fd" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="#b8cfe8" stopOpacity="0.75" />
+            </radialGradient>
+          </defs>
+          {/* Main crystal body — rhombus */}
+          <polygon
+            points="18,272 34,262 48,270 36,282"
+            fill="url(#forcepsCamphorShine)"
+            stroke="#cde0f0"
+            strokeWidth="1.2"
+          />
+          {/* Top lit facet */}
+          <polygon points="18,272 34,262 36,282" fill="#ffffff" fillOpacity="0.45" />
+          {/* Right shadow facet */}
+          <polygon points="34,262 48,270 36,282" fill="#90b0cc" fillOpacity="0.22" />
+          {/* Glint */}
+          <ellipse cx="27" cy="267" rx="4.5" ry="2.5" fill="#ffffff" fillOpacity="0.72" transform="rotate(-18,27,267)" />
+          {/* Small second crystal */}
+          <polygon points="34,280 44,274 50,280 42,288" fill="#e8f4fd" fillOpacity="0.88" stroke="#cde0f0" strokeWidth="0.9" />
+          <polygon points="34,280 44,274 42,288" fill="#ffffff" fillOpacity="0.4" />
+        </g>
+      )}
     </svg>
   );
 }
