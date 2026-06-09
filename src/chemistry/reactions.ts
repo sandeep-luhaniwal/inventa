@@ -348,8 +348,8 @@ export function resolveReaction(contents: InorganicLibraryItem[], vesselId?: str
   if (hasCamphorVapor && hasNitrogenGas) {
     return {
       contents: currentContents,
-      state: "idle",
-      note: "C10H16O (g) + N2 (g) -> Gas Mixture. The sublimated camphor vapor diffuses and mixes uniformly with the nitrogen gas. No residue remains at the bottom, forming a fragrant transparent gas mixture."
+      state: "gas",
+      note: "C10H16O (g) + N2 (g) -> Gas mixture. Nitrogen carries the sublimated camphor vapor, so the white crystals visibly dissolve into a uniform transparent vapor mixture. No solid residue remains at the bottom."
     };
   }
 
@@ -366,7 +366,7 @@ export function resolveReaction(contents: InorganicLibraryItem[], vesselId?: str
     return {
       contents: currentContents,
       state: "idle",
-      note: "Solid Camphor (C10H16O) and Nitrogen (N2) mixture. Heat the flask with a burner to sublimate the camphor."
+      note: "Solid Camphor (C10H16O) + Nitrogen (N2). Nitrogen starts carrying camphor from the crystal surface; the solid will shrink while camphor vapor mixes through the vessel. Heat will speed up the sublimation."
     };
   }
 

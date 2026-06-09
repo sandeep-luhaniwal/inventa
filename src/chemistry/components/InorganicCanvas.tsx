@@ -328,6 +328,12 @@ export function DynamicGlassPipe({
   const highlightPoints = points.map(p => ({ x: p.x - 1, y: p.y - 1 }));
   const highlightD = getRoundedPolylinePath(highlightPoints, 0);
   const exitPoint = gasFlow?.reverse ? points[0] : points[points.length - 1];
+  const exitNeighbor = gasFlow?.reverse ? points[1] : points[points.length - 2];
+  const exitDx = exitPoint.x - (exitNeighbor?.x ?? exitPoint.x);
+  const exitDy = exitPoint.y - (exitNeighbor?.y ?? exitPoint.y);
+  const exitLength = Math.hypot(exitDx, exitDy) || 1;
+  const exitUnit = { x: exitDx / exitLength, y: exitDy / exitLength };
+  const exitPerp = { x: -exitUnit.y, y: exitUnit.x };
 
   return (
     <svg className="absolute inset-0 overflow-visible pointer-events-none drop-shadow-[0_18px_28px_rgba(0,0,0,0.2)]">
@@ -380,6 +386,49 @@ export function DynamicGlassPipe({
               <animate attributeName="opacity" values="0;0.75;0" dur="1.5s" repeatCount="indefinite" begin={`${i * 0.25}s`} />
             </circle>
           ))}
+          {!isExitConnected && (
+            <g>
+              <line
+                x1={exitPoint.x}
+                y1={exitPoint.y}
+                x2={exitPoint.x + exitUnit.x * 38}
+                y2={exitPoint.y + exitUnit.y * 38}
+                stroke={gasFlow.color}
+                strokeWidth="8"
+                strokeLinecap="round"
+                opacity="0.22"
+                filter="blur(5px)"
+              >
+                <animate attributeName="opacity" values="0.1;0.32;0.1" dur="1.1s" repeatCount="indefinite" />
+              </line>
+              {Array.from({ length: 9 }).map((_, i) => {
+                const spread = (i - 4) * 3.4;
+                const startX = exitPoint.x + exitPerp.x * spread;
+                const startY = exitPoint.y + exitPerp.y * spread;
+                const travel = 20 + (i % 4) * 8;
+                const endX = startX + exitUnit.x * travel + exitPerp.x * spread * 0.7;
+                const endY = startY + exitUnit.y * travel + exitPerp.y * spread * 0.7;
+                const size = 3.5 + (i % 3) * 1.8;
+                const delay = i * 0.13;
+                return (
+                  <circle
+                    key={`exit-plume-${i}`}
+                    cx={startX}
+                    cy={startY}
+                    r={size}
+                    fill={gasFlow.color}
+                    opacity="0"
+                    filter="blur(3px)"
+                  >
+                    <animate attributeName="cx" values={`${startX};${endX}`} dur="1.25s" repeatCount="indefinite" begin={`${delay}s`} />
+                    <animate attributeName="cy" values={`${startY};${endY}`} dur="1.25s" repeatCount="indefinite" begin={`${delay}s`} />
+                    <animate attributeName="r" values={`${size * 0.45};${size};${size * 1.8}`} dur="1.25s" repeatCount="indefinite" begin={`${delay}s`} />
+                    <animate attributeName="opacity" values="0;0.65;0" dur="1.25s" repeatCount="indefinite" begin={`${delay}s`} />
+                  </circle>
+                );
+              })}
+            </g>
+          )}
         </g>
       )}
     </svg>
@@ -704,6 +753,7 @@ export default function InorganicCanvas({
         }
 
         if (!gasSource || !targetVessel || targetVessel.state !== "glassware") return;
+        if (gasSource.state === "gas" && !gasSource.isOpen) return;
 
         const currentDirection: "start-to-end" | "end-to-start" =
           gasSource.instanceId === startItem.instanceId ? "start-to-end" : "end-to-start";
@@ -3279,43 +3329,6 @@ export default function InorganicCanvas({
                         }
                       }}
                     />
-                    {gasFlow && !isExitConnected && (() => {
-                      const pts = item.metadata?.points || [
-                        { x: 20, y: 100 },
-                        { x: 20, y: 20 },
-                        { x: 100, y: 20 },
-                      ];
-                      const exitP = gasFlow.reverse ? pts[0] : pts[pts.length - 1];
-                      return (
-                        <div
-                          className="absolute pointer-events-none chemistry-escaping-smoke z-30"
-                          style={{
-                            left: `${exitP.x - 30}px`,
-                            top: `${exitP.y - 150}px`,
-                            width: '60px',
-                            height: '150px',
-                          }}
-                        >
-                          {Array.from({ length: 4 }).map((_, i) => {
-                            const delay = i * 0.5;
-                            const size = 16 + (i % 3) * 6;
-                            const leftOffset = 15 + (i % 3) * 8;
-                            return (
-                              <span
-                                key={`pipe-smoke-${item.instanceId}-${i}`}
-                                style={{
-                                  left: `${leftOffset}px`,
-                                  width: `${size}px`,
-                                  height: `${size}px`,
-                                  animationDelay: `${delay}s`,
-                                  background: `radial-gradient(circle, ${gasFlow.color} 0%, transparent 75%)`,
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
                   </>
                 ) : item.id === "scissor" ? (
                   <ScissorAsset />
@@ -3405,6 +3418,39 @@ export default function InorganicCanvas({
                     prePourId={prePour?.itemId}
                     prePourIsManual={prePour?.isManual}
                     pipes={items.filter(i => i.id === "glass-pipe")}
+                    gasFill={(() => {
+                      const transfer = Object.values(gasTransfers).find((entry) => entry.targetId === item.instanceId);
+                      if (!transfer) return undefined;
+                      const pipe = items.find((entry) => entry.instanceId === transfer.pipeId);
+                      const source = items.find((entry) => entry.instanceId === transfer.sourceId);
+                      if (!pipe) return undefined;
+                      const points = pipe.metadata?.points || [
+                        { x: 20, y: 100 },
+                        { x: 20, y: 20 },
+                        { x: 100, y: 20 },
+                      ];
+                      const endpoints = [
+                        { x: pipe.x + points[0].x, y: pipe.y + points[0].y },
+                        { x: pipe.x + points[points.length - 1].x, y: pipe.y + points[points.length - 1].y },
+                      ];
+                      const mouths = getVesselMouths(item);
+                      const targetEndpoint = endpoints.reduce((closest, endpoint) => {
+                        const endpointDistance = Math.min(...mouths.map((mouth) => Math.hypot(endpoint.x - mouth.x, endpoint.y - mouth.y)));
+                        const closestDistance = Math.min(...mouths.map((mouth) => Math.hypot(closest.x - mouth.x, closest.y - mouth.y)));
+                        return endpointDistance < closestDistance ? endpoint : closest;
+                      }, endpoints[0]);
+                      const dims = getItemUnscaledDims(item.id, item.state);
+                      const centerX = item.x + dims.w / 2;
+                      const centerY = item.y + dims.h / 2;
+                      const dx = targetEndpoint.x - centerX;
+                      const dy = targetEndpoint.y - centerY;
+                      const side = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "top" : "bottom");
+                      return {
+                        side,
+                        color: source?.accent || "#dbeafe",
+                        progress: Math.min(1, transfer.pouredVolume / Math.max(30, getVesselCapacity(item.id) * 0.2)),
+                      };
+                    })()}
                   />
                 )}
 
@@ -3898,6 +3944,7 @@ function VesselContents({
   prePourId = null,
   prePourIsManual = false,
   pipes = [],
+  gasFill,
 }: {
   item: PlacedInorganicItem;
   heated?: boolean;
@@ -3907,6 +3954,11 @@ function VesselContents({
   prePourId?: string | null;
   prePourIsManual?: boolean;
   pipes?: PlacedInorganicItem[];
+  gasFill?: {
+    side: "left" | "right" | "top" | "bottom";
+    color: string;
+    progress: number;
+  };
 }) {
   const contents = item.contents ?? [];
   const color = mixContentColor(contents);
@@ -4514,6 +4566,89 @@ function VesselContents({
                   transformOrigin: `${geo.x + geo.w / 2}px ${gasCloudY + gasCloudH / 2}px`,
                 }}
               />
+              {gasFill && (() => {
+                const side = gasFill.side;
+                const horizontal = side === "left" || side === "right";
+                const sign = side === "left" || side === "top" ? 1 : -1;
+                const inletX = side === "left" ? geo.x + 5 : side === "right" ? geo.x + geo.w - 5 : geo.x + geo.w * 0.5;
+                const inletY = side === "top" ? geo.y + 5 : side === "bottom" ? geo.y + geo.h - 5 : geo.y + geo.h * 0.47;
+                const jetLength = horizontal ? geo.w * 0.68 : geo.h * 0.68;
+                const travelX = horizontal ? sign * jetLength : 0;
+                const travelY = horizontal ? 0 : sign * jetLength;
+                const crossX = horizontal ? 0 : 1;
+                const crossY = horizontal ? 1 : 0;
+                const fillOpacity = 0.2 + gasFill.progress * 0.22;
+
+                return (
+                  <g>
+                    <ellipse
+                      cx={inletX + travelX * 0.36}
+                      cy={inletY + travelY * 0.36}
+                      rx={horizontal ? geo.w * 0.32 : geo.w * 0.42}
+                      ry={horizontal ? geo.h * 0.34 : geo.h * 0.26}
+                      fill={gasFill.color}
+                      opacity={fillOpacity}
+                      filter="blur(16px)"
+                    >
+                      <animate attributeName="opacity" values={`${fillOpacity * 0.5};${fillOpacity};${fillOpacity * 0.55}`} dur="1.8s" repeatCount="indefinite" />
+                    </ellipse>
+                    <path
+                      d={`M ${inletX} ${inletY} C ${inletX + travelX * 0.22} ${inletY + travelY * 0.22}, ${inletX + travelX * 0.44} ${inletY + travelY * 0.44}, ${inletX + travelX * 0.76} ${inletY + travelY * 0.76}`}
+                      fill="none"
+                      stroke={gasFill.color}
+                      strokeWidth="18"
+                      strokeLinecap="round"
+                      opacity="0.2"
+                      filter="blur(8px)"
+                    >
+                      <animate attributeName="stroke-width" values="10;22;14" dur="1.15s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.08;0.28;0.1" dur="1.15s" repeatCount="indefinite" />
+                    </path>
+                    {Array.from({ length: 14 }).map((_, i) => {
+                      const band = (i % 5) - 2;
+                      const startX = inletX + crossX * band * 5;
+                      const startY = inletY + crossY * band * 5;
+                      const endX = inletX + travelX * (0.45 + (i % 4) * 0.12) + crossX * band * 12;
+                      const endY = inletY + travelY * (0.45 + (i % 4) * 0.12) + crossY * band * 12;
+                      const size = 3.5 + (i % 4) * 1.8;
+                      const delay = i * 0.09;
+                      return (
+                        <circle
+                          key={`gas-fill-${i}`}
+                          cx={startX}
+                          cy={startY}
+                          r={size}
+                          fill={gasFill.color}
+                          opacity="0"
+                          filter="blur(3px)"
+                        >
+                          <animate attributeName="cx" values={`${startX};${endX}`} dur="1.1s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="cy" values={`${startY};${endY}`} dur="1.1s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="r" values={`${size * 0.5};${size * 1.4};${size * 2.1}`} dur="1.1s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="opacity" values="0;0.58;0" dur="1.1s" repeatCount="indefinite" begin={`${delay}s`} />
+                        </circle>
+                      );
+                    })}
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <ellipse
+                        key={`gas-fill-ring-${i}`}
+                        cx={inletX}
+                        cy={inletY}
+                        rx={horizontal ? 5 : 13}
+                        ry={horizontal ? 13 : 5}
+                        fill="none"
+                        stroke={gasFill.color}
+                        strokeWidth="2"
+                        opacity="0"
+                      >
+                        <animate attributeName="rx" values={`${horizontal ? 5 : 13};${horizontal ? 28 : 44}`} dur="1.3s" repeatCount="indefinite" begin={`${i * 0.32}s`} />
+                        <animate attributeName="ry" values={`${horizontal ? 13 : 5};${horizontal ? 44 : 28}`} dur="1.3s" repeatCount="indefinite" begin={`${i * 0.32}s`} />
+                        <animate attributeName="opacity" values="0;0.45;0" dur="1.3s" repeatCount="indefinite" begin={`${i * 0.32}s`} />
+                      </ellipse>
+                    ))}
+                  </g>
+                );
+              })()}
               {/* Camphor vapor swirling wisps inside vessel */}
               {hasCamphorVapor && (() => {
                 const camphorWisps = Array.from({ length: 8 }).map((_, wi) => {
