@@ -63,6 +63,7 @@ import {
   SafetyGlovesAsset,
   CrucibleAsset,
   FurnaceAsset,
+  PressureBottleAsset,
 } from "./LabAssets";
 
 interface InorganicCanvasProps {
@@ -89,7 +90,8 @@ interface DragState {
 type DispenseMode = "solid" | "liquid" | "gas";
 
 const isBottleCork = (id: string) => {
-  return id === "sodium-carbonate" ||
+  return id === "pressure-bottle" ||
+    id === "sodium-carbonate" ||
     id === "barium-hydroxide" ||
     id === "calcium-hydroxide" ||
     id === "potassium-hydroxide" ||
@@ -157,6 +159,7 @@ const getItemUnscaledDims = (id: string, state: string) => {
   if (id === "separatory-funnel") return { w: 220, h: 660 };
   if (id === "gas-jar") return { w: 220, h: 300 };
   if (id === "measure-bottle" || id === "glass-bottle") return { w: 120, h: 160 };
+  if (id === "pressure-bottle") return { w: 120, h: 180 };
   if (id.includes("test-tube")) return { w: 100, h: 200 };
   return { w: 100, h: 100 };
 };
@@ -186,6 +189,7 @@ const getItemCanvasScale = (id: string, state: string) => {
   if (id === "furnace") return 1.0;
   if (id === "tongs") return 0.75;
   if (id === "measure-bottle" || id === "glass-bottle") return 1.76;
+  if (id === "pressure-bottle") return 1.5;
   return 2.112; // test-tube etc.
 };
 
@@ -2004,7 +2008,7 @@ export default function InorganicCanvas({
             }
           }
           return (
-            ((i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
+            ((i.state === "solid" || i.state === "liquid" || i.state === "gas" || i.id === "measure-bottle" || i.id === "glass-bottle" || i.id === "pressure-bottle") &&
             (i.id.includes("bottle") || i.id.includes("jar") || i.state === "solid" || i.state === "liquid" || i.state === "gas") &&
             i.isOpen &&
             !isBottleDropper(i.id) &&
@@ -3209,6 +3213,8 @@ export default function InorganicCanvas({
                   <MortarPestleAsset />
                 ) : item.id === "crucible" ? (
                   <CrucibleAsset />
+                ) : item.id === "pressure-bottle" ? (
+                  <PressureBottleAsset isOpen={item.isOpen} />
                 ) : item.id === "furnace" ? (
                   <FurnaceAsset lit={item.isLit} />
                 ) : item.id === "tongs" ? (
@@ -4061,6 +4067,7 @@ function VesselContents({
     if (item.id === "evaporation-chamber") return { x: 40, y: 40, w: 120, h: 160, rx: 20 };
     if (item.id === "graduated-cylinder") return { x: 35, y: 20, w: 30, h: 240, rx: 0 };
     if (item.id === "crucible") return { x: 25, y: 15, w: 50, h: 70, rx: 10 };
+    if (item.id === "pressure-bottle") return { x: 25, y: 45, w: 70, h: 110, rx: 20 };
     return { x: 24, y: 120, w: 152, h: 152, rx: 76, shape: "round" };
   })();
 
@@ -4075,6 +4082,7 @@ function VesselContents({
     if (item.id === "evaporation-chamber") return "0 0 200 250";
     if (item.id === "graduated-cylinder") return "0 0 100 280";
     if (item.id === "crucible") return "0 0 100 100";
+    if (item.id === "pressure-bottle") return "0 0 120 180";
     return "0 0 200 280";
   })();
 

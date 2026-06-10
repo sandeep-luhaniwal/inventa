@@ -24,6 +24,27 @@ export const ORGANIC_CATEGORIES: SidebarCategory[] = [
 
 export const INORGANIC_LIBRARY: InorganicLibraryItem[] = [
   {
+    id: "pressure-bottle",
+    module: "inorganic",
+    category: "glassware",
+    name: "Pressure Bottle",
+    symbol: "PB",
+    state: "glassware",
+    accent: "#cbd5e1",
+    description: "A thick-walled glass bottle that can be sealed to contain reactions under pressure.",
+  },
+  {
+    id: "aerated-liquid",
+    module: "inorganic",
+    category: "liquids",
+    name: "Aerated Liquid",
+    symbol: "Aerated Liquid",
+    formula: "Aerated Liquid",
+    state: "liquid",
+    accent: "#93c5fd",
+    description: "Liquid with dissolved gas under pressure (e.g. Soda water). Escapes rapidly when pressure is released.",
+  },
+  {
     id: "beaker-100",
     module: "inorganic",
     category: "glassware",

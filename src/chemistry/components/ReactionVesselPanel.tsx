@@ -22,6 +22,7 @@ import {
   ChinaDishAsset,
   MortarPestleAsset,
   CrucibleAsset,
+  PressureBottleAsset,
 } from "./LabAssets";
 
 interface ReactionVesselPanelProps {
@@ -123,6 +124,8 @@ function LabSVG({ type }: { type: string }) {
       return <MortarPestleAsset />;
     case "crucible":
       return <CrucibleAsset />;
+    case "pressure-bottle":
+      return <PressureBottleAsset />;
 
     default:
       // Fallback for items not explicitly handled but in the category

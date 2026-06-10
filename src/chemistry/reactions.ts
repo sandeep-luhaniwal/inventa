@@ -107,6 +107,71 @@ export function resolveReaction(contents: InorganicLibraryItem[], vesselId?: str
   let reactionState: ReactionRule["state"];
   let reactionNote: string | undefined;
 
+  // Custom check for Gas dissolution (Aerated Liquid)
+  const hasWaterForGas = currentContents.some(item => item.id === "water" || item.id === "water-solution");
+  const hasGasToDissolve = currentContents.some(item => 
+    item.id === "co2" || item.id === "carbon-dioxide-gasbag" || item.id === "oxygen" || item.id === "oxygen-gasbag"
+  );
+  
+  if (hasWaterForGas && hasGasToDissolve) {
+    if (vesselId === "pressure-bottle") {
+      const gasItem = currentContents.find(item => item.id === "co2" || item.id === "carbon-dioxide-gasbag" || item.id === "oxygen" || item.id === "oxygen-gasbag")!;
+      const waterItem = currentContents.find(item => item.id === "water" || item.id === "water-solution")!;
+      
+      const totalVol = (waterItem.volume ?? 10) + (gasItem.volume ?? 10);
+      const totalMass = (waterItem.mass ?? 10) + (gasItem.mass ?? 10);
+      
+      const itemsToRemove = [gasItem.id, waterItem.id];
+      const remainingContents = currentContents.filter(item => !itemsToRemove.includes(item.id));
+      
+      const product = INORGANIC_LIBRARY.find(item => item.id === "aerated-liquid");
+      if (product) {
+        remainingContents.push({
+          ...product,
+          volume: totalVol,
+          mass: totalMass
+        });
+      }
+      
+      return {
+        contents: remainingContents,
+        state: "idle",
+        note: "Gas + Liquid -> Aerated Liquid. Under pressure in the pressure bottle, the gas remains calmly dissolved in the liquid."
+      };
+    } else {
+      return {
+        contents: currentContents,
+        state: "idle",
+        note: "Gas and Liquid are present. To dissolve the gas into the liquid, use a sealed Pressure Bottle."
+      };
+    }
+  }
+
+  // Custom check for Aerated Liquid Effervescence when not in a pressure bottle
+  const hasAeratedLiquid = currentContents.some(item => item.id === "aerated-liquid");
+  if (hasAeratedLiquid) {
+    if (vesselId !== "pressure-bottle") {
+      const liquidItem = currentContents.find(item => item.id === "aerated-liquid")!;
+      const remainingContents = currentContents.filter(item => item.id !== "aerated-liquid");
+      
+      // We will revert it back to water, but gas escapes
+      const waterProduct = INORGANIC_LIBRARY.find(item => item.id === "water" || item.id === "water-solution");
+      if (waterProduct) {
+        remainingContents.push({
+          ...waterProduct,
+          volume: liquidItem.volume,
+          mass: liquidItem.mass
+        });
+      }
+      
+      return {
+        contents: remainingContents,
+        state: "gas",
+        note: "Pressure removed! The gas rapidly escapes from the liquid with intense effervescence (bubbles), leaving the normal liquid behind."
+      };
+    }
+  }
+
   // Custom check for Gold-Copper alloy formation
   const hasGold = currentContents.some(item => item.id === "gold-powder");
   const hasCopper = currentContents.some(item => item.id === "copper-powder");
