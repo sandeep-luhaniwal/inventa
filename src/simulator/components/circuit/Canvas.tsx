@@ -15,7 +15,7 @@ import { ConnectingFrom, Note, PlacedComponent, Wire, Drawing } from "@/simulato
 import NoteNode from "./canvas/NoteNode";
 import { getWireDash, snapToPin } from "@/simulator/utils/circuitUtils";
 import { SimulatedComponentState } from "@/simulator/utils/simulation";
-import { STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getLedDataUrls, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl } from "@/simulator/constants/staticComponents";
+import { STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getLedDataUrls, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl, getSemiconductorDataUrl } from "@/simulator/constants/staticComponents";
 import { ZoomIn, ZoomOut, Maximize, RefreshCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import MicrobitSimulatorPanel from "./MicrobitSimulatorPanel";
@@ -746,6 +746,7 @@ const Canvas = ({
                 const staticDef = STATIC_COMPONENTS.find((d) => d.id === comp.componentId);
                 const isSphere = comp.componentId.startsWith('sphere_');
                 const isCapacitor = comp.componentId === 'capacitor';
+                const isSemiconductor = comp.componentId === 'semiconductor';
                 const isMirror = ['plane_mirror', 'concave_mirror', 'convex_mirror'].includes(comp.componentId);
                 const isLens = ['concave_lens', 'convex_lens'].includes(comp.componentId);
                 const isPowerSupply = comp.componentId === 'dc_power_supply' || comp.componentId === 'ac_power_supply';
@@ -759,13 +760,19 @@ const Canvas = ({
                       comp.id
                     )
                   : null;
+                const semiconductorImageSrc = isSemiconductor
+                  ? getSemiconductorDataUrl(comp.semiconductorMaterial ?? "Silicon", comp.semiconductorDoping ?? "None", false, isSelected, comp.id)
+                  : null;
+                const semiconductorLitImageSrc = isSemiconductor
+                  ? getSemiconductorDataUrl(comp.semiconductorMaterial ?? "Silicon", comp.semiconductorDoping ?? "None", true, isSelected, comp.id)
+                  : null;
                 const mirrorImageSrc = isMirror
                   ? getMirrorDataUrl(comp.componentId, comp.opticsMirrorView, isSelected, comp.id)
                   : null;
                 const lensImageSrc = isLens
                   ? getLensDataUrl(comp.componentId, comp.opticsLensView, isSelected, comp.id)
                   : null;
-                const resolvedBaseImageSrc = lensImageSrc || mirrorImageSrc || capacitorImageSrc || (sphereUrls ? sphereUrls.imageSrc : (staticDef
+                const resolvedBaseImageSrc = lensImageSrc || mirrorImageSrc || semiconductorImageSrc || capacitorImageSrc || (sphereUrls ? sphereUrls.imageSrc : (staticDef
                   ? svgToDataUrl(staticDef, false, isSelected && !isPowerSupply, comp.id)
                   : comp.imageSrc));
                 // For LEDs, resolve the live image URLs from the current ledColor
@@ -777,7 +784,7 @@ const Canvas = ({
                     key={comp.id}
                     comp={comp}
                     imageSrc={ledUrls ? ledUrls.imageSrc : resolvedBaseImageSrc}
-                    litImageSrc={ledUrls ? ledUrls.litImageSrc : comp.litImageSrc}
+                    litImageSrc={ledUrls ? ledUrls.litImageSrc : (semiconductorLitImageSrc || comp.litImageSrc)}
                     connectingFrom={connectingFrom}
                     isSimulating={isSimulating}
                     simulationState={simulatedComponents?.[comp.id]}

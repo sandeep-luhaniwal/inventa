@@ -53,6 +53,8 @@ export interface PlacedComponent {
   physicsColor?: string;
   physicsTopic?: string;
   physicsMetal?: string;
+  semiconductorMaterial?: "Silicon" | "Germanium";
+  semiconductorDoping?: "None" | "Aluminium" | "Phosphorus";
   physicsMedium?: string;
   physicsDielectric?: number;
   physicsSphereType?: "Conducting" | "Non-Conducting";

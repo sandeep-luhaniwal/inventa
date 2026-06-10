@@ -34,6 +34,8 @@ export interface StaticComponentDef {
   powerVoltageSet?: number;
   powerCurrentLimit?: number;
   powerFrequency?: number;
+  semiconductorMaterial?: "Silicon" | "Germanium";
+  semiconductorDoping?: "None" | "Aluminium" | "Phosphorus";
 }
 
 export function svgToDataUrl(def: StaticComponentDef, lit = false, outlined = false, uniqueId = ""): string {
@@ -2492,6 +2494,20 @@ export const STATIC_COMPONENTS: StaticComponentDef[] = [
       <ellipse cx="172" cy="65" rx="12" ry="6" fill="#111" />
       <ellipse cx="172" cy="65" rx="6" ry="3" fill="#000" />
     `
+  },
+  {
+    id: "semiconductor",
+    name: "Semiconductor",
+    category: "Semiconductors",
+    viewBoxW: 450,
+    viewBoxH: 280,
+    semiconductorMaterial: "Silicon",
+    semiconductorDoping: "None",
+    relativePins: [
+      { name: "Terminal 1", relX: 60 / 450, relY: 140 / 280, type: "wire" },
+      { name: "Terminal 2", relX: 390 / 450, relY: 140 / 280, type: "wire" }
+    ],
+    svgBody: ""
   }
 ];
 /**
@@ -2958,3 +2974,196 @@ export function getLensDataUrl(componentId: string, view: "Front View" | "Side V
   return svgToDataUrl(def, false, outlined, uniqueId);
 }
 
+export function getSemiconductorDataUrl(material: "Silicon" | "Germanium", doping: "None" | "Aluminium" | "Phosphorus" = "None", lit = false, outlined = false, uniqueId = ""): string {
+  const isGe = material === "Germanium";
+  const gradStart = isGe ? "#666666" : "#4A90E2";
+  const gradEnd = isGe ? "#222222" : "#0033A0";
+  const defaultSymbolText = isGe ? "Ge" : "Si";
+
+  const dx = 65;
+  const dy = 65;
+  const halfDx = dx / 2;
+  const halfDy = dy / 2;
+
+  const bondStyle = `fill="none" stroke="#4A90E2" stroke-width="1.5" stroke-dasharray="4,6"`;
+  const electronColor = `#00E5FF`; // Bright cyan
+  const electronOffset = 11; // Reduced to add gap between electrons and atoms
+
+  const baseAtom = isGe ? "Ge" : "Si";
+  const dopedTypeN = isGe ? "As" : "P";
+  const dopedTypeP = isGe ? "B" : "Al";
+  const dopedElectronColor = "#4ADE80"; // Green dots for doped atoms
+
+  const xVals = [127.5, 192.5, 257.5, 322.5];
+  const yVals = [42.5, 107.5, 172.5, 237.5];
+
+  const getAtomType = (r: number, c: number) => {
+    if (doping === "None") return baseAtom;
+    // Every 2nd vertical row -> Column 1 and 3
+    if (c === 1 || c === 3) {
+      return doping === "Phosphorus" ? dopedTypeN : dopedTypeP;
+    }
+    return baseAtom;
+  };
+
+  let latticeLinks = `<g clip-path="url(#borderClip_${uniqueId})">`;
+
+  const drawHBond = (cx: number, cy: number, leftType: string, rightType: string) => {
+    const startX = cx - 25;
+    const endX = cx + 25;
+    const gap = 3.5;
+    const fatGap = 26;
+
+    let s = "";
+    // Omit the top line if the left atom is Al (missing bond line)
+    if (leftType !== dopedTypeP) {
+      s += `<path d="M ${startX} ${cy - gap} Q ${cx} ${cy - fatGap} ${endX} ${cy - gap}" ${bondStyle} />`;
+    }
+    s += `<path d="M ${startX} ${cy + gap} Q ${cx} ${cy + fatGap} ${endX} ${cy + gap}" ${bondStyle} />`;
+    
+    // Left electron
+    if (leftType === baseAtom || leftType === "Outer") {
+      s += `<circle class="electron" cx="${cx - electronOffset}" cy="${cy}" r="2" fill="${electronColor}" />`;
+    } else if (leftType === dopedTypeN) {
+      s += `<circle class="electron" cx="${cx - electronOffset}" cy="${cy}" r="2" fill="${dopedElectronColor}" />`;
+    } else if (leftType === dopedTypeP) {
+      s += `<circle class="hole" cx="${cx - electronOffset}" cy="${cy}" r="2.5" fill="none" stroke="${electronColor}" stroke-width="1.5" />`;
+    }
+
+    // Right electron
+    if (rightType === baseAtom || rightType === "Outer") {
+      s += `<circle class="electron" cx="${cx + electronOffset}" cy="${cy}" r="2" fill="${electronColor}" />`;
+    } else if (rightType === dopedTypeN || rightType === dopedTypeP) {
+      s += `<circle class="electron" cx="${cx + electronOffset}" cy="${cy}" r="2" fill="${dopedElectronColor}" />`;
+    }
+    return s;
+  };
+
+  const drawVBond = (cx: number, cy: number, topType: string, bottomType: string) => {
+    const startY = cy - 25;
+    const endY = cy + 25;
+    const gap = 3.5;
+    const fatGap = 26;
+
+    let s = `<path d="M ${cx - gap} ${startY} Q ${cx - fatGap} ${cy} ${cx - gap} ${endY}" ${bondStyle} />`;
+    s += `<path d="M ${cx + gap} ${startY} Q ${cx + fatGap} ${cy} ${cx + gap} ${endY}" ${bondStyle} />`;
+
+    // Top electron
+    if (topType === baseAtom || topType === "Outer") {
+      s += `<circle class="electron" cx="${cx}" cy="${cy - electronOffset}" r="2" fill="${electronColor}" />`;
+    } else if (topType === dopedTypeN || topType === dopedTypeP) {
+      s += `<circle class="electron" cx="${cx}" cy="${cy - electronOffset}" r="2" fill="${dopedElectronColor}" />`;
+    }
+
+    // Bottom electron
+    if (bottomType === baseAtom || bottomType === "Outer") {
+      s += `<circle class="electron" cx="${cx}" cy="${cy + electronOffset}" r="2" fill="${electronColor}" />`;
+    } else if (bottomType === dopedTypeN || bottomType === dopedTypeP) {
+      s += `<circle class="electron" cx="${cx}" cy="${cy + electronOffset}" r="2" fill="${dopedElectronColor}" />`;
+    }
+    return s;
+  };
+
+  // Horizontal bonds
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c <= 4; c++) {
+      const cy = yVals[r];
+      let cx = 0, leftType = "Outer", rightType = "Outer";
+      if (c === 0) { cx = xVals[0] - halfDx; rightType = getAtomType(r, 0); }
+      else if (c === 4) { cx = xVals[3] + halfDx; leftType = getAtomType(r, 3); }
+      else { cx = xVals[c - 1] + halfDx; leftType = getAtomType(r, c - 1); rightType = getAtomType(r, c); }
+      latticeLinks += drawHBond(cx, cy, leftType, rightType);
+    }
+  }
+
+  // Vertical bonds
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r <= 4; r++) {
+      const cx = xVals[c];
+      let cy = 0, topType = "Outer", bottomType = "Outer";
+      if (r === 0) { cy = yVals[0] - halfDy; bottomType = getAtomType(0, c); }
+      else if (r === 4) { cy = yVals[3] + halfDy; topType = getAtomType(3, c); }
+      else { cy = yVals[r - 1] + halfDy; topType = getAtomType(r - 1, c); bottomType = getAtomType(r, c); }
+      latticeLinks += drawVBond(cx, cy, topType, bottomType);
+    }
+  }
+
+  latticeLinks += `</g>`;
+
+  const dopedGradStart = doping === "Phosphorus" ? "#FF8A65" : "#4DB6AC";
+  const dopedGradEnd = doping === "Phosphorus" ? "#D84315" : "#00695C";
+  const bgFill = "#051024";
+
+  const atomsArr = [];
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const type = getAtomType(r, c);
+      const pos = { x: xVals[c], y: yVals[r] };
+      const isDoped = type !== baseAtom;
+      
+      let fillStyle = isDoped ? `url(#dopedGrad_${uniqueId})` : bgFill;
+      let strokeStyle = isDoped ? `#FFFFFF` : `#4A90E2`;
+      let strokeW = isDoped ? `2` : `1.5`;
+      
+      let s = `
+        <circle cx="${pos.x}" cy="${pos.y}" r="14" fill="${fillStyle}" stroke="${strokeStyle}" stroke-width="${strokeW}" />
+        <text x="${pos.x}" y="${pos.y + 4}" font-family="Arial" font-size="13" font-weight="bold" fill="white" text-anchor="middle">${type}</text>
+      `;
+
+      if (type === dopedTypeN && !lit) {
+        s += `
+          <circle class="electron" cx="${pos.x + 14}" cy="${pos.y - 14}" r="2" fill="${dopedElectronColor}" />
+          <text class="electron" x="${pos.x + 19}" y="${pos.y - 17}" font-family="Arial" font-size="8" font-weight="bold" fill="white" text-anchor="middle">e⁻</text>
+        `;
+      }
+      atomsArr.push(s);
+    }
+  }
+  const atoms = atomsArr.join('');
+
+  let typeLabel = "intrinsic semiconductor";
+  if (doping === "Phosphorus") typeLabel = "n-type semiconductor";
+  else if (doping === "Aluminium") typeLabel = "p-type semiconductor";
+
+  const typeText = `<text x="225" y="288" font-family="Arial" font-size="12" fill="#FFFFFF" font-style="italic" font-weight="bold" text-anchor="middle">${typeLabel}</text>`;
+
+  const svgBody = `
+    <defs>
+      <radialGradient id="dopedGrad_${uniqueId}" cx="35%" cy="35%" r="65%">
+        <stop offset="0%" stop-color="${dopedGradStart}" />
+        <stop offset="100%" stop-color="${dopedGradEnd}" />
+      </radialGradient>
+      <clipPath id="borderClip_${uniqueId}">
+        <rect x="60" y="20" width="330" height="280" rx="15" />
+      </clipPath>
+    </defs>
+    <rect x="60" y="20" width="330" height="280" rx="15" fill="${bgFill}" stroke="#4A90E2" stroke-width="2" />
+    
+    <!-- Left Terminal Dot -->
+    <circle cx="60" cy="140" r="4" fill="#FFF" />
+    
+    <!-- Right Terminal Dot -->
+    <circle cx="390" cy="140" r="4" fill="#FFF" />
+
+    ${latticeLinks}
+    ${atoms}
+    ${typeText}
+  `;
+
+  const def: StaticComponentDef = {
+    id: "semiconductor",
+    name: "Semiconductor",
+    category: "Semiconductors",
+    viewBoxW: 450,
+    viewBoxH: 320,
+    semiconductorMaterial: material,
+    semiconductorDoping: doping,
+    relativePins: [
+      { name: "Terminal 1", relX: 60 / 450, relY: 140 / 280, type: "wire" },
+      { name: "Terminal 2", relX: 390 / 450, relY: 140 / 280, type: "wire" }
+    ],
+    svgBody
+  };
+
+  return svgToDataUrl(def, lit, outlined, uniqueId);
+}

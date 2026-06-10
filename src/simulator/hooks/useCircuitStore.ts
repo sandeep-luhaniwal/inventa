@@ -1,7 +1,7 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from "react";
 import { ConnectingFrom, HistoryEntry, Note, PlacedComponent, Wire, WirePoint, Drawing } from "../types/circuit";
-import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl } from "../constants/staticComponents";
+import { getLedDataUrls, STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls, getMirrorDataUrl, getLensDataUrl, getSemiconductorDataUrl } from "../constants/staticComponents";
 import { METAL_PHYSICS } from "../constants/physics";
 import { relativePinsToPorts } from "../utils/circuitUtils";
 
@@ -835,6 +835,13 @@ export function useCircuitStore() {
           resolvedUpdates = {
             ...resolvedUpdates,
             imageSrc: getLensDataUrl(comp.componentId, updates.opticsLensView, false, comp.id)
+          };
+        } else if (comp.componentId === "semiconductor" && (updates.semiconductorMaterial !== undefined || updates.semiconductorDoping !== undefined)) {
+          const newMaterial = updates.semiconductorMaterial ?? comp.semiconductorMaterial ?? "Silicon";
+          const newDoping = updates.semiconductorDoping ?? comp.semiconductorDoping ?? "None";
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            imageSrc: getSemiconductorDataUrl(newMaterial, newDoping, false, false, comp.id)
           };
         }
       }

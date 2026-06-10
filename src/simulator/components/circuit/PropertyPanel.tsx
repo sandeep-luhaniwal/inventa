@@ -885,6 +885,48 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({ component, onUpdate, onCl
             </div>
           )}
 
+          {component.componentId === 'semiconductor' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Material
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.semiconductorMaterial || 'Silicon'}
+                    onChange={(e) => onUpdate(component.id, { semiconductorMaterial: e.target.value as "Silicon" | "Germanium" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Silicon">Silicon</option>
+                    <option value="Germanium">Germanium</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
+                <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
+                  Doping
+                </div>
+                <div className="flex-1 relative">
+                  <select
+                    value={component.semiconductorDoping || 'None'}
+                    onChange={(e) => onUpdate(component.id, { semiconductorDoping: e.target.value as "None" | "Aluminium" | "Phosphorus" })}
+                    className="w-full h-full px-3 py-1 text-sm text-[#02adea] font-medium bg-transparent outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="None">None</option>
+                    <option value="Aluminium">Aluminium</option>
+                    <option value="Phosphorus">Phosphorus</option>
+                  </select>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#02adea]">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {['plane_mirror', 'concave_mirror', 'convex_mirror'].includes(component.componentId) && (
             <div className="flex border-2 border-[#02adea] rounded-md overflow-hidden h-9">
               <div className="bg-[#02adea] text-white px-3 flex items-center font-bold text-xs min-w-[70px]">
