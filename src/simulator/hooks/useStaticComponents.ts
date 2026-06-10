@@ -8,7 +8,7 @@
 
 import { useMemo } from "react";
 import { RelativePin } from "../types/circuit";
-import { STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls } from "../constants/staticComponents";
+import { STATIC_COMPONENTS, svgToDataUrl, getCapacitorDataUrl, getSphereDataUrls, getSemiconductorDataUrl } from "../constants/staticComponents";
 
 // Re-export so ComponentPalette can keep the same import shape
 export interface PaletteComponentItem {
@@ -42,9 +42,11 @@ export function useStaticComponents() {
         category: def.category,
         imageSrc: def.id === "capacitor"
           ? getCapacitorDataUrl(def.capacitanceValue ?? 1000, def.capacitanceUnit ?? "uF", def.voltageValue ?? 25, false, `palette-${def.id}`)
-          : def.id === "sphere_red"
-            ? getSphereDataUrls("Copper", false, `palette-${def.id}`).imageSrc
-            : svgToDataUrl(def, false, false, `palette-${def.id}`),
+          : def.id === "semiconductor"
+            ? getSemiconductorDataUrl(def.semiconductorMaterial ?? "Silicon", def.semiconductorDoping ?? "None", false, false, `palette-${def.id}`)
+            : def.id === "sphere_red"
+              ? getSphereDataUrls("Copper", false, `palette-${def.id}`).imageSrc
+              : svgToDataUrl(def, false, false, `palette-${def.id}`),
         litImageSrc: def.litSvgBody ? svgToDataUrl(def, true, false, `palette-${def.id}`) : undefined,
         ledColor: def.ledColor,
         voltageValue: def.voltageValue,

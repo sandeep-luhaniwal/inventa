@@ -13,7 +13,7 @@ import { getMicrobitDataUrls, STATIC_COMPONENTS } from "@/simulator/constants/st
 
 const HIT_RADIUS = PIN_RADIUS + 8;
 const DISPLAY_TARGET = 110;
-const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "bulb_holder", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor"]);
+const ANIMATED_OUTPUT_COMPONENTS = new Set(["ac_bulb", "bulb_holder", "dc_motor", "gearmotor", "vibration_motor", "microbit", "bldc_motor", "ac_motor", "stepper_motor", "semiconductor"]);
 const SPHERE_CHARGE_WAVE_COLOR = "#ef4444";
 const SPHERE_MIN_SIZE = 15;
 const SPHERE_MAX_SIZE = 220;
@@ -1519,6 +1519,10 @@ const ComponentNode = ({
             // If it's a standard DC motor (CW/CCW rotation with gear)
             if (comp.componentId === 'dc_motor') {
                return <RotatingGear x={w / 2} y={h / 2} direction={simulationState?.direction ?? 1} speed={brightness} />;
+            }
+
+            if (comp.componentId === 'semiconductor') {
+               return <SemiconductorElectronFlow w={w} h={h} direction={simulationState?.direction ?? 1} type={comp.semiconductorDoping} />;
             }
 
             if (comp.componentId === 'bulb_holder') {
@@ -3367,6 +3371,62 @@ const SparkEffect = ({ x, y }: { x: number; y: number }) => {
           shadowColor="#ffaa00"
           shadowBlur={5}
         />
+      ))}
+    </Group>
+  );
+};
+
+const SemiconductorElectronFlow = ({ w, h, direction, type }: { w: number; h: number; direction: number; type?: string }) => {
+  const [offset, setOffset] = useState(0);
+  const layerRef = useRef<Konva.Group>(null);
+  
+  useEffect(() => {
+    const anim = new Konva.Animation((frame) => {
+      if (frame) {
+        setOffset((prev) => prev + frame.timeDiff * 0.04 * direction); 
+      }
+    }, layerRef.current?.getLayer());
+    anim.start();
+    return () => anim.stop();
+  }, [direction]);
+
+  if (type !== 'Phosphorus') return null;
+
+  const scaleX = w / 450;
+  const scaleY = h / 320;
+  const loopOffset = ((offset % 65) + 65) % 65;
+  const yVals = [42.5, 107.5, 172.5, 237.5];
+
+  return (
+    <Group ref={layerRef} listening={false}>
+      {yVals.map((yBase, i) => (
+         <Group key={`row-${i}`} y={(yBase - 14) * scaleY}>
+            {[-32.5, 32.5, 97.5, 162.5, 227.5, 292.5, 357.5, 422.5, 487.5].map((xBase, j) => {
+               const x = xBase + loopOffset;
+               let opacity = 1;
+               if (x < 65) opacity = Math.max(0, x / 65);
+               if (x > 385) opacity = Math.max(0, (450 - x) / 65);
+               return (
+                  <Group key={`e-${j}`} x={x * scaleX} y={0} opacity={opacity}>
+                     <Circle 
+                       x={0} 
+                       y={0} 
+                       radius={2 * Math.max(0.5, Math.min(scaleX, scaleY))} 
+                       fill="#4ADE80" 
+                     />
+                     <Text 
+                       x={5 * scaleX} 
+                       y={-6 * scaleY} 
+                       text="e⁻"
+                       fontSize={12 * Math.min(scaleX, scaleY)}
+                       fill="white"
+                       fontFamily="Arial"
+                       fontStyle="bold"
+                     />
+                  </Group>
+               );
+            })}
+         </Group>
       ))}
     </Group>
   );

@@ -71,6 +71,7 @@ const TWO_TERMINAL_LOAD_RESISTANCES: Record<string, number> = {
   dc_motor: 25,
   gearmotor: 22,
   vibration_motor: 18,
+  semiconductor: 100,
 };
 
 const CAPACITOR_UNIT_MULTIPLIERS: Record<string, number> = {
@@ -151,7 +152,7 @@ function evaluatePaths(graph: Graph, startNode: string, endNode: string, compone
                if (comp.componentId.startsWith("led")) {
                  nextLedVoltage += Number(comp.voltageValue ?? LED_FORWARD_VOLTAGE);
                }
-            } else if (comp.componentId === "resistor" || comp.componentId === "ac_bulb" || comp.componentId.includes("motor")) {
+            } else if (comp.componentId === "resistor" || comp.componentId === "ac_bulb" || comp.componentId.includes("motor") || comp.componentId === "semiconductor") {
                nextResistance += getBaseResistance(comp);
             }
             
@@ -297,7 +298,7 @@ function buildConductiveGraph(components: PlacedComponent[], wires: Wire[], incl
       continue;
     }
 
-    const isLoad = comp.componentId === "resistor" || comp.componentId.startsWith("led") || comp.componentId === "ac_bulb" || comp.componentId === "diode";
+    const isLoad = comp.componentId === "resistor" || comp.componentId.startsWith("led") || comp.componentId === "ac_bulb" || comp.componentId === "diode" || comp.componentId === "semiconductor";
     if (isLoad && !includeResistors) continue;
 
     const isPushbutton = comp.componentId === "pushbutton";
@@ -882,9 +883,22 @@ export function simulateCircuit(
   let directShort = false;
   for (const battery of batteries) {
     const wirePosReach = collectReachable(wireOnlyGraph, battery.positiveRoot);
+    const wireNegReach = collectReachable(wireOnlyGraph, battery.negativeRoot);
+    
     if (wirePosReach.has(battery.negativeRoot)) {
       directShort = true;
       break;
+    }
+
+    for (const comp of components) {
+       const terminals = getTwoTerminalNodes(comp);
+       if (terminals) {
+          if (wirePosReach.has(terminals.firstNode) || wireNegReach.has(terminals.secondNode)) {
+             componentDirections.set(comp.id, -1);
+          } else if (wirePosReach.has(terminals.secondNode) || wireNegReach.has(terminals.firstNode)) {
+             componentDirections.set(comp.id, 1);
+          }
+       }
     }
   }
 
