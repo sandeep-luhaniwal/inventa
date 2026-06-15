@@ -3387,7 +3387,7 @@ const SemiconductorElectronFlow = ({ w, h, direction, type }: { w: number; h: nu
       }
     }, layerRef.current?.getLayer());
     anim.start();
-    return () => anim.stop();
+    return () => { anim.stop(); };
   }, [direction]);
 
   if (type !== 'Phosphorus') return null;

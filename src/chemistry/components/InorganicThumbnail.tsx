@@ -25,7 +25,6 @@ import {
   ChinaDishAsset,
   MortarPestleAsset,
   CrucibleAsset,
-  PressureBottleAsset,
   BurnerAsset,
   HeatingMantleAsset,
   StirringRodAsset,
@@ -161,8 +160,6 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
       return wrap(<MortarPestleAsset />);
     case "crucible":
       return wrap(<CrucibleAsset />);
-    case "pressure-bottle":
-      return wrap(<PressureBottleAsset />);
     case "burner":
       return wrap(<BurnerAsset lit={false} />);
     case "heating-mantle":

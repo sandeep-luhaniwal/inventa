@@ -24,16 +24,6 @@ export const ORGANIC_CATEGORIES: SidebarCategory[] = [
 
 export const INORGANIC_LIBRARY: InorganicLibraryItem[] = [
   {
-    id: "pressure-bottle",
-    module: "inorganic",
-    category: "glassware",
-    name: "Pressure Bottle",
-    symbol: "PB",
-    state: "glassware",
-    accent: "#cbd5e1",
-    description: "A thick-walled glass bottle that can be sealed to contain reactions under pressure.",
-  },
-  {
     id: "aerated-liquid",
     module: "inorganic",
     category: "liquids",
@@ -41,7 +31,7 @@ export const INORGANIC_LIBRARY: InorganicLibraryItem[] = [
     symbol: "Aerated Liquid",
     formula: "Aerated Liquid",
     state: "liquid",
-    accent: "#93c5fd",
+    accent: "#38bdf8",
     description: "Liquid with dissolved gas under pressure (e.g. Soda water). Escapes rapidly when pressure is released.",
   },
   {
@@ -544,6 +534,28 @@ export const INORGANIC_LIBRARY: InorganicLibraryItem[] = [
     state: "solid",
     accent: "#ea580c",
     description: "A solid metallic alloy of gold and copper, reddish-gold color.",
+  },
+  {
+    id: "brass-powder",
+    module: "inorganic",
+    category: "solids",
+    name: "Brass powder (Pital)",
+    symbol: "Cu-Zn",
+    formula: "Cu-Zn",
+    state: "solid",
+    accent: "#eab308",
+    description: "Fine metallic brass powder (पीतल पाउडर), a gold-like alloy of copper and zinc.",
+  },
+  {
+    id: "gold-brass-alloy",
+    module: "inorganic",
+    category: "solids",
+    name: "Gold-Brass Alloy",
+    symbol: "Au-Cu-Zn",
+    formula: "Au-Cu-Zn",
+    state: "solid",
+    accent: "#fbbf24",
+    description: "A solid metallic alloy of gold and brass (सोने-पीतल की मिश्र धातु), shiny yellowish-gold color.",
   },
   {
     id: "cuo",

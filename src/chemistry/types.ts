@@ -68,6 +68,7 @@ export interface PlacedInorganicItem extends InorganicLibraryItem {
   concentration?: number;
   mass?: number;
   hasRubberStopper?: boolean;
+  pressure?: number;
   metadata?: Record<string, any>;
 }
 

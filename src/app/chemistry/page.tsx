@@ -271,7 +271,8 @@ export default function ChemistryPage() {
         }
       });
 
-      const reaction = resolveReaction(updatedContents);
+      const hasGloves = current.some(i => i.id === "safety-gloves");
+      const reaction = resolveReaction(updatedContents, target.id, hasGloves, false, target.isOpen === false, target.pressure);
 
       // Only remove source if it's glassware (pouring vessel), keep solid/liquid/gas bottles
       const shouldRemoveSource = source.state === "glassware";
@@ -338,6 +339,10 @@ export default function ChemistryPage() {
     inorganicItems.forEach((item) => {
       if (item.state !== "glassware") return;
       if (!item.contents || item.contents.length < 2) return;
+
+      // Do not run background reaction checker if there is only one unique chemical type in the vessel
+      const uniqueIds = new Set(item.contents.map((c) => c.id));
+      if (uniqueIds.size < 2) return;
 
       const contentsKey = item.contents
         .map((c) => `${c.id}:${c.volume ?? c.mass ?? 0}`)

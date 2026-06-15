@@ -686,53 +686,7 @@ export function MeasureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
   );
 }
 
-export function PressureBottleAsset({ isOpen = true }: { isOpen?: boolean }) {
-  return (
-    <svg viewBox="0 0 120 180" className="h-28 w-20 drop-shadow-[0_16px_28px_rgba(0,0,0,0.18)]">
-      <GlassDefs />
-      <g filter="url(#ultraGlass)">
-        {/* Stout Pressure Bottle Body */}
-        <rect x="25" y="45" width="70" height="110" rx="20" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.35" />
-        <rect x="25" y="45" width="70" height="110" rx="20" fill="url(#internalReflection)" />
 
-        {/* Thick Glass Bottom Base */}
-        <rect x="28" y="145" width="64" height="8" rx="2" fill="#ffffff" fillOpacity="0.08" />
-
-        {/* Neck */}
-        <rect x="46" y="15" width="28" height="32" rx="4" fill="url(#glassBody)" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.3" />
-        <ellipse cx="60" cy="15" rx="14" ry="4" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.4" />
-
-        {/* Stopper (when closed) */}
-        {!isOpen && (
-          <path d="M47 8 L73 8 L67 25 L53 25 Z" fill="#b45309" stroke="#78350f" strokeWidth="1" />
-        )}
-
-        {/* Side graduation/scale markings (for high fidelity pressure bottle) */}
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <line
-            key={i}
-            x1="30"
-            y1={135 - i * 16}
-            x2={30 + (i % 2 === 0 ? 10 : 6)}
-            y2={135 - i * 16}
-            stroke="#ffffff"
-            strokeWidth="1.2"
-            strokeOpacity="0.25"
-          />
-        ))}
-
-        {/* Text inside */}
-        <text x="60" y="105" textAnchor="middle" fill="#c8d8e8" fontSize="8" fontWeight="600" fontFamily="system-ui" fillOpacity="0.4" letterSpacing="0.5">
-          PRESSURE BOTTLE
-        </text>
-
-        {/* 3D Glass Highlights */}
-        <path d="M35 60 V135" fill="none" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" strokeOpacity="0.12" />
-        <path d="M85 60 V135" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeOpacity="0.06" />
-      </g>
-    </svg>
-  );
-}
 
 export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
   return (
@@ -843,7 +797,7 @@ export function GasJarAsset({ isOpen = true }: { isOpen?: boolean }) {
   );
 }
 
-export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "mini" }) {
+export function TestTubeAsset({ size = "large", isOpen = true }: { size?: "small" | "large" | "mini"; isOpen?: boolean }) {
   const dims = {
     small: { x: 40, y: 15, w: 20, h: 140 },
     large: { x: 36, y: 10, w: 28, h: 170 },
@@ -913,6 +867,16 @@ export function TestTubeAsset({ size = "large" }: { size?: "small" | "large" | "
           strokeOpacity="0.18"
           filter="url(#softRim)"
         />
+
+        {/* Cork Stopper when closed */}
+        {!isOpen && (
+          <path
+            d={`M${dims.x - 2} ${dims.y - 12} L${dims.x + dims.w + 2} ${dims.y - 12} L${dims.x + dims.w - 2} ${dims.y + 4} L${dims.x + 2} ${dims.y + 4} Z`}
+            fill="#d97706"
+            stroke="#b45309"
+            strokeWidth="1.2"
+          />
+        )}
       </g>
     </svg>
   );
@@ -1778,7 +1742,13 @@ export function DropperAsset({
   );
 }
 
-export function ForcepsAsset({ isHolding = false }: { isHolding?: boolean }) {
+export function ForcepsAsset({
+  isHolding = false,
+  heldType = "camphor",
+}: {
+  isHolding?: boolean;
+  heldType?: "camphor" | "sodium";
+}) {
   return (
     <svg width="52" height="292" viewBox="0 0 52 292" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
       <path d="M5.70058 1.14844C5.70058 1.14844 0.573587 6.238 1.02859 19.8194C1.48359 33.4028 3.72758 176.897 5.66158 193.987C7.59558 211.075 8.16559 241.246 12.0286 252.494C14.3666 259.299 32.6746 291.148 32.6746 291.148C32.6746 291.148 20.5376 264.099 17.9366 249.816C14.9266 233.298 20.5886 212.239 20.2846 191.7C19.9816 171.16 15.8896 28.4557 13.0406 15.576C10.1896 2.69916 5.70058 1.14844 5.70058 1.14844Z" fill="#FEFBFF" stroke="#002036" strokeWidth="2" strokeMiterlimit="10" />
@@ -1794,8 +1764,8 @@ export function ForcepsAsset({ isHolding = false }: { isHolding?: boolean }) {
       <path d="M15.1617 150.494C15.1907 151.135 15.7397 151.634 16.3907 151.607L26.8397 151.153C27.4897 151.126 27.9917 150.581 27.9647 149.938C27.9357 149.297 27.3867 148.799 26.7377 148.827L16.2867 149.278C15.6387 149.308 15.1347 149.852 15.1617 150.494Z" fill="#B4B4B4" />
       <path d="M15.3126 156.093C15.3416 156.736 15.8906 157.233 16.5416 157.206L26.9906 156.753C27.6406 156.726 28.1426 156.181 28.1156 155.538C28.0866 154.896 27.5376 154.398 26.8876 154.426L16.4386 154.879C15.7886 154.908 15.2846 155.451 15.3126 156.093Z" fill="#B4B4B4" />
       <path d="M16.0894 162.008C16.1184 162.651 16.6674 163.149 17.3164 163.122L27.7674 162.668C28.4154 162.641 28.9194 162.096 28.8904 161.454C28.8634 160.812 28.3144 160.314 27.6634 160.341L17.2144 160.794C16.5644 160.822 16.0624 161.366 16.0894 162.008Z" fill="#B4B4B4" />
-      {/* Camphor Chunk Held by Forceps */}
-      {isHolding && (
+      {/* Reagent Chunk Held by Forceps */}
+      {isHolding && heldType === "camphor" && (
         <g>
           <defs>
             <radialGradient id="forcepsCamphorShine" cx="35%" cy="28%" r="65%">
@@ -1820,6 +1790,49 @@ export function ForcepsAsset({ isHolding = false }: { isHolding?: boolean }) {
           {/* Small second crystal */}
           <polygon points="34,280 44,274 50,280 42,288" fill="#e8f4fd" fillOpacity="0.88" stroke="#cde0f0" strokeWidth="0.9" />
           <polygon points="34,280 44,274 42,288" fill="#ffffff" fillOpacity="0.4" />
+        </g>
+      )}
+      {isHolding && heldType === "sodium" && (
+        <g>
+          <defs>
+            <linearGradient id="sodiumMetallic" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f8fafc" />
+              <stop offset="50%" stopColor="#cbd5e1" />
+              <stop offset="100%" stopColor="#94a3b8" />
+            </linearGradient>
+            <linearGradient id="sodiumShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#64748b" />
+              <stop offset="100%" stopColor="#475569" />
+            </linearGradient>
+          </defs>
+          {/* Main 3D cubic chunk of Sodium metal */}
+          {/* Left/Front Face */}
+          <polygon
+            points="18,275 32,278 32,288 18,285"
+            fill="url(#sodiumMetallic)"
+            stroke="#475569"
+            strokeWidth="1"
+          />
+          {/* Right/Side Face */}
+          <polygon
+            points="32,278 44,273 44,283 32,288"
+            fill="url(#sodiumShadow)"
+            stroke="#334155"
+            strokeWidth="1"
+          />
+          {/* Top Face */}
+          <polygon
+            points="18,275 30,268 44,273 32,278"
+            fill="#f1f5f9"
+            stroke="#475569"
+            strokeWidth="1"
+          />
+          {/* Soft metallic sheen highlight */}
+          <polygon
+            points="20,275 28,277 28,279 20,277"
+            fill="#ffffff"
+            fillOpacity="0.6"
+          />
         </g>
       )}
     </svg>
@@ -3385,16 +3398,6 @@ export function VacuumChamberAsset() {
           strokeOpacity="0.45"
         />
 
-        {/* Glass reflection glint on the left curve */}
-        <path
-          d="M 36 185 V 110 A 64 64 0 0 1 100 46"
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="2.5"
-          strokeOpacity="0.25"
-          strokeLinecap="round"
-          filter="url(#softRim)"
-        />
 
         {/* Glass thickness base rim */}
         <ellipse cx="100" cy="190" rx="70" ry="4" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.3" />
