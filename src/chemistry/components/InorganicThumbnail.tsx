@@ -32,6 +32,27 @@ import {
   SafetyGlovesAsset,
   FurnaceAsset,
   CrucibleTongsAsset,
+  BeakerIcon,
+  Beaker100Icon,
+  Beaker250Icon,
+  ErlenmeyerFlaskIcon,
+  ThreeNeckedFlaskIcon,
+  FunnelIcon,
+  Funnel100Icon,
+  ForcepsAsset,
+  ScissorAsset,
+  KnifeAsset,
+  ClayNetAsset,
+  MatchboxAsset,
+  DropperAsset,
+  GauzeAsset,
+  SpatulaAsset,
+  GlassConduitAsset,
+  RetortStandAsset,
+  RubberStopperAsset,
+  RingStandAsset,
+  ClampAsset,
+  ThermometerAsset,
 } from "./LabAssets";
 
 interface InorganicThumbnailProps {
@@ -173,7 +194,53 @@ export default function InorganicThumbnail({ item }: InorganicThumbnailProps) {
     case "furnace":
       return wrap(<FurnaceAsset lit={false} />);
     case "tongs":
+    case "crucible-tongs":
       return wrap(<CrucibleTongsAsset />);
+    case "forceps":
+      return wrap(<ForcepsAsset />);
+    case "scissor":
+      return wrap(<ScissorAsset />);
+    case "knife":
+      return wrap(<KnifeAsset />);
+    case "beaker":
+      return wrap(<BeakerIcon />);
+    case "beaker-100":
+      return wrap(<Beaker100Icon />);
+    case "beaker-250":
+      return wrap(<Beaker250Icon />);
+    case "erlenmeyer-100":
+      return wrap(<ErlenmeyerFlaskIcon sizeText="100mL" />);
+    case "erlenmeyer-250":
+      return wrap(<ErlenmeyerFlaskIcon sizeText="250mL" />);
+    case "three-neck-flask":
+      return wrap(<ThreeNeckedFlaskIcon />);
+    case "funnel":
+      return wrap(<FunnelIcon />);
+    case "funnel-100":
+      return wrap(<Funnel100Icon />);
+    case "clay-net":
+      return wrap(<ClayNetAsset />);
+    case "retort-stand":
+    case "tripod":
+      return wrap(<RetortStandAsset />);
+    case "clamp":
+      return wrap(<ClampAsset />);
+    case "ring-stand":
+      return wrap(<RingStandAsset />);
+    case "matchbox":
+      return wrap(<MatchboxAsset />);
+    case "dropper":
+      return wrap(<DropperAsset />);
+    case "spatula":
+      return wrap(<SpatulaAsset />);
+    case "thermometer":
+      return wrap(<ThermometerAsset />);
+    case "glass-conduit":
+      return wrap(<GlassConduitAsset />);
+    case "rubber-stopper":
+      return wrap(<RubberStopperAsset />);
+    case "gauze":
+      return wrap(<GauzeAsset />);
     default:
       if (item.state === "solid" || item.state === "liquid" || item.state === "gas") {
         return wrap(

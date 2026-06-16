@@ -5,6 +5,7 @@ import { MoreHorizontal, Beaker } from "lucide-react";
 import type { PlacedInorganicItem, InorganicLibraryItem } from "@/chemistry/types";
 import { resolveReaction } from "../reactions";
 import { INORGANIC_LIBRARY } from "../data";
+import ConcentrationCalculator, { SPECIES_MAP, parseFormulaMolarMass } from "./ConcentrationCalculator";
 import {
   BurnerAsset,
   ChemicalContainerAsset,
@@ -698,19 +699,92 @@ export default function InorganicCanvas({
             }
           }
           
-          if (isHeated) {
+          if (v.metadata?.coolingStartedAt) {
+            // Paused heating during cooling phase
+            localVesselHeat[v.instanceId] = true; 
+          } else if (isHeated) {
             lastHeatedTimesRef.current[v.instanceId] = Date.now();
-            if (v.temperature === undefined || v.temperature !== deviceTemp) {
-              onUpdate(v.instanceId, { temperature: deviceTemp });
+            const hasLiquidWater = v.contents && v.contents.some(c => c.id === "water" || c.id === "water-solution" || c.id.includes("solution"));
+            
+            if (hasLiquidWater) {
+              let heatingStart = v.metadata?.heatingStartedAt;
+              if (!heatingStart) {
+                heatingStart = Date.now();
+                const liquidContent = v.contents?.find(c => c.state === "liquid");
+                const initialWaterVolume = liquidContent ? (liquidContent.volume ?? 0) : 0;
+                onUpdate(v.instanceId, {
+                  metadata: {
+                    ...v.metadata,
+                    heatingStartedAt: heatingStart,
+                    initialWaterVolume
+                  }
+                });
+              }
+              
+              const elapsed = Date.now() - heatingStart;
+              if (elapsed >= 15000) {
+                const progress = Math.min(1.0, (elapsed - 15000) / 165000);
+                const targetTemp = 25 + progress * (deviceTemp - 25);
+                
+                if (v.temperature === undefined || Math.abs((v.temperature ?? 25) - targetTemp) > 1) {
+                  onUpdate(v.instanceId, { temperature: Math.round(targetTemp) });
+                }
+              } else {
+                if (v.temperature !== 25) {
+                  onUpdate(v.instanceId, { temperature: 25 });
+                }
+              }
+            } else {
+              if (v.temperature === undefined || v.temperature !== deviceTemp) {
+                onUpdate(v.instanceId, { temperature: deviceTemp });
+              }
             }
           } else {
+            if (v.metadata?.heatingStartedAt || v.metadata?.initialWaterVolume !== undefined) {
+              const nextMetadata = { ...v.metadata };
+              delete nextMetadata.heatingStartedAt;
+              delete nextMetadata.initialWaterVolume;
+              onUpdate(v.instanceId, { metadata: nextMetadata });
+            }
+            
             const timeSinceHeated = Date.now() - (lastHeatedTimesRef.current[v.instanceId] || 0);
-            if (timeSinceHeated > 10000 && v.temperature !== undefined && v.temperature >= 100) {
-              onUpdate(v.instanceId, { temperature: 25 });
+            if (timeSinceHeated > 10000 && v.temperature !== undefined && v.temperature >= 26) {
+              const nextTemp = Math.max(25, v.temperature - 5);
+              onUpdate(v.instanceId, { temperature: nextTemp });
             }
           }
-          const isWarm = isHeated || (Date.now() - (lastHeatedTimesRef.current[v.instanceId] || 0) < 10000);
+          const isWarm = isHeated || v.metadata?.coolingStartedAt !== undefined || (Date.now() - (lastHeatedTimesRef.current[v.instanceId] || 0) < 10000);
           localVesselHeat[v.instanceId] = isWarm;
+        }
+      });
+
+      // Handle gradual cooling from cool water mixing
+      currentItems.forEach((v) => {
+        if (v.metadata?.coolingStartedAt) {
+          const elapsed = Date.now() - v.metadata.coolingStartedAt;
+          const duration = v.metadata.coolingDuration || 60000;
+          const startTemp = v.metadata.coolingStartTemp ?? 100;
+          const targetTemp = v.metadata.coolingTargetTemp ?? 25;
+          
+          if (elapsed < duration) {
+            const progress = elapsed / duration;
+            const currentTemp = startTemp - progress * (startTemp - targetTemp);
+            
+            if (v.temperature === undefined || Math.abs((v.temperature ?? 25) - currentTemp) > 1) {
+              onUpdate(v.instanceId, { temperature: Math.round(currentTemp) });
+            }
+          } else {
+            const finalMetadata = { ...v.metadata };
+            delete finalMetadata.coolingStartedAt;
+            delete finalMetadata.coolingStartTemp;
+            delete finalMetadata.coolingTargetTemp;
+            delete finalMetadata.coolingDuration;
+            
+            onUpdate(v.instanceId, {
+              temperature: Math.round(targetTemp),
+              metadata: finalMetadata
+            });
+          }
         }
       });
 
@@ -1033,29 +1107,38 @@ export default function InorganicCanvas({
         }
       });
 
-      // Evaporate water directly to air if heated, open, and NOT connected to a pipe
+      // Evaporate water directly to air if heated, open, and NOT connected to a pipe (limited to 10% max loss)
       currentItems.forEach((v) => {
         if (v.state === "glassware" && localVesselHeat[v.instanceId] && v.contents) {
           if (hasOpenMouthToAir(v, pipes)) {
-            // Find water first, then fallback to any liquid
             let liquidContent = v.contents.find(c => c.id === "water" && c.state === "liquid");
             if (!liquidContent) {
               liquidContent = v.contents.find(c => c.state === "liquid");
             }
 
             if (liquidContent && (liquidContent.volume ?? 0) > 0.01) {
-              const evapVol = 0.3; // 0.3 mL per tick
-              const updatedContents = v.contents.map(c => {
-                if (c.id === liquidContent!.id && c.state === "liquid") {
-                  return {
-                    ...c,
-                    volume: Math.max(0, (c.volume ?? 0) - evapVol),
-                  };
-                }
-                return c;
-              }).filter(c => (c.volume ?? 0) > 0.01 || c.state !== "liquid");
+              let initialVol = v.metadata?.initialWaterVolume;
+              if (initialVol === undefined) {
+                initialVol = liquidContent.volume ?? 0;
+              }
 
-              onUpdate(v.instanceId, { contents: updatedContents });
+              const minVolume = initialVol * 0.90;
+              const currentVol = liquidContent.volume ?? 0;
+
+              if (currentVol > minVolume) {
+                const evapVol = Math.min(0.3, currentVol - minVolume);
+                const updatedContents = v.contents.map(c => {
+                  if (c.id === liquidContent!.id && c.state === "liquid") {
+                    return {
+                      ...c,
+                      volume: Math.max(minVolume, (c.volume ?? 0) - evapVol),
+                    };
+                  }
+                  return c;
+                }).filter(c => (c.volume ?? 0) > 0.01 || c.state !== "liquid");
+
+                onUpdate(v.instanceId, { contents: updatedContents });
+              }
             }
           }
         }
@@ -1101,6 +1184,7 @@ export default function InorganicCanvas({
                 return {
                   ...c,
                   volume: (c.volume ?? 30) + actualAmt * 0.1, // solution volume increases slightly
+                  mass: (c.mass ?? 0) + actualAmt, // keep track of dissolved solute mass
                 };
               }
               return c;
@@ -1148,6 +1232,7 @@ export default function InorganicCanvas({
                 return {
                   ...c,
                   volume: (c.volume ?? 30) + actualAmt * 0.1,
+                  mass: (c.mass ?? 0) + actualAmt, // keep track of dissolved solute mass
                 };
               }
               return c;
@@ -1195,6 +1280,7 @@ export default function InorganicCanvas({
                 return {
                   ...c,
                   volume: (c.volume ?? 30) + actualAmt * 0.1,
+                  mass: (c.mass ?? 0) + actualAmt, // keep track of dissolved solute mass
                 };
               }
               return c;
@@ -3980,19 +4066,43 @@ export default function InorganicCanvas({
                       const uniqueSymbols = Array.from(new Set(splitSymbols));
                       const combinedText = uniqueSymbols.join(" + ");
                       const isHeated = vesselHeat[item.instanceId];
-                      const hasGold = item.contents.some(c => c.id.includes("gold") || c.symbol.includes("Au"));
+                      const isCooling = item.metadata?.coolingStartedAt !== undefined;
+                      const showTemp = isHeated || (item.temperature !== undefined && item.temperature !== 25) || isCooling;
                       const tempDisplay = item.temperature !== undefined ? `${item.temperature}°C` : (isHeated ? "1064°C" : "25°C");
+
+                      let borderClass = "border-white/20 text-white";
+                      if (isCooling) {
+                        borderClass = "border-cyan-500 text-cyan-300";
+                      } else if (isHeated) {
+                        borderClass = "border-amber-500 text-amber-300";
+                      }
 
                       return (
                         <div
-                          className={`bg-slate-950/95 backdrop-blur-md border ${isHeated ? "border-amber-500 text-amber-300" : "border-white/20 text-white"} rounded-2xl flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(0,0,0,0.45)] px-3 py-1.5 whitespace-nowrap tracking-wide`}
-                          style={{ minWidth: "46px", minHeight: hasGold ? "40px" : "auto" }}
+                          className={`bg-slate-950/95 backdrop-blur-md border ${borderClass} rounded-2xl flex flex-col items-center justify-center shadow-[0_6px_16px_rgba(0,0,0,0.45)] px-3 py-1.5 whitespace-nowrap tracking-wide`}
+                          style={{ minWidth: "46px" }}
                         >
                           <span className="text-[9px] font-black">{combinedText}</span>
-                          {hasGold && (
+                          {showTemp && (
                             <span className="text-[8px] font-bold mt-0.5 flex items-center gap-0.5">
-                              {isHeated && <span className="animate-bounce">🔥</span>}
-                              {tempDisplay}
+                              {isCooling ? (
+                                <>
+                                  <span className="animate-pulse">❄️</span>
+                                  <span>{tempDisplay}</span>
+                                  <span className="text-[7px] text-cyan-400 font-medium ml-0.5">Cooling</span>
+                                </>
+                              ) : (
+                                <>
+                                  {isHeated && <span className="animate-bounce">🔥</span>}
+                                  <span>{tempDisplay}</span>
+                                  {item.metadata?.heatingStartedAt && (
+                                    <span className="text-[7px] text-amber-400 font-medium ml-0.5 flex items-center gap-0.5">
+                                      <span>Heating</span>
+                                      <span className="animate-bounce">⬆</span>
+                                    </span>
+                                  )}
+                                </>
+                              )}
                             </span>
                           )}
                         </div>
@@ -4387,9 +4497,87 @@ function VesselContents({
   const isOverflow = fillPercent >= 100;
 
   const [sloshOffset, setSloshOffset] = useState(0);
+  const [sloshAngle, setSloshAngle] = useState(0);
+
   const prevVolumeRef = useRef(totalVolume);
   const [boilingIntensity, setBoilingIntensity] = useState(0);
   const lastHeatedTimeRef = useRef<number>(0);
+
+  const physicsRef = useRef({
+    angle: 0,
+    angularVelocity: 0,
+    lastX: item.x,
+    lastY: item.y,
+    lastTime: Date.now(),
+    smoothedVx: 0,
+  });
+
+  const itemRef = useRef(item);
+  useEffect(() => {
+    itemRef.current = item;
+  }, [item]);
+
+  useEffect(() => {
+    if (!hasLiquid) return;
+
+    let animId: number;
+
+    // Initialize refs
+    physicsRef.current.lastX = itemRef.current.x;
+    physicsRef.current.lastY = itemRef.current.y;
+    physicsRef.current.lastTime = Date.now();
+    physicsRef.current.angle = 0;
+    physicsRef.current.angularVelocity = 0;
+    physicsRef.current.smoothedVx = 0;
+
+    const updatePhysics = () => {
+      const now = Date.now();
+      const dt = Math.min((now - physicsRef.current.lastTime) / 1000, 0.1); // in seconds, cap to 100ms
+      physicsRef.current.lastTime = now;
+
+      // Calculate current velocity of the vessel
+      const currentX = itemRef.current.x;
+      const dx = currentX - physicsRef.current.lastX;
+      physicsRef.current.lastX = currentX;
+
+      // Calculate instantaneous velocity (px per second)
+      const vx = dt > 0 ? dx / dt : 0;
+
+      // Smooth the velocity to prevent jitter
+      physicsRef.current.smoothedVx = physicsRef.current.smoothedVx * 0.85 + vx * 0.15;
+
+      // Target angle is proportional to the negative velocity (inertia)
+      const sensitivity = -0.035;
+      const targetAngle = clamp(physicsRef.current.smoothedVx * sensitivity, -22, 22);
+
+      // Spring-mass-damper system constants
+      const k = 120; // stiffness constant
+      const damping = 6; // damping constant
+
+      const angleDiff = physicsRef.current.angle - targetAngle;
+      const springForce = -k * angleDiff;
+      const dampingForce = -damping * physicsRef.current.angularVelocity;
+      const acceleration = springForce + dampingForce;
+
+      // Update angular velocity and angle
+      physicsRef.current.angularVelocity += acceleration * dt;
+      physicsRef.current.angularVelocity = clamp(physicsRef.current.angularVelocity, -350, 350);
+
+      physicsRef.current.angle += physicsRef.current.angularVelocity * dt;
+      physicsRef.current.angle = clamp(physicsRef.current.angle, -25, 25);
+
+      // Update the react state
+      setSloshAngle(physicsRef.current.angle);
+
+      animId = requestAnimationFrame(updatePhysics);
+    };
+
+    animId = requestAnimationFrame(updatePhysics);
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [hasLiquid]);
 
   const isVesselOpen = item.id === "three-neck-flask" || item.id === "evaporation-chamber"
     ? (item.isOpenLeft !== false || item.isOpenMiddle !== false || item.isOpenRight !== false)
@@ -4506,8 +4694,13 @@ function VesselContents({
   const liquidH = (geo.h * fillPercent) / 100;
   const liquidY = geo.y + geo.h - liquidH;
 
-  const isHeated = reactionState === "boiling" || reactionState === "heating" || heated;
-  const isVisuallyBoiling = isHeated || boilingIntensity > 0;
+  const isWater = contents.some(c => c.id === "water" || c.id === "water-solution" || c.id.includes("solution"));
+  const heatingStartedAt = item.metadata?.heatingStartedAt;
+  const elapsed = heatingStartedAt ? (Date.now() - heatingStartedAt) : 0;
+  const showSteam = isWater ? (elapsed >= 15000) : true;
+
+  const isHeated = (reactionState === "boiling" || reactionState === "heating" || heated) && showSteam;
+  const isVisuallyBoiling = isHeated || (boilingIntensity > 0 && showSteam);
   const showBubbles = (hasGas && !contents.every(c => c.symbol === "H2O") && !contents.every(c => c.id === "air" || c.id === "air-filled-gasbag")) || isVisuallyBoiling;
   const currentBubbleOpacity = isVisuallyBoiling ? 0.82 * boilingIntensity : 0.82;
   const currentBodyOpacity = isVisuallyBoiling ? 0.22 * boilingIntensity : 0.22;
@@ -4650,7 +4843,7 @@ function VesselContents({
 
             return (
               <g clipPath={`url(#vessel-clip-${item.instanceId})`}>
-                <g transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY}) translate(0, ${sloshOffset})`}>
+                <g transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY}) rotate(${sloshAngle}, ${geo.x + geo.w / 2}, ${liquidY}) translate(0, ${sloshOffset})`}>
                   <rect
                     x={geo.x - geo.w}
                     y={liquidY}
@@ -5435,7 +5628,7 @@ function VesselContents({
         );
       })()}
 
-      {(heated || reactionState === "boiling" || reactionState === "heating") && (() => {
+      {isHeated && (() => {
         const steamMouths: { x: number; y: number }[] = [];
         if (item.id === "three-neck-flask") {
           if (item.isOpenLeft && !isVesselNeckConnectedToPipe(item, "left", pipes)) steamMouths.push({ x: 41, y: 32 });
@@ -5535,6 +5728,109 @@ function VesselRubberStopper({ id }: { id: string }) {
   );
 }
 
+function renderFormattedEquation(note: string | undefined) {
+  if (!note) return <span className="text-slate-400">No reaction active</span>;
+
+  const sentences = note.split(/(?<=\.)\s+/);
+  const equationSentence = sentences.find(s => s.includes("->"));
+  
+  if (!equationSentence) {
+    return <span className="text-slate-300">{note}</span>;
+  }
+
+  const description = sentences.filter(s => s !== equationSentence).join(" ");
+  
+  const parts = equationSentence.split("->");
+  if (parts.length !== 2) {
+    return <span className="text-slate-300">{note}</span>;
+  }
+
+  const reactantsStr = parts[0].trim();
+  const productsStr = parts[1].trim();
+
+  const parseSide = (sideStr: string) => {
+    return sideStr.split("+").map((term, tIdx) => {
+      const trimmed = term.trim();
+      const match = trimmed.match(/^([0-9]*)\s*([A-Za-z0-9()·\-\[\]]+)\s*(\([a-zA-Z\s\-]+\))?$/);
+      
+      let coefficient = "";
+      let formula = trimmed;
+      let state = "";
+
+      if (match) {
+        coefficient = match[1] || "";
+        formula = match[2] || "";
+        state = match[3] || "";
+      }
+
+      const formatSubscripts = (f: string) => {
+        const parts: React.ReactNode[] = [];
+        for (let i = 0; i < f.length; i++) {
+          const char = f[i];
+          if (/[0-9]/.test(char)) {
+            parts.push(<sub key={i} className="text-[10px] bottom-[-0.2em] relative font-semibold">{char}</sub>);
+          } else {
+            parts.push(char);
+          }
+        }
+        return parts;
+      };
+
+      let stateStyle = "bg-slate-700 text-slate-200 border border-slate-600";
+      if (state.includes("g")) {
+        stateStyle = "bg-orange-500/10 text-orange-400 border border-orange-500/20";
+      } else if (state.includes("l")) {
+        stateStyle = "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+      } else if (state.includes("aq")) {
+        stateStyle = "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20";
+      } else if (state.includes("s")) {
+        stateStyle = "bg-slate-800 text-slate-400 border border-slate-700";
+      }
+
+      return (
+        <span key={tIdx} className="inline-flex items-center gap-1 mx-1.5 my-0.5 whitespace-nowrap">
+          {coefficient && <span className="font-extrabold text-blue-400 text-sm">{coefficient}</span>}
+          <span className="font-bold text-white font-mono">{formatSubscripts(formula)}</span>
+          {state && (
+            <span className={`text-[9px] px-1 py-0.5 rounded font-mono font-bold ${stateStyle}`}>
+              {state}
+            </span>
+          )}
+        </span>
+      );
+    });
+  };
+
+  const reactants = parseSide(reactantsStr);
+  const products = parseSide(productsStr);
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-center gap-1 bg-slate-900/60 p-2.5 rounded-xl border border-white/5 font-semibold text-xs justify-center">
+        {reactants.reduce<React.ReactNode[]>((acc, curr, index) => {
+          if (index > 0) acc.push(<span key={`plus-r-${index}`} className="text-slate-500 font-black px-0.5">+</span>);
+          acc.push(curr);
+          return acc;
+        }, [])}
+        
+        <span className="text-blue-400 font-black text-sm mx-1.5">→</span>
+        
+        {products.reduce<React.ReactNode[]>((acc, curr, index) => {
+          if (index > 0) acc.push(<span key={`plus-p-${index}`} className="text-slate-500 font-black px-0.5">+</span>);
+          acc.push(curr);
+          return acc;
+        }, [])}
+      </div>
+
+      {description && (
+        <p className="text-slate-300 text-[11px] leading-relaxed italic bg-slate-900/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap select-all">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface VesselPopupProps {
   item: PlacedInorganicItem;
   left: number;
@@ -5551,6 +5847,7 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose, hasGloves, 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  const [massUnit, setMassUnit] = useState<"g" | "mol">("g");
 
   const handlePopupMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -5976,46 +6273,124 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose, hasGloves, 
         {activeParam === "Equation" && (
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Reaction Equation & Details</label>
-            <div className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-2.5 text-xs text-slate-200 select-all leading-relaxed whitespace-pre-wrap">
-              {item.note || "No reaction active"}
+            <div className="bg-[#181c24] border border-[#2e3746] rounded-lg p-3 text-xs text-slate-200">
+              {renderFormattedEquation(item.note)}
             </div>
           </div>
         )}
         {activeParam === "Concentration" && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Concentration (M)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={item.concentration ?? 0.1}
-              onChange={(e) => onUpdate(item.instanceId, { concentration: Number(e.target.value) })}
-              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
-            />
+            <ConcentrationCalculator item={item} onUpdate={onUpdate} />
           </div>
         )}
-        {activeParam === "Mass" && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-              {solidContent ? `Mass of ${solidContent.name} (g)` : "Mass (g)"}
-            </label>
-            <input
-              type="number"
-              value={massValue}
-              onChange={handleMassChange}
-              className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full"
-            />
-          </div>
-        )}
+        {activeParam === "Mass" && (() => {
+          const solidMolarMass = solidContent
+            ? (SPECIES_MAP[solidContent.id]?.molarMass || parseFormulaMolarMass(solidContent.symbol || solidContent.formula || ""))
+            : 55.85; // Default fallback to Iron's molar mass
+          const molesValue = Number((massValue / solidMolarMass).toFixed(4));
+
+          return (
+            <div className="flex flex-col gap-2.5">
+              {/* Unit Toggle */}
+              <div className="flex items-center justify-between bg-[#181c24] p-1 rounded-lg border border-[#2e3746]/60">
+                <span className="text-[10px] text-slate-400 font-bold uppercase pl-1.5">Unit (इकाई)</span>
+                <div className="flex bg-[#0f121a] rounded p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMassUnit("g")}
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      massUnit === "g" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Gram (g)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMassUnit("mol")}
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      massUnit === "mol" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Mole (mol)
+                  </button>
+                </div>
+              </div>
+
+              {/* Quantity Input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  {solidContent
+                    ? `${solidContent.name} (${solidContent.symbol}) - ${massUnit === "g" ? "द्रव्यमान (Mass in g)" : "मोल (Moles in mol)"}`
+                    : `द्रव्यमान / मात्रा (${massUnit === "g" ? "g" : "mol"})`
+                  }
+                </label>
+                {massUnit === "g" ? (
+                  <input
+                    type="number"
+                    value={massValue}
+                    onChange={handleMassChange}
+                    className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full font-mono"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={molesValue}
+                    onChange={(e) => {
+                      const mol = Math.max(0, Number(e.target.value));
+                      const grams = mol * solidMolarMass;
+                      // Trigger handleMassChange with a simulated React Change Event
+                      handleMassChange({
+                        target: { value: grams.toString() }
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }}
+                    className="bg-[#181c24] border border-[#2e3746] rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 w-full font-mono"
+                  />
+                )}
+              </div>
+
+              {/* Educational Math Visualizer */}
+              <div className="bg-[#0f121a]/55 border border-[#2e3746]/40 rounded-xl p-3 text-xs text-slate-300 mt-1 flex flex-col gap-2">
+                <div className="flex items-center justify-between border-b border-white/5 pb-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">गणना (Calculation)</span>
+                  <span className="text-[9px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-bold font-mono">
+                    अणु भार (M.W.): {solidMolarMass.toFixed(2)} g/mol
+                  </span>
+                </div>
+
+                <div className="font-mono text-slate-300 text-[11px] leading-relaxed py-1">
+                  {massUnit === "g" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <div>
+                        <span className="text-blue-400 font-bold">सूत्र:</span> मोल (mol) = द्रव्यमान (g) / अणु भार (g/mol)
+                      </div>
+                      <div className="bg-[#0a0d14] p-2 rounded border border-white/5 text-slate-200">
+                        मोल = {massValue.toFixed(2)}g / {solidMolarMass.toFixed(2)} g/mol = <strong className="text-emerald-400">{molesValue.toFixed(4)} mol</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <div>
+                        <span className="text-blue-400 font-bold">सूत्र:</span> द्रव्यमान (g) = मोल (mol) × अणु भार (g/mol)
+                      </div>
+                      <div className="bg-[#0a0d14] p-2 rounded border border-white/5 text-slate-200">
+                        द्रव्यमान = {molesValue.toFixed(4)} mol × {solidMolarMass.toFixed(2)} g/mol = <strong className="text-emerald-400">{massValue.toFixed(2)} g</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      <div className={`mt-4 bg-[#1e2330] rounded-xl p-3 border ${item.note ? "border-emerald-500/30" : "border-[#2e3746]"
-        }`}>
-        <label className={`text-[10px] uppercase tracking-wider font-bold ${item.note ? "text-emerald-400" : "text-slate-400"
-          }`}>
+      <div className={`mt-4 bg-[#1e2330] rounded-xl p-3 border ${item.note ? "border-emerald-500/30" : "border-[#2e3746]"}`}>
+        <label className={`text-[10px] uppercase tracking-wider font-bold ${item.note ? "text-emerald-400" : "text-slate-400"}`}>
           Reaction Result
         </label>
-        <div className="text-xs text-slate-200 mt-1.5 leading-relaxed select-all whitespace-pre-wrap">
-          {item.note || "No reaction active"}
+        <div className="mt-1.5 leading-relaxed text-xs">
+          {item.note ? renderFormattedEquation(item.note) : <span className="text-slate-400 italic">No reaction active</span>}
         </div>
       </div>
 

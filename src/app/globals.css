@@ -1308,3 +1308,7 @@ body {
     transform: translate(1px, -2px);
   }
 }
+
+.hidden_scrollbar::-webkit-scrollbar {
+  display: none !important;
+}

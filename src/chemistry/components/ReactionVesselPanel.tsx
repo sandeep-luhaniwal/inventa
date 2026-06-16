@@ -31,7 +31,7 @@ interface ReactionVesselPanelProps {
 
 export default function ReactionVesselPanel({ items, onItemClick }: ReactionVesselPanelProps) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-3">
       {items.map((item) => (
         <div
           key={item.id}
@@ -41,7 +41,7 @@ export default function ReactionVesselPanel({ items, onItemClick }: ReactionVess
           }}
           onClick={() => onItemClick(item)}
           title={item.description}
-          className="bg-[#2b313c] border border-[#3a4250] rounded-2xl p-4 hover:border-blue-500 transition cursor-pointer group"
+          className="bg-[#2b313c] border border-[#3a4250] rounded-lg py-3 px-2 hover:border-blue-500 transition cursor-pointer group"
         >
           <div className="flex items-center justify-center h-[90px] w-full">
             <div
@@ -59,7 +59,7 @@ export default function ReactionVesselPanel({ items, onItemClick }: ReactionVess
             </div>
           </div>
 
-          <p className="text-center leading-6 mt-2 font-medium text-white text-sm line-clamp-2">
+          <p className="text-center leading-[110%] mt-1 font-medium text-white text-xs line-clamp-2">
             {item.name}
           </p>
         </div>

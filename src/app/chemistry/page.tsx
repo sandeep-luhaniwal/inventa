@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   Copy,
@@ -12,6 +13,7 @@ import {
   Settings2,
   SquarePen,
   Trash2,
+  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -34,6 +36,38 @@ import type {
   OrganicTool,
   PlacedInorganicItem,
 } from "@/chemistry/types";
+
+function matchesElementFilter(item: ChemistryLibraryItem, filter: string | null): boolean {
+  if (!filter) return true;
+  if (item.module !== "inorganic") return false;
+
+  const formula = item.formula || "";
+  const name = item.name || "";
+  const symbol = item.symbol || "";
+  const description = item.description || "";
+
+  // Normalize subscript to standard numbers for simple matching
+  const normalizedFormula = formula.replace(/₄/g, "4").replace(/₃/g, "3").replace(/₂/g, "2");
+
+  if (filter === "SO₄²⁻") return normalizedFormula.includes("SO4") || name.toLowerCase().includes("sulfate") || description.toLowerCase().includes("sulfate");
+  if (filter === "NO₃⁻") return normalizedFormula.includes("NO3") || name.toLowerCase().includes("nitrate") || description.toLowerCase().includes("nitrate");
+  if (filter === "OH⁻") return normalizedFormula.includes("OH") || name.toLowerCase().includes("hydroxide") || description.toLowerCase().includes("hydroxide");
+  if (filter === "PO₄³⁻") return normalizedFormula.includes("PO4") || name.toLowerCase().includes("phosphate") || description.toLowerCase().includes("phosphate");
+  if (filter === "CO₃²⁻") return normalizedFormula.includes("CO3") || name.toLowerCase().includes("carbonate") || description.toLowerCase().includes("carbonate");
+  if (filter === "HCO₃⁻") return normalizedFormula.includes("HCO3") || name.toLowerCase().includes("bicarbonate") || name.toLowerCase().includes("hydrogen carbonate");
+  if (filter === "NH₄⁺") return normalizedFormula.includes("NH4") || name.toLowerCase().includes("ammonium") || description.toLowerCase().includes("ammonium");
+
+  // Standard metals / non-metals
+  // E.g., C should not match Cl or Ca
+  const cleanFilter = filter.replace(/[0-9²³⁺⁻\-\s]/g, ""); // strip charge/numbers
+  const regex = new RegExp(`\\b${cleanFilter}\\b|${cleanFilter}(?![a-z])`);
+
+  if (regex.test(formula)) return true;
+  if (name.toLowerCase().includes(cleanFilter.toLowerCase())) return true;
+  if (symbol.includes(cleanFilter)) return true;
+
+  return false;
+}
 
 const DEFAULT_ORGANIC_TOOL = ORGANIC_LIBRARY.find(
   (item) => item.kind === "atom" && item.label === "C"
@@ -130,7 +164,7 @@ function ActionButton({
       onClick={onClick}
       className="flex min-w-[42px] flex-col items-center gap-0.5 text-white/72 transition hover:text-white lg:min-w-[48px]"
     >
-      <div className="flex h-7 w-7 items-center justify-center lg:h-8 lg:w-8">{icon}</div>
+      <div className="flex h-5 w-5 items-center justify-center lg:h-6 lg:w-6">{icon}</div>
       {label ? <span className="text-[11px] lg:text-[12px]">{label}</span> : null}
     </button>
   );
@@ -141,6 +175,9 @@ export default function ChemistryPage() {
   const [activeCategory, setActiveCategory] = useState<ChemistryCategory>(getDefaultCategoryForModule("inorganic"));
   const [searchTerm, setSearchTerm] = useState("");
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [showOnlyVessels, setShowOnlyVessels] = useState(false);
+  const [isElementsOpen, setIsElementsOpen] = useState(false);
+  const [activeElementFilter, setActiveElementFilter] = useState<string | null>(null);
 
   const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 10, 200));
   const handleZoomOut = () => setZoomLevel((z) => Math.max(z - 10, 50));
@@ -154,14 +191,22 @@ export default function ChemistryPage() {
   const [pendingBondStartId, setPendingBondStartId] = useState<string | null>(null);
   const [selectedOrganicTool, setSelectedOrganicTool] = useState<OrganicTool>(DEFAULT_ORGANIC_TOOL);
 
-  const categories = useMemo(() => getCategoriesForModule(activeModule), [activeModule]);
+  const categories = useMemo(() => {
+    return getCategoriesForModule(activeModule);
+  }, [activeModule]);
 
   const filteredLibraryItems = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return getLibraryForModule(activeModule).filter((item) => {
       if ("hidden" in item && item.hidden) return false;
-      const matchesCategory = item.category === activeCategory;
-      if (!matchesCategory) return false;
+      // If there is no element filter, restrict by active category
+      if (!activeElementFilter) {
+        const matchesCategory = item.category === activeCategory;
+        if (!matchesCategory) return false;
+      }
+
+      // Filter by element or ion
+      if (!matchesElementFilter(item, activeElementFilter)) return false;
 
       if (!normalizedSearch) return true;
 
@@ -172,7 +217,7 @@ export default function ChemistryPage() {
 
       return searchFields.some((value) => value?.toLowerCase().includes(normalizedSearch));
     });
-  }, [activeCategory, activeModule, searchTerm]);
+  }, [activeCategory, activeModule, searchTerm, activeElementFilter]);
 
   const selectedInorganicItem = useMemo(
     () => inorganicItems.find((item) => item.instanceId === selectedInorganicId) ?? null,
@@ -239,7 +284,7 @@ export default function ChemistryPage() {
       } else {
         const defaultVolume = source.state === "solid" ? 10 : (source.state === "gas" ? 50 : 30);
         const resolvedVolume = volume ?? defaultVolume;
-        
+
         sourceContents = [{
           ...source,
           volume: resolvedVolume,
@@ -252,17 +297,17 @@ export default function ChemistryPage() {
         const existingIndex = updatedContents.findIndex(item => item.id === sourceItem.id);
         if (existingIndex !== -1) {
           const existing = updatedContents[existingIndex];
-          
+
           const existingVol = existing.volume ?? (existing.state === "solid" ? 10 : (existing.state === "gas" ? 50 : 30));
           const sourceVol = sourceItem.volume ?? (sourceItem.state === "solid" ? 10 : (sourceItem.state === "gas" ? 50 : 30));
-          
+
           const existingMass = existing.mass ?? (existing.state === "solid" ? 10 : undefined);
           const sourceMass = sourceItem.mass ?? (sourceItem.state === "solid" ? 10 : undefined);
 
           updatedContents[existingIndex] = {
             ...existing,
             volume: existingVol + sourceVol,
-            mass: existingMass !== undefined || sourceMass !== undefined 
+            mass: existingMass !== undefined || sourceMass !== undefined
               ? (existingMass ?? 0) + (sourceMass ?? 0)
               : undefined
           };
@@ -274,6 +319,35 @@ export default function ChemistryPage() {
       const hasGloves = current.some(i => i.id === "safety-gloves");
       const reaction = resolveReaction(updatedContents, target.id, hasGloves, false, target.isOpen === false, target.pressure);
 
+      const targetTemp = target.temperature ?? 25;
+      const sourceTemp = source.temperature ?? 25;
+      const targetVol = (target.contents || []).reduce((sum, c) => sum + (c.volume ?? 0), 0);
+      const sourceVol = sourceContents.reduce((sum, c) => sum + (c.volume ?? 0), 0);
+
+      let newTemp = targetTemp;
+      let coolingUpdates: Record<string, any> = {};
+
+      if (targetVol + sourceVol > 0) {
+        newTemp = (targetVol * targetTemp + sourceVol * sourceTemp) / (targetVol + sourceVol);
+      }
+
+      if (newTemp < targetTemp && targetTemp > 25 && targetVol > 0 && sourceVol > 0) {
+        coolingUpdates = {
+          temperature: targetTemp,
+          metadata: {
+            ...target.metadata,
+            coolingStartedAt: Date.now(),
+            coolingStartTemp: targetTemp,
+            coolingTargetTemp: newTemp,
+            coolingDuration: 60000
+          }
+        };
+      } else {
+        coolingUpdates = {
+          temperature: Math.round(newTemp)
+        };
+      }
+
       // Only remove source if it's glassware (pouring vessel), keep solid/liquid/gas bottles
       const shouldRemoveSource = source.state === "glassware";
 
@@ -281,7 +355,13 @@ export default function ChemistryPage() {
         .filter((i) => shouldRemoveSource ? i.instanceId !== sourceId : true)
         .map((i) =>
           i.instanceId === targetId
-            ? { ...i, contents: reaction.contents, reactionState: reaction.state ?? "idle", note: reaction.note }
+            ? {
+              ...i,
+              contents: reaction.contents,
+              reactionState: reaction.state ?? "idle",
+              note: reaction.note,
+              ...coolingUpdates
+            }
             : i
         );
     });
@@ -579,7 +659,7 @@ export default function ChemistryPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-[#2f343c] text-white supports-[height:100dvh]:h-[100dvh]">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-white/8 bg-[#262a2f] px-3 lg:h-[64px] lg:px-5">
+        <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-white/8 bg-[#262a2f] px-3 lg:h-[54px] lg:px-5">
           <div className="flex items-center gap-1.5 lg:gap-3">
             <ActionButton icon={<ArrowLeft className="h-7 w-7" />} onClick={() => window.history.back()} />
             <ActionButton icon={<Save className="h-6 w-6" />} label="Save" onClick={handleSaveExperiment} />
@@ -598,8 +678,8 @@ export default function ChemistryPage() {
           </div>
         </header>
 
-        <main className="grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
-          <section className="relative min-h-0 overflow-hidden bg-[#3a3f47]">
+        <main className="flex flex-col min-h-0 flex-1 overflow-hidden lg:flex-row">
+          <section className="relative min-h-0 flex-1 overflow-hidden bg-[#3a3f47]">
             <div style={{ zoom: zoomLevel / 100, width: '100%', height: '100%' } as any}>
               <Canvas
                 module={activeModule}
@@ -634,66 +714,71 @@ export default function ChemistryPage() {
               />
             </div>
 
-            <button className="absolute right-[8px] top-1/2 z-20 hidden h-11 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#3a3f47] text-white/38 lg:flex">
-              <ChevronRight className="h-6 w-6" />
+            <button
+              onClick={() => {
+                const nextVal = !showOnlyVessels;
+                setShowOnlyVessels(nextVal);
+                if (nextVal) {
+                  setActiveCategory("glassware");
+                }
+              }}
+              className="absolute right-[8px] top-1/2 z-20 hidden h-11 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#3a3f47] text-white/38 lg:flex hover:text-white transition duration-150 cursor-pointer"
+            >
+              {showOnlyVessels ? <ChevronLeft className="h-6 w-6" /> : <ChevronRight className="h-6 w-6" />}
             </button>
 
             <div className="absolute bottom-4 left-3 right-3 z-20 flex flex-wrap items-center gap-2.5 lg:bottom-8 lg:left-8 lg:right-auto lg:flex-nowrap lg:gap-4">
-              <div className="rounded-2xl bg-[#23272d] px-3 py-2.5 shadow-2xl shadow-black/18 lg:px-4 lg:py-3">
+              <div className="rounded-lg bg-[#23272d] px-2 py-1.5 shadow-2xl shadow-black/18 lg:px-3 lg:py-2">
                 <div className="flex items-center gap-3">
                   <select
                     value={activeModule}
                     onChange={(event) => handleModuleChange(event.target.value as ChemistryModule)}
-                    className="max-w-[220px] bg-transparent text-[14px] text-white outline-none lg:text-[16px]"
+                    className="max-w-[220px] bg-transparent cursor-pointer text-sm text-white outline-none lg:text-base"
                   >
-                    <option value="inorganic" className="text-black">
+                    <option value="inorganic" className="text-black cursor-pointer">
                       Inorganic chemistry
                     </option>
-                    <option value="organic" className="text-black">
+                    <option value="organic" className="text-black cursor-pointer">
                       Organic chemistry
                     </option>
                   </select>
-                  <ChevronUp className="h-3.5 w-3.5 text-white/70" />
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-[#23272d] px-3 py-2.5 shadow-2xl shadow-black/18 lg:px-4 lg:py-3">
+              <div className="rounded-lg bg-[#23272d] px-2 py-1.5 shadow-2xl shadow-black/18 lg:px-3 lg:py-2">
                 <div className="flex items-center gap-4">
-                  <button onClick={handleZoomOut} className="opacity-80 hover:opacity-100" title="Zoom Out">
+                  <button onClick={handleZoomOut} className="opacity-80 cursor-pointer hover:opacity-100" title="Zoom Out">
                     <ZoomOut className="h-6 w-6 text-white/82" />
                   </button>
                   <div className="h-7 w-px bg-white/16" />
-                  <span className="text-[14px] text-white lg:text-[16px] min-w-[3rem] text-center">{zoomLevel}%</span>
+                  <span className="text-sm text-white lg:text-base min-w-[2rem] text-center">{zoomLevel}%</span>
                   <div className="h-7 w-px bg-white/16" />
-                  <button onClick={handleZoomIn} className="opacity-80 hover:opacity-100" title="Zoom In">
+                  <button onClick={handleZoomIn} className="opacity-80 cursor-pointer hover:opacity-100" title="Zoom In">
                     <ZoomIn className="h-6 w-6 text-white/82" />
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-[#23272d] px-3 py-2.5 shadow-2xl shadow-black/18 lg:px-4 lg:py-3">
+              <div className="rounded-lg bg-[#23272d] px-2 py-1.5 shadow-2xl shadow-black/18 lg:px-3 lg:py-2">
                 <div className="flex items-center gap-3 text-white/88">
                   <button
                     onClick={handleDuplicateSelected}
                     disabled={!canDuplicate}
-                  className="disabled:opacity-30"
-                  title="Duplicate"
-                >
+                    className="disabled:opacity-30 cursor-pointer"
+                    title="Duplicate"
+                  >
                     <Copy className="h-6 w-6" />
                   </button>
-                  <button className="opacity-80" title="Brush">
+                  <button className="opacity-80 cursor-pointer" title="Brush">
                     <SquarePen className="h-6 w-6" />
                   </button>
                   <button
                     onClick={handleDeleteSelected}
                     disabled={!canDelete}
-                    className="disabled:opacity-30"
+                    className="disabled:opacity-30 cursor-pointer"
                     title="Delete"
                   >
                     <Trash2 className="h-6 w-6" />
-                  </button>
-                  <button onClick={handleZoomIn} className="opacity-80" title="Zoom">
-                    <ZoomIn className="h-6 w-6" />
                   </button>
                 </div>
               </div>
@@ -702,9 +787,111 @@ export default function ChemistryPage() {
             <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 hidden -translate-x-1/2 text-center text-[16px] text-[#8d7458] lg:block">
               Chemical experiments are risky, real-life imitation is prohibited
             </div>
+
+            {isElementsOpen && activeModule === "inorganic" && (
+              <div className="absolute right-[16px] top-[16px] z-[40] w-[340px] rounded-xl border border-white/10 bg-[#1c2024]/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                <div className="mb-3 flex items-center justify-between border-b border-white/6 pb-2">
+                  <h3 className="text-xs font-semibold text-white/90">Elements & Ions Filter</h3>
+                  <button
+                    onClick={() => setIsElementsOpen(false)}
+                    className="rounded-md p-1 text-white/50 hover:bg-white/5 hover:text-white cursor-pointer transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 chemistry-scrollbar">
+                  <div>
+                    <h4 className="mb-2 text-[10px] font-semibold text-white/40 uppercase tracking-wider">Metal</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {["Li", "Na", "Mg", "Al", "K", "Ca", "Cr", "Mn", "Fe", "Cu", "Zn", "Ag", "Pt"].map((el) => {
+                        const active = activeElementFilter === el;
+                        return (
+                          <button
+                            key={el}
+                            onClick={() => {
+                              setActiveElementFilter(active ? null : el);
+                            }}
+                            className={`h-6 min-w-[32px] px-1 rounded text-[11px] font-medium transition cursor-pointer flex items-center justify-center ${
+                              active
+                                ? "bg-[#2990ff] text-white shadow-[0_0_8px_rgba(41,144,255,0.35)] border border-[#2990ff]"
+                                : "bg-white/5 border border-white/8 text-white/70 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            {el}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-2 text-[10px] font-semibold text-white/40 uppercase tracking-wider">Non-Metal</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {["H", "He", "B", "C", "N", "O", "F", "Ne", "Si", "P", "S", "Cl", "Ar", "Br"].map((el) => {
+                        const active = activeElementFilter === el;
+                        return (
+                          <button
+                            key={el}
+                            onClick={() => {
+                              setActiveElementFilter(active ? null : el);
+                            }}
+                            className={`h-6 min-w-[32px] px-1 rounded text-[11px] font-medium transition cursor-pointer flex items-center justify-center ${
+                              active
+                                ? "bg-[#2990ff] text-white shadow-[0_0_8px_rgba(41,144,255,0.35)] border border-[#2990ff]"
+                                : "bg-white/5 border border-white/8 text-white/70 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            {el}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-2 text-[10px] font-semibold text-white/40 uppercase tracking-wider">Charged Ionic Group</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {["SO₄²⁻", "NO₃⁻", "OH⁻", "PO₄³⁻", "CO₃²⁻", "HCO₃⁻", "NH₄⁺"].map((el) => {
+                        const active = activeElementFilter === el;
+                        return (
+                          <button
+                            key={el}
+                            onClick={() => {
+                              setActiveElementFilter(active ? null : el);
+                            }}
+                            className={`h-6 px-1.5 rounded text-[11px] font-medium transition cursor-pointer flex items-center justify-center ${
+                              active
+                                ? "bg-[#2990ff] text-white shadow-[0_0_8px_rgba(41,144,255,0.35)] border border-[#2990ff]"
+                                : "bg-white/5 border border-white/8 text-white/70 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            {el}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {activeElementFilter && (
+                  <div className="mt-3 border-t border-white/6 pt-2 flex justify-end">
+                    <button
+                      onClick={() => setActiveElementFilter(null)}
+                      className="text-[10px] text-[#2990ff] hover:underline cursor-pointer"
+                    >
+                      Reset Filter
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
-          <section className="min-h-0 overflow-hidden border-t border-white/8 lg:border-l lg:border-t-0">
+          <section className={`min-h-0 overflow-hidden border-t border-white/8 lg:border-l lg:border-t-0 shrink-0 transition-all duration-300 ${showOnlyVessels
+              ? "h-[280px] lg:h-full lg:w-[66px] xl:w-[70px]"
+              : "h-[280px] lg:h-full lg:w-[350px] xl:w-[360px]"
+            }`}>
             <Sidebar
               module={activeModule}
               categories={categories}
@@ -712,9 +899,17 @@ export default function ChemistryPage() {
               searchTerm={searchTerm}
               selectedOrganicToolId={activeModule === "organic" ? selectedOrganicTool.id : undefined}
               items={filteredLibraryItems}
-              onCategoryChange={setActiveCategory}
+              onCategoryChange={(cat) => {
+                setActiveCategory(cat);
+                setShowOnlyVessels(false);
+                setActiveElementFilter(null);
+              }}
               onSearchChange={setSearchTerm}
               onItemClick={handleLibraryItemClick}
+              showOnlyVessels={showOnlyVessels}
+              activeElementFilter={activeElementFilter}
+              onToggleElements={() => setIsElementsOpen(!isElementsOpen)}
+              onClearElementFilter={() => setActiveElementFilter(null)}
             />
           </section>
         </main>
