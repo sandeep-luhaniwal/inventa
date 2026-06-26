@@ -1312,3 +1312,119 @@ body {
 .hidden_scrollbar::-webkit-scrollbar {
   display: none !important;
 }
+
+@keyframes chemistry-fire-flicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  20% {
+    transform: scale(0.9, 1.1) rotate(-3deg);
+    filter: brightness(1.25);
+  }
+  40% {
+    transform: scale(1.15, 0.9) rotate(2deg);
+    filter: brightness(0.85);
+  }
+  60% {
+    transform: scale(0.95, 1.05) rotate(-2deg);
+    filter: brightness(1.15);
+  }
+  80% {
+    transform: scale(1.08, 0.95) rotate(3deg);
+    filter: brightness(1.3);
+  }
+}
+
+.chemistry-fire-flame {
+  transform-origin: bottom center;
+  animation: chemistry-fire-flicker 0.45s ease-in-out infinite;
+}
+
+/* Sodium reacting sizzle shake */
+@keyframes chemistry-sodium-shake {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(-1.5px, 1px) rotate(-1.5deg);
+  }
+  40% {
+    transform: translate(1px, -1.5px) rotate(1deg);
+  }
+  60% {
+    transform: translate(-1px, -1px) rotate(-0.5deg);
+  }
+  80% {
+    transform: translate(1.5px, 1.5px) rotate(1.5deg);
+  }
+}
+
+.chemistry-sodium-sizzle {
+  animation: chemistry-sodium-shake 0.12s linear infinite;
+  transform-origin: center;
+}
+
+/* Screen shake shockwave */
+@keyframes chemistry-screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-4px, -4px); }
+  20% { transform: translate(4px, 2px); }
+  30% { transform: translate(-4px, 4px); }
+  40% { transform: translate(4px, -2px); }
+  50% { transform: translate(-2px, 2px); }
+  60% { transform: translate(2px, -4px); }
+  70% { transform: translate(-4px, -2px); }
+  80% { transform: translate(4px, 4px); }
+  90% { transform: translate(-2px, -2px); }
+}
+
+.chemistry-screen-shake {
+  animation: chemistry-screen-shake 0.4s ease-out;
+}
+
+/* Screen Shatter glass cracks */
+.screen-shatter-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+@keyframes screen-shatter-flash {
+  0% {
+    background: rgba(255, 255, 255, 0.95);
+    filter: brightness(2.5) contrast(1.5);
+  }
+  10% {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    background: rgba(255, 255, 255, 0);
+  }
+}
+
+.screen-shatter-flash-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  animation: screen-shatter-flash 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes screen-shatter-crack-grow {
+  0% {
+    stroke-dashoffset: 2000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.screen-shatter-crack-path {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  animation: screen-shatter-crack-grow 0.8s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}

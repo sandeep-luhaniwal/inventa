@@ -10,6 +10,12 @@ export interface ReactionRule {
 
 export const REACTION_RULES: ReactionRule[] = [
   {
+    reactants: ["sodium", "hcl"],
+    products: ["nacl-solution", "hydrogen"],
+    state: "burst",
+    note: "Sodium reacts violently with Hydrochloric Acid (HCl), catching fire and exploding!",
+  },
+  {
     reactants: ["sodium", "water"],
     products: ["nacl-solution"],
     state: "burst",
@@ -115,8 +121,26 @@ export function resolveReaction(contents: InorganicLibraryItem[], vesselId?: str
     if (item.id === "mercury-liquid" || item.id === "Hg" || item.symbol === "Hg") {
       return { ...item, id: "mercury" };
     }
+    if (item.id === "dilute-hydrochloric-acid" || item.id === "concentrated-hydrochloric-acid" || item.id === "hydrogen-chloride" || item.id === "hydrogen-chloride-gasbag" || item.id === "HCl" || item.symbol === "HCl" || item.formula === "HCl") {
+      return { ...item, id: "hcl" };
+    }
     return item;
   });
+
+  const hasSodiumReactant = currentContents.some(item => item.id === "sodium");
+  const hasHClReactant = currentContents.some(item => item.id === "hcl");
+  const hasWaterReactant = currentContents.some(item => item.id === "water" || item.id === "water-solution" || item.id.includes("solution"));
+
+  if (hasSodiumReactant && (hasHClReactant || hasWaterReactant)) {
+    return {
+      contents: currentContents,
+      state: "idle",
+      note: hasHClReactant 
+        ? "Sodium is added to Hydrochloric Acid (HCl) and begins to react..." 
+        : "Sodium is added to water and begins to react..."
+    };
+  }
+
   let reacted = true;
   let reactionState: ReactionRule["state"];
   let reactionNote: string | undefined;

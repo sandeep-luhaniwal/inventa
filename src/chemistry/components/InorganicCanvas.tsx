@@ -223,6 +223,9 @@ function getRoundedPolylinePath(points: { x: number, y: number }[], radius = 25)
 }
 
 const getVesselMouths = (v: PlacedInorganicItem) => {
+  if (v.metadata?.isBroken) {
+    return [];
+  }
   if (v.id === "three-neck-flask") {
     return [
       { x: v.x + 41, y: v.y + 32, open: !!v.isOpenLeft },
@@ -304,6 +307,9 @@ const hasOpenMouthToAir = (v: PlacedInorganicItem, pipes: PlacedInorganicItem[])
 };
 
 const isVesselOpenForPouring = (v: PlacedInorganicItem) => {
+  if (v.metadata?.isBroken) {
+    return false;
+  }
   if (v.id === "vacuum-chamber") {
     return true; // Allows adding Pd and H2 inside
   }
@@ -596,6 +602,8 @@ export default function InorganicCanvas({
   const didPanRef = useRef(false);
   const [rotateState, setRotateState] = useState<{ id: string; centerX: number; centerY: number; lastAngleDeg: number; currentRotation: number } | null>(null);
   const [popupItemId, setPopupItemId] = useState<string | null>(null);
+  const [isShaking, setIsShaking] = useState(false);
+  const [activeShatters, setActiveShatters] = useState<Record<string, boolean>>({});
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [hoveringCapId, setHoveringCapId] = useState<string | null>(null);
   const [hoveringNeck, setHoveringNeck] = useState<"left" | "middle" | "right" | null>(null);
@@ -633,6 +641,18 @@ export default function InorganicCanvas({
       setMenuOpenId(null);
     }
   }, [selectedId]);
+
+  // Screen shake shockwave effect on explosion
+  React.useEffect(() => {
+    const hasRecentExplosion = items.some(
+      item => item.state === "glassware" && item.metadata?.isBroken && Date.now() - item.metadata.brokenAt < 500
+    );
+    if (hasRecentExplosion) {
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [items]);
 
   const itemsRef = useRef(items);
   React.useEffect(() => {
@@ -790,20 +810,71 @@ export default function InorganicCanvas({
 
       // Automatically resolve general reactions for glassware vessels when heating or state changes
       currentItems.forEach((v) => {
-        if (v.state === "glassware" && v.contents && v.contents.length >= 2) {
+        if (v.state === "glassware" && v.contents && v.contents.length >= 2 && !v.metadata?.isBroken) {
+          const hasSodium = v.contents.some(c => c.id === "sodium" || c.id === "sodium-metal" || c.symbol === "Na");
+          const hasHCl = v.contents.some(c => c.id === "hcl" || c.id === "dilute-hydrochloric-acid" || c.id === "concentrated-hydrochloric-acid" || c.symbol === "HCl");
+          const hasWater = v.contents.some(c => c.id === "water" || c.id === "water-solution" || c.id.includes("solution") || c.symbol === "H2O");
+
+          if (hasSodium && (hasHCl || hasWater)) {
+            const reactionStage = v.metadata?.reactionStage;
+            const startedAt = v.metadata?.reactionStartedAt || Date.now();
+
+            if (!reactionStage) {
+              onUpdate(v.instanceId, {
+                metadata: {
+                  ...v.metadata,
+                  reactionStage: "burning",
+                  reactionStartedAt: startedAt
+                }
+              });
+            } else if (reactionStage === "burning") {
+              const elapsed = Date.now() - startedAt;
+              if (elapsed >= 3000) {
+                const isHCl = hasHCl;
+                onUpdate(v.instanceId, {
+                  contents: [], // Clear all contents because it exploded!
+                  reactionState: "burst",
+                  note: isHCl
+                    ? "Sodium reacts violently with Hydrochloric Acid (HCl), catching fire and exploding!"
+                    : "Sodium reacts violently with water, catching fire and exploding!",
+                  metadata: {
+                    ...v.metadata,
+                    reactionStage: "exploded",
+                    isBroken: true,
+                    brokenAt: Date.now()
+                  }
+                });
+              }
+            }
+            return; // Skip normal reaction resolution
+          }
+
           const isHeated = localVesselHeat[v.instanceId] || (v.temperature !== undefined && v.temperature >= 1000);
           const reaction = resolveReaction(v.contents, v.id, hasGloves, isHeated, v.isOpen === false, v.pressure, v.temperature);
           
-          const contentsChanged = JSON.stringify(v.contents) !== JSON.stringify(reaction.contents);
-          const stateChanged = v.reactionState !== (reaction.state ?? "idle");
-          const noteChanged = v.note !== reaction.note;
-          
-          if (contentsChanged || stateChanged || noteChanged) {
+          if (reaction.state === "burst") {
             onUpdate(v.instanceId, {
-              contents: reaction.contents,
-              reactionState: reaction.state ?? "idle",
-              note: reaction.note
+              contents: [], // Clear all contents because it exploded!
+              reactionState: "burst",
+              note: reaction.note || "The reaction exploded violently!",
+              metadata: {
+                ...v.metadata,
+                isBroken: true,
+                brokenAt: Date.now()
+              }
             });
+          } else {
+            const contentsChanged = JSON.stringify(v.contents) !== JSON.stringify(reaction.contents);
+            const stateChanged = v.reactionState !== (reaction.state ?? "idle");
+            const noteChanged = v.note !== reaction.note;
+            
+            if (contentsChanged || stateChanged || noteChanged) {
+              onUpdate(v.instanceId, {
+                contents: reaction.contents,
+                reactionState: reaction.state ?? "idle",
+                note: reaction.note
+              });
+            }
           }
         }
       });
@@ -1713,6 +1784,18 @@ export default function InorganicCanvas({
       }
     });
   }, [items, onRemove]);
+
+  // Monitor broken items to trigger screen shatter overlay and auto-close it after 20 seconds
+  React.useEffect(() => {
+    items.forEach((item) => {
+      if (item.metadata?.isBroken && activeShatters[item.instanceId] === undefined) {
+        setActiveShatters((prev) => ({ ...prev, [item.instanceId]: true }));
+        setTimeout(() => {
+          setActiveShatters((prev) => ({ ...prev, [item.instanceId]: false }));
+        }, 20000);
+      }
+    });
+  }, [items, activeShatters]);
 
   React.useEffect(() => {
     const removalTimerEntries = removalTimers.current;
@@ -2918,7 +3001,7 @@ export default function InorganicCanvas({
     <div
       ref={surfaceRef}
       className={`relative h-full min-h-0 overflow-hidden bg-[#3a3f47] ${isPanning ? "cursor-grabbing" : "cursor-grab"
-        }`}
+        } ${isShaking ? "chemistry-screen-shake" : ""}`}
       onMouseDown={handleBackgroundMouseDown}
       onMouseMove={handlePointerMove}
       onMouseUp={handlePointerUp}
@@ -2942,6 +3025,25 @@ export default function InorganicCanvas({
           backgroundPosition: `${panOffset.x}px ${panOffset.y}px`,
         }}
       />
+
+      {/* Full-screen realistic cracked glass overlay when vessel breaks */}
+      {items.map((item) => {
+        if (item.state === "glassware" && item.metadata?.isBroken && activeShatters[item.instanceId]) {
+          const dims = getItemUnscaledDims(item.id, item.state);
+          const scale = getItemCanvasScale(item.id, item.state);
+          const screenX = item.x + dims.w / 2 + panOffset.x;
+          const screenY = item.y + dims.h / 2 + panOffset.y;
+          return (
+            <ScreenShatter
+              key={`screen-shatter-${item.instanceId}`}
+              cx={screenX}
+              cy={screenY}
+              brokenAt={item.metadata.brokenAt || Date.now()}
+            />
+          );
+        }
+        return null;
+      })}
 
       <div
         style={{
@@ -4502,6 +4604,24 @@ function VesselContents({
   const prevVolumeRef = useRef(totalVolume);
   const [boilingIntensity, setBoilingIntensity] = useState(0);
   const lastHeatedTimeRef = useRef<number>(0);
+  const [burningProgress, setBurningProgress] = useState(0);
+
+  useEffect(() => {
+    if (item.metadata?.reactionStage === "burning") {
+      const start = item.metadata.reactionStartedAt || Date.now();
+      let animId: number;
+      const tick = () => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(1.0, elapsed / 3000);
+        setBurningProgress(progress);
+        if (progress < 1.0) {
+          animId = requestAnimationFrame(tick);
+        }
+      };
+      animId = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(animId);
+    }
+  }, [item.metadata?.reactionStage, item.metadata?.reactionStartedAt]);
 
   const physicsRef = useRef({
     angle: 0,
@@ -4637,7 +4757,7 @@ function VesselContents({
     prevVolumeRef.current = totalVolume;
   }, [totalVolume, hasLiquid]);
 
-  if (contents.length === 0 && !heated) return null;
+  if (contents.length === 0 && !heated && !item.metadata?.isBroken && item.metadata?.reactionStage !== "burning") return null;
 
   // Per-vessel geometry matching actual SVG viewBox coordinates
   type VesselGeo = { x: number; y: number; w: number; h: number; rx?: number; shape?: "round" | "cone" | "beaker" };
@@ -4726,6 +4846,245 @@ function VesselContents({
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">
+      {/* Broken Crack Overlay */}
+      {item.metadata?.isBroken && (
+        <svg
+          viewBox={svgViewBox}
+          className="absolute inset-0 w-full h-full z-20 pointer-events-none"
+          preserveAspectRatio="none"
+        >
+          {/* procedural crack pattern */}
+          <g stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" filter="drop-shadow(0px 0px 2.5px rgba(0,0,0,0.6))">
+            {/* Center impact point */}
+            <circle cx={geo.x + geo.w / 2} cy={geo.y + geo.h / 2} r="2.5" fill="#ffffff" />
+            
+            {/* Main radiating crack lines with jagged details */}
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 - 25} ${geo.y + geo.h/2 - 20} 
+                     L ${geo.x + geo.w/2 - 60} ${geo.y + geo.h/2 - 30} 
+                     L ${geo.x + 10} ${geo.y + 10}`} />
+            
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 + 20} ${geo.y + geo.h/2 - 25} 
+                     L ${geo.x + geo.w/2 + 55} ${geo.y + geo.h/2 - 40} 
+                     L ${geo.x + geo.w - 10} ${geo.y + 15}`} />
+            
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 - 20} ${geo.y + geo.h/2 + 30} 
+                     L ${geo.x + geo.w/2 - 50} ${geo.y + geo.h/2 + 55} 
+                     L ${geo.x + 15} ${geo.y + geo.h - 15}`} />
+            
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 + 30} ${geo.y + geo.h/2 + 25} 
+                     L ${geo.x + geo.w/2 + 60} ${geo.y + geo.h/2 + 50} 
+                     L ${geo.x + geo.w - 15} ${geo.y + geo.h - 10}`} />
+                     
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + 10} ${geo.y + geo.h/2 + 5}`} />
+                     
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w - 10} ${geo.y + geo.h/2 - 8}`} />
+
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 - 8} ${geo.y + geo.h - 10}`} />
+
+            <path d={`M ${geo.x + geo.w/2} ${geo.y + geo.h/2} 
+                     L ${geo.x + geo.w/2 + 12} ${geo.y + 10}`} />
+
+            {/* Spiderweb inner fracture rings */}
+            <path d={`M ${geo.x + geo.w/2 - 12} ${geo.y + geo.h/2 - 8} 
+                     Q ${geo.x + geo.w/2} ${geo.y + geo.h/2 - 20} ${geo.x + geo.w/2 + 15} ${geo.y + geo.h/2 - 10}
+                     Q ${geo.x + geo.w/2 + 20} ${geo.y + geo.h/2 + 10} ${geo.x + geo.w/2} ${geo.y + geo.h/2 + 18}
+                     Q ${geo.x + geo.w/2 - 15} ${geo.y + geo.h/2 + 10} ${geo.x + geo.w/2 - 12} ${geo.y + geo.h/2 - 8}`} fill="none" />
+
+            <path d={`M ${geo.x + geo.w/2 - 28} ${geo.y + geo.h/2 - 18} 
+                     Q ${geo.x + geo.w/2} ${geo.y + geo.h/2 - 40} ${geo.x + geo.w/2 + 35} ${geo.y + geo.h/2 - 22}
+                     Q ${geo.x + geo.w/2 + 45} ${geo.y + geo.h/2 + 25} ${geo.x + geo.w/2} ${geo.y + geo.h/2 + 38}
+                     Q ${geo.x + geo.w/2 - 35} ${geo.y + geo.h/2 + 25} ${geo.x + geo.w/2 - 28} ${geo.y + geo.h/2 - 18}`} fill="none" />
+
+            <path d={`M ${geo.x + geo.w/2 - 48} ${geo.y + geo.h/2 - 28} 
+                     Q ${geo.x + geo.w/2} ${geo.y + geo.h/2 - 65} ${geo.x + geo.w/2 + 55} ${geo.y + geo.h/2 - 35}
+                     Q ${geo.x + geo.w/2 + 70} ${geo.y + geo.h/2 + 45} ${geo.x + geo.w/2} ${geo.y + geo.h/2 + 60}
+                     Q ${geo.x + geo.w/2 - 55} ${geo.y + geo.h/2 + 40} ${geo.x + geo.w/2 - 48} ${geo.y + geo.h/2 - 28}`} fill="none" />
+          </g>
+          
+          {/* Glass shards scattered at bottom */}
+          <g fill="#ffffff" fillOpacity="0.45" stroke="#ffffff" strokeWidth="0.5" strokeOpacity="0.8">
+            <polygon points={`${geo.x + geo.w/2 - 35},${geo.y + geo.h - 5} ${geo.x + geo.w/2 - 25},${geo.y + geo.h - 18} ${geo.x + geo.w/2 - 45},${geo.y + geo.h - 12}`} />
+            <polygon points={`${geo.x + geo.w/2 + 20},${geo.y + geo.h - 3} ${geo.x + geo.w/2 + 35},${geo.y + geo.h - 15} ${geo.x + geo.w/2 + 40},${geo.y + geo.h - 8}`} />
+            <polygon points={`${geo.x + geo.w/2 - 10},${geo.y + geo.h - 1} ${geo.x + geo.w/2 + 5},${geo.y + geo.h - 14} ${geo.x + geo.w/2 - 5},${geo.y + geo.h - 10}`} />
+          </g>
+        </svg>
+      )}
+
+      {/* Fire/Flames Animation when Burning (extinguished immediately when broken) */}
+      {!item.metadata?.isBroken && item.metadata?.reactionStage === "burning" && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <svg
+            viewBox={svgViewBox}
+            className="absolute inset-0 w-full h-full"
+            preserveAspectRatio="none"
+            style={{ 
+              mixBlendMode: "screen", 
+              overflow: "visible",
+              opacity: Math.min(1.0, burningProgress * 1.5)
+            }}
+          >
+            <defs>
+              <linearGradient id="fireGrad1" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
+                <stop offset="50%" stopColor="#f97316" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="fireGrad2" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#f97316" stopOpacity="0.85" />
+                <stop offset="60%" stopColor="#eab308" stopOpacity="0.75" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </linearGradient>
+              <filter id="fireGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3.0" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="smokeBlur" x="-150%" y="-150%" width="400%" height="400%">
+                <feGaussianBlur stdDeviation="8" />
+              </filter>
+            </defs>
+
+            {solids
+              .filter(s => s.id === "sodium" || s.id === "sodium-metal" || s.symbol === "Na")
+              .map((solid, sIdx) => {
+                const sodiumSolids = solids.filter((s) => s.id === "sodium" || s.id === "sodium-metal" || s.id === "Na" || s.symbol === "Na");
+                const sodiumIndex = sodiumSolids.indexOf(solid);
+                const sodiumMass = solid.mass ?? 5;
+                const scale = Math.max(0.4, Math.min(1.5, sodiumMass / 5)) * 1.5;
+
+                const sodiumOffsets = [
+                  { dx: 0, dy: 0 },
+                  { dx: -18, dy: 1 },
+                  { dx: 18, dy: 2 },
+                  { dx: -8, dy: -6 },
+                  { dx: 8, dy: -5 },
+                  { dx: 0, dy: -12 },
+                ];
+                const offset = sodiumOffsets[sodiumIndex % sodiumOffsets.length] || { dx: 0, dy: 0 };
+                const cx = geo.x + geo.w / 2 + offset.dx;
+                
+                const startY = geo.y + geo.h - 5 + offset.dy;
+                const targetY = hasLiquid 
+                  ? Math.max(geo.y + 15, liquidY - 5 + offset.dy) 
+                  : geo.y + geo.h * 0.3 + offset.dy;
+                const cy = startY - (startY - targetY) * burningProgress;
+
+                return (
+                  <g
+                    key={`fire-container-sodium-${sIdx}`}
+                    transform={`translate(${cx}, ${cy})`}
+                  >
+                    {/* Thick Billowing Smoke rising out of the beaker (unclipped!) */}
+                    {Array.from({ length: 6 }).map((_, i) => {
+                      const delay = i * 0.35;
+                      const dur = 1.8;
+                      return (
+                        <circle
+                          key={`rising-smoke-${sIdx}-${i}`}
+                          cx="0"
+                          cy="-6"
+                          r="4"
+                          fill="#f1f5f9"
+                          fillOpacity="0"
+                          filter="url(#smokeBlur)"
+                        >
+                          <animate
+                            attributeName="cy"
+                            values="-6; -90; -200; -320"
+                            dur={`${dur}s`}
+                            repeatCount="indefinite"
+                            begin={`${delay}s`}
+                          />
+                          <animate
+                            attributeName="cx"
+                            values="0; -20; 25; -35; 15"
+                            dur={`${dur}s`}
+                            repeatCount="indefinite"
+                            begin={`${delay}s`}
+                          />
+                          <animate
+                            attributeName="r"
+                            values="4; 16; 34; 52"
+                            dur={`${dur}s`}
+                            repeatCount="indefinite"
+                            begin={`${delay}s`}
+                          />
+                          <animate
+                            attributeName="fillOpacity"
+                            values="0; 0.4; 0.2; 0"
+                            dur={`${dur}s`}
+                            repeatCount="indefinite"
+                            begin={`${delay}s`}
+                          />
+                        </circle>
+                      );
+                    })}
+
+                    {/* Dynamic orange and white sparks shooting out */}
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const angle = (i * 72 + Math.random() * 30) * Math.PI / 180;
+                      const dx = Math.cos(angle) * (45 + Math.random() * 25);
+                      const dy = Math.sin(angle) * (45 + Math.random() * 25) - 20;
+                      const delay = i * 0.1;
+                      return (
+                        <circle key={`spark-unclipped-${sIdx}-${i}`} cx="0" cy="-6" r="1.5" fill="#ffffff" opacity="0">
+                          <animate attributeName="cx" values={`0;${dx}`} dur="0.45s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="cy" values={`-6;${dy}`} dur="0.45s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="opacity" values="0;1;0.8;0" dur="0.45s" repeatCount="indefinite" begin={`${delay}s`} />
+                          <animate attributeName="fill" values="#ffffff;#fef08a;#f97316;#ef4444" dur="0.45s" repeatCount="indefinite" begin={`${delay}s`} />
+                        </circle>
+                      );
+                    })}
+
+                    {/* Roaring Flame Group (flickering via CSS animation) */}
+                    <g
+                      className="chemistry-fire-flame"
+                      transform={`translate(0, -6) scale(${scale * (0.4 + burningProgress * 0.55)})`}
+                      style={{ transformOrigin: "bottom center" }}
+                      filter="url(#fireGlow)"
+                    >
+                      {/* Outer organic fire tongues */}
+                      <path
+                        d="M -16,0 C -32,-15 -27,-58 -14,-70 C -7,-50 -2,-58 2,-75 C 6,-58 13,-50 16,-65 C 27,-58 32,-15 16,0 Z"
+                        fill="url(#fireGrad1)"
+                        opacity="0.85"
+                        style={{ animationDelay: `${sIdx * 0.1}s` }}
+                      />
+                      {/* Inner organic hot yellow core */}
+                      <path
+                        d="M -10,0 C -19,-10 -16,-40 -8,-48 C -3,-35 -1,-40 1,-52 C 3,-40 8,-35 10,-45 C 19,-40 19,-10 10,0 Z"
+                        fill="url(#fireGrad2)"
+                        opacity="0.9"
+                        style={{ animationDelay: `${sIdx * 0.05}s` }}
+                      />
+                      {/* Inner roaring center (blue/white hottest flame) */}
+                      <path
+                        d="M -6,0 C -11,-5 -9,-22 -5,-27 C -2,-20 0,-22 1,-30 C 2,-20 5,-20 6,-25 C 11,-22 11,-5 6,0 Z"
+                        fill="#60a5fa"
+                        opacity="0.75"
+                      />
+                      <path
+                        d="M -3,0 C -6,-3 -5,-13 -2,-16 C -1,-11 0,-13 1,-20 C 2,-13 3,-11 4,-15 C 6,-13 6,-3 4,0 Z"
+                        fill="#ffffff"
+                        opacity="0.9"
+                      />
+                    </g>
+                  </g>
+                );
+              })}
+          </svg>
+        </div>
+      )}
+
       {(hasLiquid || solids.length > 0 || showBubbles) && (
         <svg
           viewBox={svgViewBox}
@@ -5027,6 +5386,75 @@ function VesselContents({
                     const sodiumSolids = solids.filter((s) => s.id === "sodium" || s.id === "sodium-metal" || s.id === "Na" || s.symbol === "Na");
                     const sodiumIndex = sodiumSolids.indexOf(solid);
                     const offset = sodiumOffsets[sodiumIndex % sodiumOffsets.length] || { dx: 0, dy: 0 };
+                    
+                    const isBurning = item.metadata?.reactionStage === "burning";
+
+                    if (isBurning) {
+                      const startY = geo.y + geo.h - 5 + offset.dy;
+                      const targetY = hasLiquid 
+                        ? Math.max(geo.y + 15, liquidY - 5 + offset.dy) 
+                        : geo.y + geo.h * 0.3 + offset.dy;
+                      const currentY = startY - (startY - targetY) * burningProgress;
+                      // High fidelity molten, sizzling, vibrating metallic sodium ball that gets red hot
+                      return (
+                        <g
+                          key={`solid-layer-${solid.id}-${sodiumIndex}`}
+                          transform={`rotate(${-(item.rotation || 0)}, ${originX}, ${originY}) translate(${geo.x + geo.w / 2 + offset.dx}, ${currentY}) scale(${scale})`}
+                          style={{ transition: "none" }}
+                        >
+                          <defs>
+                            <radialGradient id={`moltenSodium-${item.instanceId}-${sodiumIndex}`} cx="35%" cy="30%" r="65%">
+                              <stop offset="0%" stopColor="#ffffff" />
+                              <stop offset="25%" stopColor="#f1f5f9" />
+                              <stop offset="65%" stopColor="#cbd5e1" />
+                              <stop offset="100%" stopColor="#64748b" />
+                            </radialGradient>
+                            <radialGradient id={`sodiumHeatGlow-${item.instanceId}-${sodiumIndex}`} cx="35%" cy="30%" r="65%">
+                              <stop offset="0%" stopColor="#fffbeb" />
+                              <stop offset="20%" stopColor="#fef08a" />
+                              <stop offset="55%" stopColor="#f97316" />
+                              <stop offset="85%" stopColor="#ef4444" />
+                              <stop offset="100%" stopColor="#991b1b" />
+                            </radialGradient>
+                          </defs>
+
+                          {/* Sizzling vibrating group with dynamic heat glow filter */}
+                          <g 
+                            className="chemistry-sodium-sizzle"
+                            style={{ filter: `drop-shadow(0 0 ${burningProgress * 8}px #f97316) drop-shadow(0 0 ${burningProgress * 3}px #ef4444)` }}
+                          >
+                            {/* Molten liquid metal sphere */}
+                            <circle
+                              cx="0"
+                              cy="-6"
+                              r="10"
+                              fill={`url(#moltenSodium-${item.instanceId}-${sodiumIndex})`}
+                              stroke="#475569"
+                              strokeWidth="0.8"
+                            />
+                            {/* Heat glow overlay (gradually becomes red hot) */}
+                            <circle
+                              cx="0"
+                              cy="-6"
+                              r="10"
+                              fill={`url(#sodiumHeatGlow-${item.instanceId}-${sodiumIndex})`}
+                              opacity={burningProgress}
+                            />
+                            {/* Bright specular gloss highlight */}
+                            <circle cx="-3" cy="-9" r="2.5" fill="#ffffff" fillOpacity="0.85" />                            
+                            {/* Surrounding fizzing bubbles */}
+                            <circle cx="-12" cy="-6" r="1.5" fill="#ffffff" opacity="0.7">
+                              <animate attributeName="cx" values="-12;-16;-12" dur="0.2s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0.7;0;0.7" dur="0.2s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="12" cy="-8" r="1.2" fill="#ffffff" opacity="0.6">
+                              <animate attributeName="cx" values="12;15;12" dur="0.15s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0.6;0;0.6" dur="0.15s" repeatCount="indefinite" />
+                            </circle>
+                          </g>
+                        </g>
+                      );
+                    }
 
                     return (
                       <g
@@ -6447,5 +6875,102 @@ function VesselPopup({ item, left, top, onUpdate, onRemove, onClose, hasGloves, 
         </button>
       </div>
     </div>
+  );
+}
+
+interface ScreenShatterProps {
+  cx: number;
+  cy: number;
+  brokenAt: number;
+}
+
+function ScreenShatter({ cx, cy, brokenAt }: ScreenShatterProps) {
+  const isRecent = Date.now() - brokenAt < 800;
+
+  const radiatingCracks = [
+    "M 0,0 L 40,-5 L 90,-2 L 160,-12 L 250,-5 L 370,-15 L 500,-10 L 700,-25 L 1000,-15 L 1500,-35",
+    "M 0,0 L 30,15 L 75,32 L 130,68 L 210,110 L 320,175 L 450,240 L 650,360 L 900,510 L 1400,800",
+    "M 0,0 L 18,32 L 45,78 L 82,145 L 125,230 L 185,340 L 260,490 L 380,720 L 520,1000 L 800,1600",
+    "M 0,0 L -2,45 L 5,100 L -8,180 L 3,290 L -12,430 L 8,620 L -5,900 L 12,1300 L -5,2000",
+    "M 0,0 L -22,38 L -55,95 L -105,170 L -165,280 L -245,420 L -350,600 L -500,850 L -750,1300 L -1100,1900",
+    "M 0,0 L -42,20 L -95,42 L -165,78 L -260,115 L -390,180 L -560,250 L -800,370 L -1200,550 L -1800,800",
+    "M 0,0 L -45,-3 L -98,5 L -170,-8 L -270,2 L -410,-12 L -600,-2 L -880,-15 L -1250,-5 L -1900,-25",
+    "M 0,0 L -38,-18 L -85,-42 L -150,-70 L -240,-115 L -360,-175 L -520,-250 L -750,-360 L -1100,-530 L -1700,-820",
+    "M 0,0 L -20,-35 L -48,-85 L -90,-155 L -140,-245 L -210,-370 L -300,-530 L -440,-780 L -620,-1100 L -950,-1700",
+    "M 0,0 L 3,-42 L -8,-95 L 5,-175 L -12,-270 L 8,-410 L -6,-600 L 12,-880 L -5,-1300 L 8,-2000",
+    "M 0,0 L 25,-42 L 58,-98 L 102,-175 L 158,-270 L 235,-410 L 340,-600 L 490,-880 L 710,-1300 L 1050,-1900",
+    "M 0,0 L 38,-20 L 85,-48 L 150,-82 L 230,-128 L 340,-190 L 490,-270 L 710,-390 L 1000,-550 L 1500,-820",
+  ];
+
+  const webRings = [
+    "M -15,-5 Q -5,-15 12,-12 Q 15,8 2,16 Q -12,10 -15,-5 Z",
+    "M -35,-12 Q -12,-38 25,-28 Q 40,15 5,35 Q -30,22 -35,-12 Z",
+    "M -75,-25 Q -25,-75 60,-60 Q 85,30 15,80 Q -65,50 -75,-25 Z",
+    "M -130,-45 Q -40,-130 110,-100 Q 150,50 30,140 Q -110,90 -130,-45 Z",
+    "M -220,-80 Q -70,-220 190,-170 Q 260,90 50,250 Q -190,160 -220,-80 Z",
+  ];
+
+  const microCracks = [
+    "M 40,-5 L 45,-25 L 30,-38",
+    "M -35,-12 L -48,-35 L -30,-50",
+    "M 75,32 L 95,15 L 115,22",
+    "M -85,-42 L -110,-30 L -120,-48",
+    "M -12,-270 L -45,-290",
+    "M 150,50 L 180,30 L 220,40",
+    "M -165,78 L -195,110 L -215,90",
+    "M 250,-5 L 280,-45 L 310,-35",
+  ];
+
+  return (
+    <>
+      {isRecent && <div className="screen-shatter-flash-effect" />}
+      <div className="screen-shatter-container">
+        {/* Background dark glass vignette reflecting colors */}
+        <div className="absolute inset-0 bg-radial-gradient from-transparent via-[#111827]/10 to-[#030712]/35 mix-blend-multiply" />
+
+        <svg className="absolute inset-0 w-full h-full" style={{ filter: "drop-shadow(0px 0px 4px rgba(0,0,0,0.7))" }}>
+          {/* Main cracks translated to the impact point */}
+          <g transform={`translate(${cx}, ${cy})`}>
+            {/* Empty shattered hole center */}
+            <circle cx="0" cy="0" r="14" fill="#0c0f16" stroke="#ffffff" strokeWidth="2" opacity="0.9" />
+            <polygon points="-12,-8 -2,-14 10,-10 14,4 4,12 -8,8" fill="#000000" fillOpacity="0.8" />
+            
+            {/* Draw shadows first */}
+            <g stroke="#000000" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.6" transform="translate(1.5, 1.5)">
+              {radiatingCracks.map((d, i) => (
+                <path key={`sh-rad-${i}`} d={d} className="screen-shatter-crack-path" style={{ animationDelay: `${i * 0.02}s` }} />
+              ))}
+              {webRings.map((d, i) => (
+                <path key={`sh-web-${i}`} d={d} />
+              ))}
+              {microCracks.map((d, i) => (
+                <path key={`sh-mic-${i}`} d={d} />
+              ))}
+            </g>
+
+            {/* Draw white glass highlights */}
+            <g stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.92">
+              {radiatingCracks.map((d, i) => (
+                <path key={`hi-rad-${i}`} d={d} className="screen-shatter-crack-path" style={{ animationDelay: `${i * 0.02}s` }} />
+              ))}
+              {webRings.map((d, i) => (
+                <path key={`hi-web-${i}`} d={d} strokeWidth="1.2" opacity="0.8" />
+              ))}
+              {microCracks.map((d, i) => (
+                <path key={`hi-mic-${i}`} d={d} strokeWidth="1.0" opacity="0.75" />
+              ))}
+            </g>
+
+            {/* Specular crack glow */}
+            <g fill="#ffffff" opacity="0.8">
+              <circle cx="-6" cy="-4" r="1.5" />
+              <circle cx="8" cy="-8" r="2.0" />
+              <circle cx="12" cy="4" r="1.2" />
+              <circle cx="-4" cy="8" r="1.8" />
+            </g>
+          </g>
+        </svg>
+      </div>
+    </>
   );
 }
